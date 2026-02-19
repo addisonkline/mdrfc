@@ -1,6 +1,7 @@
 import argparse
 
 from mdrfc.server import run_server
+from mdrfc.setup.run_setup import run_setup_sync
 
 
 def main() -> None:
@@ -55,6 +56,12 @@ def main() -> None:
         help="the minimum log level to write to the console (default: 'INFO')"
     )
     serve_parser.set_defaults(func=run_server)
+
+    setup_parser = subparsers.add_parser(
+        "setup",
+        help="initialize this environment for MDRFC"
+    )
+    setup_parser.set_defaults(func=run_setup_sync)
     
     args = parser.parse_args()
 

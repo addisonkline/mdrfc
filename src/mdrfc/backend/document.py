@@ -14,6 +14,6 @@ class RFCDocument(BaseModel):
 
 class RFCDocumentSummary(BaseModel):
     rfc_id: int
-    author_id: int
-    created_at: int
+    author_id: str
+    created_at: datetime.datetime
     summary: str

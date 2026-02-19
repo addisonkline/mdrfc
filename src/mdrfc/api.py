@@ -1,6 +1,9 @@
 import time
 
+from fastapi import HTTPException
+
 import mdrfc.responses as res_types
+from mdrfc.backend.cache import MdrfcCache
 from mdrfc.utils.version import get_mdrfc_version
 
 
@@ -20,8 +23,17 @@ def get_root(
     )
 
 
-async def get_rfcs() -> res_types.GetRfcsResponse:
+async def get_rfcs(
+    cache: MdrfcCache
+) -> res_types.GetRfcsResponse:
     """
     Handle a request to the endpoint `GET /rfcs`.
     """
-    raise NotImplementedError
+    rfcs = await cache.get_rfcs()
+
+    if rfcs is None:
+        raise HTTPException(status_code=404, detail="no RFCs found")
+    
+    return res_types.GetRfcsResponse(
+        rfcs=rfcs,
+    )

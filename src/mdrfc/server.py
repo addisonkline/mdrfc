@@ -67,7 +67,7 @@ async def get_rfcs() -> res_types.GetRfcsResponse:
     """
     `GET /rfcs`: Obtain a list of all current RFCs.
     """
-    return await api.get_rfcs()
+    return await api.get_rfcs(app.state.cache)
 
 
 def run_server(
