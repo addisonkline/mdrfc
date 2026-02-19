@@ -1,10 +1,13 @@
 from logging.config import fileConfig
 import os
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy import pool
 
 from alembic import context
+
+from mdrfc.backend.db import metadata_obj
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -17,14 +20,15 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = metadata_obj
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+# load DATABASE_URL from env
+load_dotenv()
 
 
 def run_migrations_offline() -> None:
@@ -60,9 +64,7 @@ def run_migrations_online() -> None:
     """
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        database_url = config.get_main_option("sqlalchemy.url")
-        if not database_url:
-            raise ValueError("env var DATABASE_URL not found")
+        raise ValueError("env var DATABASE_URL not found")
 
     connectable = create_engine(database_url)
 

@@ -50,21 +50,4 @@ async def _run_postgres_setup(
         print(f"failed to connect to the Posgres DB, exiting: {e}")
         exit(1)
     
-    if args.verbose:
-        print("attempting to create DB table 'users'...")
-    try:
-        await conn.execute('''
-            CREATE TABLE users(
-                id serial PRIMARY KEY,
-                user_type text NOT NULL,
-                username text UNIQUE NOT NULL,
-                email text UNIQUE NOT NULL,
-                salt text NOT NULL,
-                password_sha256 NOT NULL,
-                created_at datetime NOT NULL
-            )
-        ''')
-    except Exception as e:
-        print(f"failed to create DB table 'users', exiting: {e}")
-        await conn.close()
-        exit(1)
+    await conn.close()
