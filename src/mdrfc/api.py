@@ -18,3 +18,10 @@ def get_root(
         status="ok",
         uptime=(time_now - time_start)
     )
+
+
+async def get_rfcs() -> res_types.GetRfcsResponse:
+    """
+    Handle a request to the endpoint `GET /rfcs`.
+    """
+    raise NotImplementedError

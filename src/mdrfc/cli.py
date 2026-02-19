@@ -34,6 +34,26 @@ def main() -> None:
         action="store_true",
         help="reload the server upon detected code changes"
     )
+    serve_parser.add_argument(
+        "-lf",
+        "--log-file",
+        default="mdrfc.log",
+        help="the file path to write logs to (default: 'mdrfc.log')"
+    )
+    serve_parser.add_argument(
+        "-llf",
+        "--log-level-file",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="the minimum log level to write to the log file (default: 'INFO')"
+    )
+    serve_parser.add_argument(
+        "-llc",
+        "--log-level-console",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="the minimum log level to write to the console (default: 'INFO')"
+    )
     serve_parser.set_defaults(func=run_server)
     
     args = parser.parse_args()
