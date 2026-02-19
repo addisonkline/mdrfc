@@ -40,7 +40,7 @@ class MdrfcCache:
         rfcs: list[RFCDocumentSummary] = [
             RFCDocumentSummary(
                 rfc_id=-1,
-                author_id="kline",
+                author_username="kline",
                 created_at=datetime.now(),
                 summary="Hello, world!"
             )

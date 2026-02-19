@@ -14,7 +14,7 @@ def main() -> None:
 
     serve_parser = subparsers.add_parser(
         "serve",
-        help="run an mdcli server"
+        help="run an MDRFC server"
     )
     serve_parser.add_argument(
         "-H",
@@ -60,6 +60,12 @@ def main() -> None:
     setup_parser = subparsers.add_parser(
         "setup",
         help="initialize this environment for MDRFC"
+    )
+    setup_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="print more detailed process information to the console"
     )
     setup_parser.set_defaults(func=run_setup_sync)
     
