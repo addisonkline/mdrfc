@@ -17,8 +17,7 @@ users = Table(
     Column("id", Integer, primary_key=True),
     Column("username", String(16), nullable=False),
     Column("email", String(64), nullable=False),
-    Column("salt", String(64), nullable=False),
-    Column("password_sha256", String(64), nullable=False),
+    Column("password_argon2", String(64), nullable=False),
     Column("created_at", DateTime, nullable=False)
 )
 
