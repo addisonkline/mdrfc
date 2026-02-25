@@ -11,7 +11,8 @@ from pwdlib import PasswordHash
 from pydantic import BaseModel
 
 from mdrfc.backend.db import (
-    get_user_from_db
+    get_user_from_db,
+    register_user_in_db
 )
 from mdrfc.backend.users import (
     User,
@@ -40,7 +41,7 @@ class TokenData(BaseModel):
 
 password_hash = PasswordHash.recommended()
 DUMMY_HASH = password_hash.hash("dummypassword")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def verify_password(
@@ -119,3 +120,21 @@ async def get_current_active_user(
     return current_user
 
 
+async def create_new_user(
+    username: str,
+    email: str,
+    password: str
+) -> datetime:
+    timestamp = datetime.now()
+
+    user_in_db = UserInDB(
+        id=-1,
+        username=username,
+        email=email,
+        password_argon2=password_hash.hash(password),
+        created_at=timestamp
+    )
+
+    await register_user_in_db(user_in_db)
+
+    return timestamp

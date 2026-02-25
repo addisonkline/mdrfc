@@ -16,6 +16,7 @@ from mdrfc.backend.auth import (
     User,
     authenticate_user,
     create_access_token,
+    create_new_user,
     get_current_active_user
 )
 from mdrfc.backend.cache import MdrfcCache
@@ -25,15 +26,17 @@ from mdrfc.backend.db import (
 )
 from mdrfc.utils.logging import init_logger
 import mdrfc.api as api
+import mdrfc.requests as req_types
 import mdrfc.responses as res_types
 
 
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-ACCESS_TOKEN_EXPIRE_MINUTES = getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
-if ACCESS_TOKEN_EXPIRE_MINUTES is None:
+token_expiry_time = getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+if token_expiry_time is None:
     raise RuntimeError("environment variable ACCESS_TOKEN_EXPIRE_MINUTES is required but was not found")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(token_expiry_time)
 
 
 async def _server_startup(app: FastAPI):
@@ -90,14 +93,14 @@ async def get_root() -> res_types.GetRootResponse:
 #
 # AUTH endpoints
 #
-@app.post("/token", response_model=Token)
+@app.post("/login", response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
     """
-    `POST /token`: Log in using OAuth2 and obtain an access token.
+    `POST /login`: Log in using OAuth2 and obtain an access token.
     """
-    user = authenticate_user(form_data.username, form_data.password)
+    user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -114,6 +117,27 @@ async def login_for_access_token(
         access_token=access_token,
         token_type="bearer"
     )
+
+
+@app.post("/signup", response_model=res_types.PostSignupResponse)
+async def post_new_user(
+    request: req_types.PostSignupRequest,
+) -> res_types.PostSignupResponse:
+    """
+    `POST /signup`: Attempt to create a new user with the provided credentials.
+    """
+    timestamp = await create_new_user(
+        username=request.username,
+        email=request.email,
+        password=request.password
+    )
+
+    return res_types.PostSignupResponse(
+        username=request.username,
+        email=request.email,
+        created_at=timestamp
+    )
+
 
 
 @app.get("/users/me", response_model=User)

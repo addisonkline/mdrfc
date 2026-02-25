@@ -1,6 +1,6 @@
 from os import getenv
 
-from fastapi import FastAPI, Request
+from fastapi import HTTPException
 from sqlalchemy import (
     MetaData,
     Table,
@@ -34,7 +34,7 @@ users = Table(
     Column("id", Integer, primary_key=True),
     Column("username", String(16), nullable=False),
     Column("email", String(64), nullable=False),
-    Column("password_argon2", String(64), nullable=False),
+    Column("password_argon2", String(256), nullable=False),
     Column("created_at", DateTime, nullable=False)
 )
 
@@ -103,7 +103,31 @@ async def get_user_from_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            result = await connection.fetchval("SELECT * FROM users WHERE username = $1", username)
+            result = await connection.fetchrow("SELECT * FROM users WHERE username = $1", username)
             if result is None:
                 return None
             return UserInDB(**result)
+        
+
+async def register_user_in_db(
+    user: UserInDB
+) -> None:
+    """
+    Attempt to register the provided user to the database.
+    """
+    if await user_in_db(user.username):
+        raise HTTPException(
+            status_code=400,
+            detail="username already taken"
+        )
+
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            await connection.execute(
+                "INSERT INTO users(username, email, password_argon2, created_at) VALUES($1, $2, $3, $4)",
+                user.username,
+                user.email,
+                user.password_argon2,
+                user.created_at
+            )

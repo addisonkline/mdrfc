@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from mdrfc.backend.document import RFCDocumentSummary
@@ -11,6 +13,15 @@ class GetRootResponse(BaseModel):
     version: str
     status: str
     uptime: float
+
+
+class PostSignupResponse(BaseModel):
+    """
+    HTTP response object for `POST /signup`.
+    """
+    username: str
+    email: str
+    created_at: datetime
 
 
 class GetRfcsResponse(BaseModel):
