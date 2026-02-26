@@ -4,16 +4,15 @@ from pydantic import BaseModel
 
 
 class RFCDocument(BaseModel):
-    rfc_id: int
-    author_username: str
-    author_email: str
+    id: int
+    created_by: int # user ID
     created_at: datetime.datetime
-    summary: str
     content: str
+    summary: str
 
 
 class RFCDocumentSummary(BaseModel):
-    rfc_id: int
-    author_username: str
+    id: int
+    created_by: int # user ID
     created_at: datetime.datetime
     summary: str

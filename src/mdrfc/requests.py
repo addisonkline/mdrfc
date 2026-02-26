@@ -8,3 +8,11 @@ class PostSignupRequest(BaseModel):
     username: str
     email: str
     password: str
+
+
+class PostRfcRequest(BaseModel):
+    """
+    HTTP request object for `POST /rfc`.
+    """
+    summary: str
+    content: str

@@ -7,7 +7,7 @@ import logging
 import time
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 import uvicorn
 
@@ -24,6 +24,7 @@ from mdrfc.backend.db import (
     init_db,
     close_db
 )
+from mdrfc.backend.document import RFCDocument
 from mdrfc.utils.logging import init_logger
 import mdrfc.api as api
 import mdrfc.requests as req_types
@@ -44,10 +45,6 @@ async def _server_startup(app: FastAPI):
     Server startup handler.
     """
     logger.info("server starting up...")
-
-    cache = MdrfcCache()
-    await cache.setup()
-    app.state.cache = cache
 
     await init_db()
 
@@ -149,13 +146,50 @@ async def get_users_me(
     """
     return current_user
 
-
+#
+# RFC endpoints
+#
 @app.get("/rfcs", response_model=res_types.GetRfcsResponse)
 async def get_rfcs() -> res_types.GetRfcsResponse:
     """
     `GET /rfcs`: Obtain a list of all current RFCs.
     """
-    return await api.get_rfcs(app.state.cache)
+    return await api.get_rfcs()
+
+
+@app.post("/rfc", response_model=res_types.PostRfcResponse)
+async def post_rfc(
+    request: req_types.PostRfcRequest,
+    current_user: Annotated[User, Depends(get_current_active_user)]
+) -> res_types.PostRfcResponse:
+    """
+    `POST /rfc`: Upload a new RFC document.
+    """
+    return await api.post_rfc(
+        content=request.content,
+        summary=request.summary,
+        user=current_user
+    )
+
+
+@app.get("/rfc/{rfc_id}", response_model=RFCDocument)
+async def get_rfc_by_id(
+    request: Request
+) -> RFCDocument:
+    """
+    `GET /rfc/{rfc_id}`: Get the existing RFC document by ID.
+    """
+    if request.path_params.get("rfc_id") is None:
+        raise HTTPException(
+            status_code=400,
+            detail="rfc_id must be a valid integer"
+        )
+    
+    rfc_id = int(request.path_params.get("rfc_id")) # type: ignore
+
+    return await api.get_rfc(
+        rfc_id=rfc_id,
+    )
 
 
 def run_server(

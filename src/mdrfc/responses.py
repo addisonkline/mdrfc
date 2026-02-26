@@ -29,3 +29,11 @@ class GetRfcsResponse(BaseModel):
     HTTP response object for `GET /rfcs`.
     """
     rfcs: list[RFCDocumentSummary]
+
+
+class PostRfcResponse(BaseModel):
+    """
+    HTTP response object for `POST /rfc`.
+    """
+    rfc_id: int
+    created_at: datetime

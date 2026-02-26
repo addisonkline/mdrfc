@@ -17,6 +17,11 @@ from mdrfc.backend.users import (
     User,
     UserInDB
 )
+from mdrfc.backend.document import (
+    RFCDocument,
+    RFCDocumentSummary,
+)
+
 
 # load DSN from env
 dotenv.load_dotenv()
@@ -44,7 +49,8 @@ rfcs = Table(
     Column("id", Integer, primary_key=True),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
-    Column("content", String(4096), nullable=False)
+    Column("content", String(4096), nullable=False),
+    Column("summary", String(256), nullable=False)
 )
 
 rfc_comments = Table(
@@ -131,3 +137,71 @@ async def register_user_in_db(
                 user.password_argon2,
                 user.created_at
             )
+
+
+async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
+    """
+    Get all RFCs from the database, or `None` if there are none.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetch(
+                "SELECT id, created_by, created_at, summary FROM rfcs"
+            )
+            if result is None:
+                return None
+            else:
+                summaries: list[RFCDocumentSummary] = []
+                for summary in result:
+                    summaries.append(RFCDocumentSummary(**summary))
+                return summaries
+
+
+
+async def register_rfc_in_db(
+    document: RFCDocument
+) -> int:
+    """
+    Attempt to register a new RFC document in the database.
+    Returns the ID of the new RFC.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            await connection.execute(
+                "INSERT INTO rfcs(created_by, created_at, content, summary) VALUES($1, $2, $3, $4)",
+                document.created_by,
+                document.created_at,
+                document.content,
+                document.summary
+            )
+            result = await connection.fetchval(
+                "SELECT id FROM rfcs WHERE created_by = $1 AND created_at = $2",
+                document.created_by,
+                document.created_at
+            )
+            if result is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="unable to fetch RFC from database"
+                )
+            return result
+        
+
+async def get_rfc_from_db(
+    rfc_id: int
+) -> RFCDocument | None:
+    """
+    Attempt to fetch the RFC document with the given ID from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetchrow(
+                "SELECT * FROM rfcs WHERE id = $1",
+                rfc_id
+            )
+            if result is None:
+                return None
+            return RFCDocument(**result)
