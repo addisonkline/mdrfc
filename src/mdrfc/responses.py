@@ -37,3 +37,11 @@ class PostRfcResponse(BaseModel):
     """
     rfc_id: int
     created_at: datetime
+
+
+class PostRfcCommentResponse(BaseModel):
+    """
+    HTTP response object for `POST /rfc/comment`.
+    """
+    comment_id: int
+    created_at: datetime

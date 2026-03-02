@@ -19,7 +19,7 @@ from mdrfc.backend.auth import (
     create_new_user,
     get_current_active_user
 )
-from mdrfc.backend.cache import MdrfcCache
+from mdrfc.backend.comment import RFCComment
 from mdrfc.backend.db import (
     init_db,
     close_db
@@ -189,6 +189,69 @@ async def get_rfc_by_id(
 
     return await api.get_rfc(
         rfc_id=rfc_id,
+    )
+
+
+@app.post("/rfc/comment", response_model=res_types.PostRfcCommentResponse)
+async def post_rfc_comment(
+    request: req_types.PostRfcCommentRequest,
+    current_user: Annotated[User, Depends(get_current_active_user)]
+) -> res_types.PostRfcCommentResponse:
+    """
+    `POST /rfc/comment`: Post a new comment on an existing RFC.
+    """
+    return await api.post_rfc_comment(
+        rfc_id=request.rfc_id,
+        parent_comment_id=request.parent_comment_id,
+        content=request.content,
+        user=current_user
+    )
+
+
+@app.get("/rfc/{rfc_id}/comments")
+async def get_rfc_comments(
+    request: Request,
+) -> list[RFCComment]:
+    """
+    `GET /rfc/{rfc_id}/comments`: Get all comments on an existing RFC.
+    """
+    if request.path_params.get("rfc_id") is None:
+        raise HTTPException(
+            status_code=400,
+            detail="rfc_id must be a valid integer"
+        )
+    
+    rfc_id = int(request.path_params.get("rfc_id")) # type: ignore
+
+    return await api.get_rfc_comments(
+        rfc_id=rfc_id
+    )
+
+
+@app.get("/rfc/{rfc_id}/comment/{comment_id}", response_model=RFCComment)
+async def get_rfc_comment(
+    request: Request,
+) -> RFCComment:
+    """
+    `GET /rfc/{rfc_id}/comment/{comment_id}`: Get a specific comment on a specific RFC.
+    """
+    if request.path_params.get("rfc_id") is None:
+        raise HTTPException(
+            status_code=400,
+            detail="rfc_id must be a valid integer"
+        )
+    if request.path_params.get("comment_id") is None:
+        raise HTTPException(
+            status_code=400,
+            detail="comment_id must be a valid integer"
+        )
+    
+    rfc_id = int(request.path_params.get("rfc_id")) # type: ignore
+    comment_id = int(request.path_params.get("comment_id")) # type: ignore
+
+    return await api.get_rfc_comment(
+        rfc_id=rfc_id,
+        comment_id=comment_id
     )
 
 

@@ -21,6 +21,7 @@ from mdrfc.backend.document import (
     RFCDocument,
     RFCDocumentSummary,
 )
+from mdrfc.backend.comment import RFCComment
 
 
 # load DSN from env
@@ -57,6 +58,7 @@ rfc_comments = Table(
     "rfc_comments",
     metadata_obj,
     Column("id", Integer, primary_key=True),
+    Column("parent_id", Integer, nullable=True),
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
@@ -205,3 +207,125 @@ async def get_rfc_from_db(
             if result is None:
                 return None
             return RFCDocument(**result)
+        
+
+async def register_comment_in_db(
+    comment: RFCComment,
+) -> int:
+    """
+    Attempt to register a new comment on an existing RFC document in the database.
+    Returns the ID of the new comment.
+    """
+    if await get_rfc_from_db(comment.rfc_id) is None:
+        raise HTTPException(
+            status_code=400,
+            detail="can't comment on a nonexistent RFC"
+        )
+    
+    if comment.parent_id is not None:
+        if not await check_comment_is_on_rfc(comment.parent_id, comment.rfc_id):
+            raise HTTPException(
+                status_code=400,
+                detail="can't reply to a comment on another RFC"
+            )
+    
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            if comment.parent_id is not None:
+                await connection.execute(
+                    "INSERT INTO rfc_comments(rfc_id, created_by, created_at, content, parent_id) VALUES($1, $2, $3, $4, $5)",
+                    comment.rfc_id,
+                    comment.created_by,
+                    comment.created_at,
+                    comment.content,
+                    comment.parent_id
+                )
+                result = await connection.fetchval(
+                    "SELECT id FROM rfc_comments WHERE parent_id = $1 AND rfc_id = $2 AND created_by = $3 AND created_at = $4 AND content = $5",
+                    comment.parent_id,
+                    comment.rfc_id,
+                    comment.created_by,
+                    comment.created_at,
+                    comment.content
+                )
+            else:
+                await connection.execute(
+                    "INSERT INTO rfc_comments(rfc_id, created_by, created_at, content) VALUES($1, $2, $3, $4)",
+                    comment.rfc_id,
+                    comment.created_by,
+                    comment.created_at,
+                    comment.content
+                )
+                result = await connection.fetchval(
+                    "SELECT id FROM rfc_comments WHERE rfc_id = $1 AND created_by = $2 AND created_at = $3 AND content = $4",
+                    comment.rfc_id,
+                    comment.created_by,
+                    comment.created_at,
+                    comment.content
+                )
+            if result is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="unable to fetch comment from database"
+                )
+            return result
+        
+
+async def get_comment_from_db(
+    comment_id: int,
+) -> RFCComment | None:
+    """
+    Attempt to fetch the comment with the given ID from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetchrow(
+                "SELECT * FROM rfc_comments WHERE id = $1",
+                comment_id
+            )
+            if result is None:
+                return None
+            return RFCComment(**result)
+        
+
+async def get_rfc_comments_from_db(
+    rfc_id: int,
+) -> list[RFCComment]:
+    """
+    Attempt to fetch all comments on the RFC with the given ID from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetch(
+                "SELECT * FROM rfc_comments WHERE rfc_id = $1",
+                rfc_id
+            )
+            if result is None:
+                return []
+            else:
+                comments: list[RFCComment] = []
+                for comment in result:
+                    comments.append(RFCComment(**comment))
+                return comments
+            
+
+async def check_comment_is_on_rfc(
+    comment_id: int,
+    rfc_id: int,
+) -> bool:
+    """
+    Check that the comment with the given ID is on the given RFC.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetchval(
+                "SELECT rfc_id FROM rfc_comments WHERE id = $1",
+                comment_id
+            )
+            if result is None:
+                return False
+            return (result == rfc_id)
