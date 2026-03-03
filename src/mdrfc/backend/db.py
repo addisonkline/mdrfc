@@ -13,6 +13,7 @@ from sqlalchemy import (
 import asyncpg # type: ignore
 import dotenv
 
+from mdrfc.backend import constants as consts
 from mdrfc.backend.users import (
     User,
     UserInDB
@@ -38,9 +39,9 @@ users = Table(
     "users",
     metadata_obj,
     Column("id", Integer, primary_key=True),
-    Column("username", String(16), nullable=False, unique=True),
-    Column("email", String(64), nullable=False, unique=True),
-    Column("password_argon2", String(256), nullable=False),
+    Column("username", String(consts.LEN_USERNAME), nullable=False, unique=True),
+    Column("email", String(consts.LEN_EMAIL), nullable=False, unique=True),
+    Column("password_argon2", String(consts.LEN_PASSWORD_ARGON2), nullable=False),
     Column("created_at", DateTime, nullable=False)
 )
 
@@ -50,8 +51,8 @@ rfcs = Table(
     Column("id", Integer, primary_key=True),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
-    Column("content", String(4096), nullable=False),
-    Column("summary", String(256), nullable=False)
+    Column("content", String(consts.LEN_RFC_CONTENT), nullable=False),
+    Column("summary", String(consts.LEN_RFC_SUMMARY), nullable=False)
 )
 
 rfc_comments = Table(
@@ -62,7 +63,7 @@ rfc_comments = Table(
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
-    Column("content", String(2048), nullable=False)
+    Column("content", String(consts.LEN_COMMENT_CONTENT), nullable=False)
 )
 
 
