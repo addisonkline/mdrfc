@@ -38,8 +38,8 @@ users = Table(
     "users",
     metadata_obj,
     Column("id", Integer, primary_key=True),
-    Column("username", String(16), nullable=False),
-    Column("email", String(64), nullable=False),
+    Column("username", String(16), nullable=False, unique=True),
+    Column("email", String(64), nullable=False, unique=True),
     Column("password_argon2", String(256), nullable=False),
     Column("created_at", DateTime, nullable=False)
 )
@@ -58,7 +58,7 @@ rfc_comments = Table(
     "rfc_comments",
     metadata_obj,
     Column("id", Integer, primary_key=True),
-    Column("parent_id", Integer, nullable=True),
+    Column("parent_id", Integer, ForeignKey("rfc_comments.id", ondelete="CASCADE"), nullable=True),
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
@@ -119,26 +119,29 @@ async def get_user_from_db(
 
 async def register_user_in_db(
     user: UserInDB
-) -> None:
+) -> int:
     """
     Attempt to register the provided user to the database.
+    Returns the ID of the new user.
     """
-    if await user_in_db(user.username):
-        raise HTTPException(
-            status_code=400,
-            detail="username already taken"
-        )
-
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            await connection.execute(
-                "INSERT INTO users(username, email, password_argon2, created_at) VALUES($1, $2, $3, $4)",
-                user.username,
-                user.email,
-                user.password_argon2,
-                user.created_at
-            )
+            try:
+                result = await connection.fetchval(
+                    "INSERT INTO users(username, email, password_argon2, created_at) VALUES($1, $2, $3, $4) RETURNING id",
+                    user.username,
+                    user.email,
+                    user.password_argon2,
+                    user.created_at
+                )
+                return result
+            except asyncpg.UniqueViolationError as e:
+                if e.constraint_name == "uq_users_username":
+                    raise HTTPException(status_code=409, detail="username already taken")
+                elif e.constraint_name == "uq_users_email":
+                    raise HTTPException(status_code=409, detail="email already taken")
+                raise
 
 
 async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
@@ -171,24 +174,13 @@ async def register_rfc_in_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            await connection.execute(
-                "INSERT INTO rfcs(created_by, created_at, content, summary) VALUES($1, $2, $3, $4)",
+            return await connection.fetchval(
+                "INSERT INTO rfcs(created_by, created_at, content, summary) VALUES($1, $2, $3, $4) RETURNING id",
                 document.created_by,
                 document.created_at,
                 document.content,
                 document.summary
             )
-            result = await connection.fetchval(
-                "SELECT id FROM rfcs WHERE created_by = $1 AND created_at = $2",
-                document.created_by,
-                document.created_at
-            )
-            if result is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail="unable to fetch RFC from database"
-                )
-            return result
         
 
 async def get_rfc_from_db(
@@ -232,44 +224,19 @@ async def register_comment_in_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            if comment.parent_id is not None:
-                await connection.execute(
-                    "INSERT INTO rfc_comments(rfc_id, created_by, created_at, content, parent_id) VALUES($1, $2, $3, $4, $5)",
+            try:
+                return await connection.fetchval(
+                    "INSERT INTO rfc_comments(rfc_id, created_by, created_at, content, parent_id) VALUES($1, $2, $3, $4, $5) RETURNING id",
                     comment.rfc_id,
                     comment.created_by,
                     comment.created_at,
                     comment.content,
                     comment.parent_id
                 )
-                result = await connection.fetchval(
-                    "SELECT id FROM rfc_comments WHERE parent_id = $1 AND rfc_id = $2 AND created_by = $3 AND created_at = $4 AND content = $5",
-                    comment.parent_id,
-                    comment.rfc_id,
-                    comment.created_by,
-                    comment.created_at,
-                    comment.content
-                )
-            else:
-                await connection.execute(
-                    "INSERT INTO rfc_comments(rfc_id, created_by, created_at, content) VALUES($1, $2, $3, $4)",
-                    comment.rfc_id,
-                    comment.created_by,
-                    comment.created_at,
-                    comment.content
-                )
-                result = await connection.fetchval(
-                    "SELECT id FROM rfc_comments WHERE rfc_id = $1 AND created_by = $2 AND created_at = $3 AND content = $4",
-                    comment.rfc_id,
-                    comment.created_by,
-                    comment.created_at,
-                    comment.content
-                )
-            if result is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail="unable to fetch comment from database"
-                )
-            return result
+            except asyncpg.ForeignKeyViolationError as e:
+                if e.constraint_name == "fk_rfc_comments_parent_id":
+                    raise HTTPException(status_code=400, detail="parent comment does not exist")
+                raise
         
 
 async def get_comment_from_db(
