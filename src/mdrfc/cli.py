@@ -1,5 +1,6 @@
 import argparse
 
+from mdrfc.client import run_client
 from mdrfc.server import run_server
 from mdrfc.setup.run_setup import run_setup_sync
 
@@ -7,14 +8,35 @@ from mdrfc.setup.run_setup import run_setup_sync
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="mdrfc",
+        usage="mdrfc [-h] <command>",
         description="A server implementation for hosting Markdown-formatted RFCs",
         epilog="Copyright (c) 2026 Addison Kline (GitHub: @addisonkline)"
     )
-    subparsers = parser.add_subparsers(description="subcommands")
+    subparsers = parser.add_subparsers(title="commands")
 
+    # set up this environment
+    setup_desc = "initialize this environment for MDRFC"
+    setup_parser = subparsers.add_parser(
+        "setup",
+        usage="mdrfc setup [option]...",
+        description=setup_desc,
+        help=setup_desc
+    )
+    setup_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="print more detailed process information to the console"
+    )
+    setup_parser.set_defaults(func=run_setup_sync)
+
+    # spin up server
+    serve_desc = "run an MDRFC server"
     serve_parser = subparsers.add_parser(
         "serve",
-        help="run an MDRFC server"
+        usage="mdrfc serve [option]...",
+        description=serve_desc,
+        help=serve_desc
     )
     serve_parser.add_argument(
         "-H",
@@ -57,19 +79,26 @@ def main() -> None:
     )
     serve_parser.set_defaults(func=run_server)
 
-    setup_parser = subparsers.add_parser(
-        "setup",
-        help="initialize this environment for MDRFC"
+    # launch CLI client
+    client_desc = "connect to a remote server with a CLI client"
+    client_parser = subparsers.add_parser(
+        "client",
+        usage="mdrfc client <url> [option]...",
+        description=client_desc,
+        help=client_desc,
     )
-    setup_parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="print more detailed process information to the console"
+    client_parser.add_argument(
+        "url",
+        help="the MDRFC server URL to connect to"
     )
-    setup_parser.set_defaults(func=run_setup_sync)
+    client_parser.set_defaults(func=run_client)
     
     args = parser.parse_args()
 
-    args.func(args)
-
+    try:
+        args.func(args)
+        exit(0)
+    except AttributeError:
+        parser.print_usage()
+        print("try `mdrfc --help` for help")
+        exit(1)
