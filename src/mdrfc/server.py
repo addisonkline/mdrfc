@@ -126,13 +126,16 @@ async def post_new_user(
     timestamp = await create_new_user(
         username=request.username,
         email=request.email,
+        name_last=request.name_last,
+        name_first=request.name_first,
         password=request.password
     )
 
     return res_types.PostSignupResponse(
         username=request.username,
         email=request.email,
-        created_at=timestamp
+        created_at=timestamp,
+        metadata={}
     )
 
 
@@ -166,16 +169,19 @@ async def post_rfc(
     `POST /rfc`: Upload a new RFC document.
     """
     return await api.post_rfc(
-        content=request.content,
+        user=current_user,
+        title=request.title,
+        slug=request.slug,
+        status=request.status,
         summary=request.summary,
-        user=current_user
+        content=request.content,
     )
 
 
-@app.get("/rfc/{rfc_id}", response_model=RFCDocument)
+@app.get("/rfc/{rfc_id}", response_model=res_types.GetRfcResponse)
 async def get_rfc_by_id(
     request: Request
-) -> RFCDocument:
+) -> res_types.GetRfcResponse:
     """
     `GET /rfc/{rfc_id}`: Get the existing RFC document by ID.
     """
@@ -208,10 +214,10 @@ async def post_rfc_comment(
     )
 
 
-@app.get("/rfc/{rfc_id}/comments")
+@app.get("/rfc/{rfc_id}/comments", response_model=res_types.GetRfcCommentsResponse)
 async def get_rfc_comments(
     request: Request,
-) -> list[RFCComment]:
+) -> res_types.GetRfcCommentsResponse:
     """
     `GET /rfc/{rfc_id}/comments`: Get all comments on an existing RFC.
     """
@@ -228,10 +234,10 @@ async def get_rfc_comments(
     )
 
 
-@app.get("/rfc/{rfc_id}/comment/{comment_id}", response_model=RFCComment)
+@app.get("/rfc/{rfc_id}/comment/{comment_id}", response_model=res_types.GetRfcCommentResponse)
 async def get_rfc_comment(
     request: Request,
-) -> RFCComment:
+) -> res_types.GetRfcCommentResponse:
     """
     `GET /rfc/{rfc_id}/comment/{comment_id}`: Get a specific comment on a specific RFC.
     """

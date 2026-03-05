@@ -123,6 +123,8 @@ async def get_current_active_user(
 async def create_new_user(
     username: str,
     email: str,
+    name_last: str,
+    name_first: str,
     password: str
 ) -> datetime:
     timestamp = datetime.now()
@@ -131,6 +133,8 @@ async def create_new_user(
         id=-1,
         username=username,
         email=email,
+        name_last=name_last,
+        name_first=name_first,
         password_argon2=password_hash.hash(password),
         created_at=timestamp
     )

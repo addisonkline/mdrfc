@@ -1,20 +1,20 @@
 import time
 from datetime import datetime
+from typing import Literal
 
 from fastapi import HTTPException
 
 import mdrfc.responses as res_types
-from mdrfc.backend.comment import RFCComment
+from mdrfc.backend.comment import RFCComment, build_comment_threads, find_comment_thread
 from mdrfc.backend.db import (
     get_rfc_from_db,
     get_rfcs_from_db,
     register_rfc_in_db,
     register_comment_in_db,
     get_rfc_comments_from_db,
-    get_comment_from_db,
     check_comment_is_on_rfc
 )
-from mdrfc.backend.document import RFCDocument
+from mdrfc.backend.document import RFCDocumentInDB
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
@@ -31,7 +31,8 @@ def get_root(
         name="mdrfc",
         version=get_mdrfc_version(),
         status="ok",
-        uptime=(time_now - time_start)
+        uptime=(time_now - time_start),
+        metadata={}
     )
 
 
@@ -48,24 +49,32 @@ async def get_rfcs() -> res_types.GetRfcsResponse:
         )
     
     return res_types.GetRfcsResponse(
-        rfcs=result
+        rfcs=result,
+        metadata={}
     )
 
 
 async def post_rfc(
-    content: str,
+    user: User,
+    title: str,
+    slug: str,
+    status: Literal["draft", "open"],
     summary: str,
-    user: User,    
+    content: str    
 ) -> res_types.PostRfcResponse:
     """
     Handle a request to the endpoint `POST /rfc`.
     """
     timestamp = datetime.now()
 
-    document = RFCDocument(
+    document = RFCDocumentInDB(
         id=-1, # this will not be used
         created_by=user.id,
         created_at=timestamp,
+        updated_at=timestamp,
+        title=title,
+        slug=slug,
+        status=status,
         content=content,
         summary=summary     
     )
@@ -75,12 +84,13 @@ async def post_rfc(
     return res_types.PostRfcResponse(
         rfc_id=rfc_id,
         created_at=timestamp,
+        metadata={}
     )
 
 
 async def get_rfc(
     rfc_id: int,
-) -> RFCDocument:
+) -> res_types.GetRfcResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}`.
     """
@@ -92,7 +102,10 @@ async def get_rfc(
             detail="no RFC document with the given ID found"
         )
     
-    return document
+    return res_types.GetRfcResponse(
+        rfc=document,
+        metadata={}
+    )
 
 
 async def post_rfc_comment(
@@ -119,13 +132,14 @@ async def post_rfc_comment(
 
     return res_types.PostRfcCommentResponse(
         comment_id=comment_id,
-        created_at=timestamp
+        created_at=timestamp,
+        metadata={}
     )
 
 
 async def get_rfc_comments(
     rfc_id: int,
-) -> list[RFCComment]:
+) -> res_types.GetRfcCommentsResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}/comments`.
     """
@@ -134,14 +148,20 @@ async def get_rfc_comments(
             status_code=404,
             detail="no RFC document with the given ID found"
         )
-    
-    return await get_rfc_comments_from_db(rfc_id)
+
+    comment_rows = await get_rfc_comments_from_db(rfc_id)
+    comment_threads = build_comment_threads(comment_rows)
+
+    return res_types.GetRfcCommentsResponse(
+        comment_threads=comment_threads,
+        metadata={}
+    )
 
 
 async def get_rfc_comment(
     rfc_id: int,
     comment_id: int,
-) -> RFCComment:
+) -> res_types.GetRfcCommentResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}/comment/{comment_id}`.
     """
@@ -150,13 +170,18 @@ async def get_rfc_comment(
             status_code=400,
             detail="comment_id does not match rfc_id"
         )
-    
-    result = await get_comment_from_db(comment_id)
 
-    if result is None:
+    comment_rows = await get_rfc_comments_from_db(rfc_id)
+    comment_threads = build_comment_threads(comment_rows)
+    comment_thread = find_comment_thread(comment_threads, comment_id)
+
+    if comment_thread is None:
         raise HTTPException(
             status_code=404,
             detail="comment with given ID not found"
         )
-    
-    return result
+
+    return res_types.GetRfcCommentResponse(
+        comment=comment_thread,
+        metadata={}
+    )

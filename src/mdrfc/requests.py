@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import HTTPException
 from pydantic import AfterValidator, BaseModel
@@ -24,13 +24,63 @@ def validate_email(email: str) -> str:
     return email
 
 
+def validate_name_last(name: str) -> str:
+    if len(name) > consts.LEN_NAME_LAST:
+        raise HTTPException(
+            status_code=422,
+            detail=f"last name must be {consts.LEN_NAME_LAST} characters or less"
+        )
+    return name
+
+
+def validate_name_first(name: str) -> str:
+    if len(name) > consts.LEN_NAME_FIRST:
+        raise HTTPException(
+            status_code=422,
+            detail=f"first name must be {consts.LEN_NAME_FIRST} characters or less"
+        )
+    return name
+
+
 class PostSignupRequest(BaseModel):
     """
     HTTP request object for `POST /signup`.
     """
     username: Annotated[str, AfterValidator(validate_username)]
     email: Annotated[str, AfterValidator(validate_email)]
+    name_last: Annotated[str, AfterValidator(validate_name_last)]
+    name_first: Annotated[str, AfterValidator(validate_name_first)]
     password: str
+
+
+def validate_rfc_title(title: str) -> str:
+    if len(title) > consts.LEN_RFC_TITLE:
+        raise HTTPException(
+            status_code=422,
+            detail=f"title must be {consts.LEN_RFC_TITLE} characters or less"
+        )
+    return title
+
+
+def validate_rfc_slug(slug: str) -> str:
+    if len(slug) > consts.LEN_RFC_SLUG:
+        raise HTTPException(
+            status_code=422,
+            detail=f"slug must be {consts.LEN_RFC_SLUG} characters or less"
+        )
+    return slug
+
+
+def validate_rfc_status(status: str) -> Literal["draft", "open"]:
+    if status == "draft":
+        return "draft"
+    elif status == "open":
+        return "open"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="status must be either 'draft' or 'open'"
+        )
 
 
 def validate_rfc_summary(summary: str) -> str:
@@ -55,6 +105,9 @@ class PostRfcRequest(BaseModel):
     """
     HTTP request object for `POST /rfc`.
     """
+    title: Annotated[str, AfterValidator(validate_rfc_title)]
+    slug: Annotated[str, AfterValidator(validate_rfc_slug)]
+    status: Annotated[Literal["draft", "open"], AfterValidator(validate_rfc_status)]
     summary: Annotated[str, AfterValidator(validate_rfc_summary)]
     content: Annotated[str, AfterValidator(validate_rfc_content)]
 

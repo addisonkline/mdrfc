@@ -8,7 +8,7 @@ from sqlalchemy import (
     Integer,
     String,
     DateTime,
-    ForeignKey
+    ForeignKey,
 )
 import asyncpg # type: ignore
 import dotenv
@@ -20,9 +20,10 @@ from mdrfc.backend.users import (
 )
 from mdrfc.backend.document import (
     RFCDocument,
+    RFCDocumentInDB,
     RFCDocumentSummary,
 )
-from mdrfc.backend.comment import RFCComment
+from mdrfc.backend.comment import RFCComment, RFCCommentWithAuthor
 
 
 # load DSN from env
@@ -41,6 +42,8 @@ users = Table(
     Column("id", Integer, primary_key=True),
     Column("username", String(consts.LEN_USERNAME), nullable=False, unique=True),
     Column("email", String(consts.LEN_EMAIL), nullable=False, unique=True),
+    Column("name_last", String(consts.LEN_NAME_LAST), nullable=False),
+    Column("name_first", String(consts.LEN_NAME_FIRST), nullable=False),
     Column("password_argon2", String(consts.LEN_PASSWORD_ARGON2), nullable=False),
     Column("created_at", DateTime, nullable=False)
 )
@@ -51,6 +54,10 @@ rfcs = Table(
     Column("id", Integer, primary_key=True),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
+    Column("updated_at", DateTime, nullable=False),
+    Column("title", String(consts.LEN_RFC_TITLE), nullable=False),
+    Column("slug", String(consts.LEN_RFC_SLUG), nullable=False),
+    Column("status", String(consts.LEN_RFC_STATUS), nullable=False),
     Column("content", String(consts.LEN_RFC_CONTENT), nullable=False),
     Column("summary", String(consts.LEN_RFC_SUMMARY), nullable=False)
 )
@@ -118,6 +125,24 @@ async def get_user_from_db(
             return UserInDB(**result)
         
 
+async def get_user_by_id(
+    id: int,
+) -> UserInDB | None:
+    """
+    Get the user with the given ID from the database, or `None` if none exists.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetchrow(
+                "SELECT * FROM users WHERE id = $1",
+                id,
+            )
+            if result is None:
+                return None
+            return UserInDB(**result)
+        
+
 async def register_user_in_db(
     user: UserInDB
 ) -> int:
@@ -130,9 +155,11 @@ async def register_user_in_db(
         async with connection.transaction():
             try:
                 result = await connection.fetchval(
-                    "INSERT INTO users(username, email, password_argon2, created_at) VALUES($1, $2, $3, $4) RETURNING id",
+                    "INSERT INTO users(username, email, name_last, name_first, password_argon2, created_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id",
                     user.username,
                     user.email,
+                    user.name_last,
+                    user.name_last,
                     user.password_argon2,
                     user.created_at
                 )
@@ -152,21 +179,35 @@ async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            result = await connection.fetch(
+            rfcs_in_db = await connection.fetch(
                 "SELECT id, created_by, created_at, summary FROM rfcs"
             )
-            if result is None:
+            if rfcs_in_db is None:
                 return None
             else:
                 summaries: list[RFCDocumentSummary] = []
-                for summary in result:
-                    summaries.append(RFCDocumentSummary(**summary))
+                for rfc in rfcs_in_db:
+                    user = await get_user_by_id(rfc.get("id"))
+                    if user is None:
+                        continue
+                    summary = RFCDocumentSummary(
+                        id=rfc.get("id"),
+                        author_name_last=user.name_last,
+                        author_name_first=user.name_first,
+                        created_at=rfc.get("created_at"),
+                        updated_at=rfc.get("updated_at"),
+                        title=rfc.get("title"),
+                        slug=rfc.get("slug"),
+                        status=rfc.get("status"),
+                        summary=rfc.get("summary")
+                    )
+                    summaries.append(summary)
                 return summaries
 
 
 
 async def register_rfc_in_db(
-    document: RFCDocument
+    document: RFCDocumentInDB
 ) -> int:
     """
     Attempt to register a new RFC document in the database.
@@ -176,9 +217,11 @@ async def register_rfc_in_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             return await connection.fetchval(
-                "INSERT INTO rfcs(created_by, created_at, content, summary) VALUES($1, $2, $3, $4) RETURNING id",
+                "INSERT INTO rfcs(created_by, created_at, title, slug, content, summary) VALUES($1, $2, $3, $4, $5, $6) RETURNING id",
                 document.created_by,
                 document.created_at,
+                document.title,
+                document.slug,
                 document.content,
                 document.summary
             )
@@ -193,13 +236,27 @@ async def get_rfc_from_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            result = await connection.fetchrow(
+            rfc = await connection.fetchrow(
                 "SELECT * FROM rfcs WHERE id = $1",
                 rfc_id
             )
-            if result is None:
+            if rfc is None:
                 return None
-            return RFCDocument(**result)
+            creator = await get_user_by_id(rfc.get("created_by"))
+            if creator is None:
+                return None
+            return RFCDocument(
+                id=rfc.get("id"),
+                author_name_last=creator.name_last,
+                author_name_first=creator.name_first,
+                created_at=rfc.get("created_at"),
+                updated_at=rfc.get("updated_at"),
+                title=rfc.get("title"),
+                slug=rfc.get("slug"),
+                status=rfc.get("status"),
+                summary=rfc.get("summary"),
+                content=rfc.get("content"),
+            )
         
 
 async def register_comment_in_db(
@@ -260,24 +317,34 @@ async def get_comment_from_db(
 
 async def get_rfc_comments_from_db(
     rfc_id: int,
-) -> list[RFCComment]:
+) -> list[RFCCommentWithAuthor]:
     """
-    Attempt to fetch all comments on the RFC with the given ID from the database.
+    Attempt to fetch all comments on the RFC with the given ID from the database,
+    including author names.
     """
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
             result = await connection.fetch(
-                "SELECT * FROM rfc_comments WHERE rfc_id = $1",
+                """
+                SELECT
+                    c.id,
+                    c.parent_id,
+                    c.created_at,
+                    c.content,
+                    u.name_first AS author_name_first,
+                    u.name_last AS author_name_last
+                FROM rfc_comments AS c
+                JOIN users AS u ON c.created_by = u.id
+                WHERE c.rfc_id = $1
+                ORDER BY c.created_at ASC, c.id ASC
+                """,
                 rfc_id
             )
-            if result is None:
-                return []
-            else:
-                comments: list[RFCComment] = []
-                for comment in result:
-                    comments.append(RFCComment(**comment))
-                return comments
+            comments: list[RFCCommentWithAuthor] = []
+            for comment in result:
+                comments.append(RFCCommentWithAuthor(**comment))
+            return comments
             
 
 async def check_comment_is_on_rfc(
