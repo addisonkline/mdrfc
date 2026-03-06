@@ -13,6 +13,7 @@ from rich.prompt import Prompt
 from rich.text import Text
 from rich.style import Style
 
+from mdrfc.backend.comment import CommentThread
 import mdrfc.responses as res_types
 from mdrfc.backend.auth import Token, User
 from mdrfc.utils.version import get_mdrfc_version
@@ -226,6 +227,105 @@ rfc_post_p.add_argument(
     "--verbose",
     action="store_true",
     help="include more detailed response metadata"
+)
+
+# list the comments on a given RFC
+comment_list_desc = "List all comment threads on a given RFC"
+comment_list_p = subparsers.add_parser(
+    "comment-list",
+    usage="comment-list <rfc_id> [option]...",
+    help=comment_list_desc,
+    description=comment_list_desc,
+    add_help=False,
+    exit_on_error=False
+)
+comment_list_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the RFC ID to fetch comments on"
+)
+comment_list_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this message and exit"
+)
+comment_list_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+# get a specific RFC comment
+comment_get_desc = "Get a specific comment on an RFC"
+comment_get_p = subparsers.add_parser(
+    "comment-get",
+    usage="comment-get <rfc_id> <comment_id> [option]...",
+    help=comment_get_desc,
+    description=comment_get_desc,
+    add_help=False,
+    exit_on_error=False
+)
+comment_get_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the RFC ID to fetch the comment on"
+)
+comment_get_p.add_argument(
+    "comment_id",
+    type=int,
+    help="the comment ID to fetch"
+)
+comment_get_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this message and exit"
+)
+comment_get_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+# post a comment on an RFC
+comment_post_desc = "(login required) Post a new comment on an RFC"
+comment_post_p = subparsers.add_parser(
+    "comment-post",
+    usage="comment-post <> [option]...",
+    help=comment_post_desc,
+    description=comment_post_desc,
+    add_help=False,
+    exit_on_error=False
+)
+comment_post_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the RFC ID to post the comment on",
+)
+comment_post_p.add_argument(
+    "content",
+    help="the comment content"
+)
+comment_post_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this messages and exit"
+)
+comment_post_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+comment_post_p.add_argument(
+    "-r",
+    "--reply-to",
+    type=int,
+    help="the comment ID to reply to"
 )
 
 # command handlers
@@ -533,6 +633,142 @@ def _cmd_rfc_post(args: Namespace) -> None:
         rprint(f"successfully posted new RFC with ID {response_obj.rfc_id}")
 
 
+def _cmd_comment_list(args: Namespace) -> None:
+    """
+    Attempt to list the comments on a given RFC.
+    """
+    if args.help:
+        comment_list_p.print_help()
+        return
+    
+    rfc_id = args.rfc_id
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfc/{rfc_id}/comments",
+        headers={"User-Agent": _get_user_agent()}
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcCommentsResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    comment_threads = [thread for thread in response_obj.comment_threads]
+    if args.verbose:
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        rprint("=" * 40)
+    _print_comment_threads(comment_threads)
+
+
+def _cmd_comment_get(args: Namespace) -> None:
+    """
+    Attempt to get a specific comment on a given RFC.
+    """
+    if args.help:
+        comment_get_p.print_help()
+        return
+    
+    rfc_id = args.rfc_id
+    comment_id = args.comment_id
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}",
+        headers={"User-Agent": _get_user_agent()}
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcCommentResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    comment = response_obj.comment
+    if args.verbose:
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        rprint("=" * 40)
+    _print_comment(comment)
+
+
+def _cmd_comment_post(args: Namespace) -> None:
+    """
+    Attempt to post a new comment on a given RFC.
+    """
+    if args.help:
+        comment_post_p.print_help()
+        return
+    
+    global _token
+    if _token is None:
+        rprint("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_id = args.rfc_id
+    content = args.content
+    try:
+        reply_to = args.reply_to
+    except AttributeError:
+        reply_to = None
+
+    body = {
+        "rfc_id": rfc_id,
+        "content": content,
+        "parent_comment_id": reply_to
+    }
+
+    global _url
+    response = httpx.post(
+        url=f"{_url}/rfc/comment",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        },
+        json=body
+    )
+
+    response_json = response.json()
+    try:
+        response_obj = res_types.PostRfcCommentResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    if args.verbose:
+        rprint(f"[bold]id[/bold]: {response_obj.comment_id}")
+        rprint(f"[bold]created at[/bold]: {response_obj.created_at}")
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        rprint(f"successfully posted new comment with ID {response_obj.comment_id}")
+
+
+def _print_comment(comment: CommentThread) -> None:
+    """
+    Pretty print a comment and its replies.
+    """
+    rprint(comment.model_dump_json(indent=4))
+
+
+def _print_comment_threads(threads: list[CommentThread]) -> None:
+    """
+    Recursively pretty-print comment threads.
+    """
+    for thread in threads:
+        _print_comment(thread)
+
+
 def _get_preamble() -> Text:
     """
     The preamble that the rich console prints upon CLI launch.
@@ -588,6 +824,9 @@ def _run_repl() -> None:
         "rfc-list": _cmd_rfc_list,
         "rfc-get": _cmd_rfc_get,
         "rfc-post": _cmd_rfc_post,
+        "comment-list": _cmd_comment_list,
+        "comment-get": _cmd_comment_get,
+        "comment-post": _cmd_comment_post,
     }
 
     running = True
