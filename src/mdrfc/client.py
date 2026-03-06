@@ -93,6 +93,23 @@ login_p.add_argument(
     help="include more detailed login info"
 )
 
+# log out of the server
+logout_desc = "(login required) Log out of the remote server"
+logout_p = subparsers.add_parser(
+    "logout",
+    usage="logout [option]...",
+    help=logout_desc,
+    description=logout_desc,
+    add_help=False,
+    exit_on_error=False
+)
+logout_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this message and exit"
+)
+
 # ask the server who this client is
 whoami_desc = "(login required) Get client info from this server"
 whoami_p = subparsers.add_parser(
@@ -263,6 +280,10 @@ def _cmd_login(args: Namespace) -> None:
         password=True
     )
 
+    if not password.strip():
+        rprint("[bold red]error[/bold red] password required")
+        return
+
     body = {
         "grant_type": "password",
         "username": username,
@@ -303,6 +324,25 @@ def _cmd_login(args: Namespace) -> None:
         rprint(f"[bold]type[/bold]: {response_obj.token_type}")
     else:
         rprint(f"successfully logged in as [green]{_username}[/green]")
+
+
+def _cmd_logout(args: Namespace) -> None:
+    """
+    Attempt to log out of the remote server.
+    """
+    if args.help:
+        logout_p.print_help()
+        return
+    
+    global _username
+    global _token
+    if (_username == "{unknown}") or (_token is None):
+        rprint("[bold red]error[/bold red] not logged in")
+        return
+    
+    _username = "{unknown}"
+    _token = None # type: ignore
+    rprint(f"successfully logged out of {_url}")
 
 
 def _cmd_whoami(args: Namespace) -> None:
@@ -543,6 +583,7 @@ def _run_repl() -> None:
     commands = {
         "ping": _cmd_ping,
         "login": _cmd_login,
+        "logout": _cmd_logout,
         "whoami": _cmd_whoami,
         "rfc-list": _cmd_rfc_list,
         "rfc-get": _cmd_rfc_get,
