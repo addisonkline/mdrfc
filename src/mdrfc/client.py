@@ -70,7 +70,7 @@ ping_p.add_argument(
 login_desc = "Log into the remote server"
 login_p = subparsers.add_parser(
     "login",
-    usage="login <username> <password> [option]...",
+    usage="login <username> [option]...",
     help=login_desc,
     description=login_desc,
     add_help=False,
@@ -79,10 +79,6 @@ login_p = subparsers.add_parser(
 login_p.add_argument(
     "username",
     help="username for this MDRFC server"
-)
-login_p.add_argument(
-    "password",
-    help="associated password"
 )
 login_p.add_argument(
     "-h",
@@ -259,9 +255,13 @@ def _cmd_login(args: Namespace) -> None:
         login_p.print_help()
         return
     
-    global _url
     username = args.username
-    password = args.password
+    _console = Console()
+    password = Prompt.get_input(
+        _console,
+        prompt=f"password for {username}: ",
+        password=True
+    )
 
     body = {
         "grant_type": "password",
@@ -272,6 +272,7 @@ def _cmd_login(args: Namespace) -> None:
         "client_secret": password
     }
 
+    global _url
     response = httpx.post(
         url=f"{_url}/login",
         data=body,
@@ -379,11 +380,18 @@ def _cmd_rfc_list(args: Namespace) -> None:
         rprint("=" * 40)
         for rfc in rfcs:
             rprint(f"[bold]id[/bold]: {rfc.id}")
+            rprint(f"[bold]title[/bold]: {rfc.title}")
+            rprint(f"[bold]author[/bold]: {rfc.author_name_last}, {rfc.author_name_first}")
+            rprint(f"[bold]slug[/bold]: {rfc.slug}")
+            rprint(f"[bold]summary[/bold]: {rfc.summary}")
+            rprint(f"[bold]status[/bold]: {rfc.status}")
+            rprint(f"[bold]created at[/bold]: {rfc.created_at}")
+            rprint(f"[bold]updated at[/bold]: {rfc.updated_at}")
             rprint("=" * 40)
     else:
         rprint(f"found {len(rfcs)} documents")
         for rfc in rfcs:
-            rprint(f"RFC {rfc.id}")
+            rprint(f"RFC {rfc.id}: {rfc.author_name_last}, {rfc.author_name_first}. '{rfc.title}'. Last updated: {rfc.updated_at}.")
 
 
 def _cmd_rfc_get(args: Namespace) -> None:

@@ -180,14 +180,14 @@ async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
     async with _pool.acquire() as connection:
         async with connection.transaction():
             rfcs_in_db = await connection.fetch(
-                "SELECT id, created_by, created_at, summary FROM rfcs"
+                "SELECT * FROM rfcs"
             )
             if rfcs_in_db is None:
                 return None
             else:
                 summaries: list[RFCDocumentSummary] = []
                 for rfc in rfcs_in_db:
-                    user = await get_user_by_id(rfc.get("id"))
+                    user = await get_user_by_id(rfc.get("created_by"))
                     if user is None:
                         continue
                     summary = RFCDocumentSummary(
