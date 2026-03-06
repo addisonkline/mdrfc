@@ -217,11 +217,13 @@ async def register_rfc_in_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             return await connection.fetchval(
-                "INSERT INTO rfcs(created_by, created_at, title, slug, content, summary) VALUES($1, $2, $3, $4, $5, $6) RETURNING id",
+                "INSERT INTO rfcs(created_by, created_at, updated_at, title, slug, status, content, summary) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
                 document.created_by,
                 document.created_at,
+                document.updated_at,
                 document.title,
                 document.slug,
+                document.status,
                 document.content,
                 document.summary
             )

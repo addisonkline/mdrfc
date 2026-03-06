@@ -8,6 +8,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import ValidationError
 from rich import print as rprint
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.prompt import Prompt
 from rich.text import Text
 from rich.style import Style
@@ -15,6 +16,8 @@ from rich.style import Style
 import mdrfc.responses as res_types
 from mdrfc.backend.auth import Token, User
 from mdrfc.utils.version import get_mdrfc_version
+
+import shlex
 
 
 _url: str = None # type: ignore
@@ -115,6 +118,101 @@ whoami_p.add_argument(
     "--verbose",
     action="store_true",
     help="include more detailed client info"
+)
+
+# get the list of RFC documents
+rfc_list_desc = "List the current RFC documents"
+rfc_list_p = subparsers.add_parser(
+    "rfc-list",
+    usage="rfc-list [option]...",
+    help=rfc_list_desc,
+    description=rfc_list_desc,
+    add_help=False,
+    exit_on_error=False
+)
+rfc_list_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this message and exit"
+)
+rfc_list_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed metadata per RFC"
+)
+
+# get a specific RFC document by ID
+rfc_get_desc = "Get an existing RFC by ID"
+rfc_get_p = subparsers.add_parser(
+    "rfc-get",
+    usage="rfc-get <id> [option]...",
+    help=rfc_get_desc,
+    description=rfc_get_desc,
+    add_help=False,
+    exit_on_error=False
+)
+rfc_get_p.add_argument(
+    "id",
+    type=int,
+    help="the RFC ID to fetch"
+)
+rfc_get_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this message and exit"
+)
+rfc_get_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+# post a new RFC to the server
+rfc_post_desc = "(login required) Post a new RFC to the server"
+rfc_post_p = subparsers.add_parser(
+    "rfc-post",
+    usage="rfc-post <docpath> <title> <slug> <summary> <status> [option]...",
+    help=rfc_post_desc,
+    description=rfc_post_desc,
+    add_help=False,
+    exit_on_error=False
+)
+rfc_post_p.add_argument(
+    "docpath",
+    help="the path of the Markdown file to upload"
+)
+rfc_post_p.add_argument(
+    "title",
+    help="the title of the RFC to post"
+)
+rfc_post_p.add_argument(
+    "slug",
+    help="the slug string unique to this RFC"
+)
+rfc_post_p.add_argument(
+    "summary",
+    help="the summary of the RFC to post"
+)
+rfc_post_p.add_argument(
+    "status",
+    choices=["draft", "open"],
+    help="the status of the RFC to post"
+)
+rfc_post_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this message and exit"
+)
+rfc_post_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
 )
 
 # command handlers
@@ -249,6 +347,144 @@ def _cmd_whoami(args: Namespace) -> None:
         rprint(f"username: [green]{response_obj.username}[/green]")
 
 
+def _cmd_rfc_list(args: Namespace) -> None:
+    """
+    Attempt to list the RFCs currently on this server.
+    """
+    if args.help:
+        rfc_list_p.print_help()
+        return
+    
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfcs",
+        headers={"User-Agent": _get_user_agent()}
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcsResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    rfcs = [doc for doc in response_obj.rfcs]
+    if args.verbose:
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        rprint("=" * 40)
+        for rfc in rfcs:
+            rprint(f"[bold]id[/bold]: {rfc.id}")
+            rprint("=" * 40)
+    else:
+        rprint(f"found {len(rfcs)} documents")
+        for rfc in rfcs:
+            rprint(f"RFC {rfc.id}")
+
+
+def _cmd_rfc_get(args: Namespace) -> None:
+    """
+    Attempt to get a specific RFC on this server.
+    """
+    if args.help:
+        rfc_get_p.print_help()
+        return
+    
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfc/{args.id}",
+        headers={"User-Agent": _get_user_agent()}
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    if args.verbose:
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        rprint("=" * 40)
+    rfc = response_obj.rfc
+    rprint(f"[bold]title[/bold]: {rfc.title}")
+    rprint(f"[bold]author[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
+    rprint(f"[bold]slug[/bold]: {rfc.slug}")
+    rprint(f"[bold]status[/bold]: {rfc.status}")
+    rprint(f"[bold]summary[/bold]: {rfc.summary}")
+    rprint()
+    rprint(Markdown(rfc.content))
+    rprint()
+
+
+def _cmd_rfc_post(args: Namespace) -> None:
+    """
+    Attempt to post a new RFC to this server.
+    """
+    if args.help:
+        rfc_post_p.print_help()
+        return
+    
+    global _token
+    if _token is None:
+        rprint("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_content = ""
+    try:
+        with open(args.docpath) as file:
+            rfc_content = file.read()
+    except Exception:
+        rprint(f"[bold red]error[/bold red] could not open file '{args.docpath}'")
+        return
+
+    body = {
+        "title": args.title,
+        "slug": args.slug,
+        "status": args.status,
+        "summary": args.summary,
+        "content": rfc_content
+    }
+    
+    global _url
+    response = httpx.post(
+        url=f"{_url}/rfc",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        },
+        json=body
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.PostRfcResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    if args.verbose:
+        rprint(f"[bold]id[/bold]: {response_obj.rfc_id}")
+        rprint(f"[bold]created at[/bold]: {response_obj.created_at}")
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        rprint(f"successfully posted new RFC with ID {response_obj.rfc_id}")
+
+
 def _get_preamble() -> Text:
     """
     The preamble that the rich console prints upon CLI launch.
@@ -300,6 +536,9 @@ def _run_repl() -> None:
         "ping": _cmd_ping,
         "login": _cmd_login,
         "whoami": _cmd_whoami,
+        "rfc-list": _cmd_rfc_list,
+        "rfc-get": _cmd_rfc_get,
+        "rfc-post": _cmd_rfc_post,
     }
 
     running = True
@@ -318,7 +557,7 @@ def _run_repl() -> None:
             parser.print_help()
         else:
             try:
-                args = parser.parse_args(user_input.split())
+                args = parser.parse_args(shlex.split(user_input))
                 handler = commands.get(args.command)
                 if handler:
                     handler(args)
