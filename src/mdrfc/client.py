@@ -229,6 +229,61 @@ rfc_post_p.add_argument(
     help="include more detailed response metadata"
 )
 
+# update an existing RFC on the server
+rfc_update_desc = "(login required) Update an existing RFC on this server"
+rfc_update_p = subparsers.add_parser(
+    "rfc-update",
+    usage="rfc-update <rfc_id> [option]...",
+    help=rfc_update_desc,
+    description=rfc_update_desc,
+    add_help=False,
+    exit_on_error=False
+)
+rfc_update_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the ID of the RFC document to update"
+)
+rfc_update_p.add_argument(
+    "-h",
+    "--help",
+    action="store_true",
+    help="show this message and exit"
+)
+rfc_update_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+rfc_update_p.add_argument(
+    "-t",
+    "--title",
+    type=str,
+    help="the new title"
+)
+rfc_update_p.add_argument(
+    "--slug",
+    type=str,
+    help="the new slug"
+)
+rfc_update_p.add_argument(
+    "--status",
+    type=str,
+    choices=["draft", "open", "accepted", "rejected"],
+    help="the new status"
+)
+rfc_update_p.add_argument(
+    "--summary",
+    type=str,
+    help="the new summary"
+)
+rfc_update_p.add_argument(
+    "--content-file",
+    type=str,
+    help="the filepath of the new content"
+)
+
 # list the comments on a given RFC
 comment_list_desc = "List all comment threads on a given RFC"
 comment_list_p = subparsers.add_parser(
@@ -569,6 +624,8 @@ def _cmd_rfc_get(args: Namespace) -> None:
     rprint(f"[bold]slug[/bold]: {rfc.slug}")
     rprint(f"[bold]status[/bold]: {rfc.status}")
     rprint(f"[bold]summary[/bold]: {rfc.summary}")
+    rprint(f"[bold]created at[/bold]: {rfc.created_at}")
+    rprint(f"[bold]updated at[/bold]: {rfc.updated_at}")
     rprint()
     rprint(Markdown(rfc.content))
     rprint()
@@ -631,6 +688,76 @@ def _cmd_rfc_post(args: Namespace) -> None:
         rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
         rprint(f"successfully posted new RFC with ID {response_obj.rfc_id}")
+
+
+def _cmd_rfc_update(args: Namespace) -> None:
+    """
+    Attempt to update an existing RFC.
+    """
+    if args.help:
+        rfc_update_p.print_help()
+        return
+    
+    global _token
+    if _token is None:
+        rprint("[bold red]error[/bold red] not logged in")
+        return
+
+    if args.content_file is not None:
+        rfc_content = ""
+        try:
+            with open(args.content_file) as file:
+                rfc_content = file.read()
+        except Exception:
+            rprint(f"[bold red]error[/bold red] could not open file '{args.content_file}'")
+            return
+    else:
+        rfc_content = None
+
+    body = {
+        "title": args.title,
+        "slug": args.slug,
+        "status": args.status,
+        "summary": args.summary,
+        "content": rfc_content
+    }
+
+    global _url
+    response = httpx.patch(
+        url=f"{_url}/rfc/{args.rfc_id}",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        },
+        json=body
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.PatchRfcResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    if args.verbose:
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        rprint("=" * 40)
+    rfc = response_obj.rfc
+    rprint(f"[bold]title[/bold]: {rfc.title}")
+    rprint(f"[bold]author[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
+    rprint(f"[bold]slug[/bold]: {rfc.slug}")
+    rprint(f"[bold]status[/bold]: {rfc.status}")
+    rprint(f"[bold]summary[/bold]: {rfc.summary}")
+    rprint(f"[bold]created at[/bold]: {rfc.created_at}")
+    rprint(f"[bold]updated at[/bold]: {rfc.updated_at}")
+    rprint()
+    rprint(Markdown(rfc.content))
+    rprint()
 
 
 def _cmd_comment_list(args: Namespace) -> None:
@@ -824,6 +951,7 @@ def _run_repl() -> None:
         "rfc-list": _cmd_rfc_list,
         "rfc-get": _cmd_rfc_get,
         "rfc-post": _cmd_rfc_post,
+        "rfc-update": _cmd_rfc_update,
         "comment-list": _cmd_comment_list,
         "comment-get": _cmd_comment_get,
         "comment-post": _cmd_comment_post,

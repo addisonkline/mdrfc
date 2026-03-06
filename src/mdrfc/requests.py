@@ -112,6 +112,17 @@ class PostRfcRequest(BaseModel):
     content: Annotated[str, AfterValidator(validate_rfc_content)]
 
 
+class PatchRfcRequest(BaseModel):
+    """
+    HTTP request object for `PATCH /rfc`.
+    """
+    title: Annotated[str, AfterValidator(validate_rfc_title)] | None = None
+    slug: Annotated[str, AfterValidator(validate_rfc_slug)] | None = None
+    status: Annotated[Literal["draft", "open"], AfterValidator(validate_rfc_status)] | None = None
+    summary: Annotated[str, AfterValidator(validate_rfc_summary)] | None = None
+    content: Annotated[str, AfterValidator(validate_rfc_content)] | None = None
+
+
 def validate_comment_content(content: str) -> str:
     if len(content) > consts.LEN_COMMENT_CONTENT:
         raise HTTPException(
@@ -128,3 +139,4 @@ class PostRfcCommentRequest(BaseModel):
     rfc_id: int
     parent_comment_id: int | None
     content: Annotated[str, AfterValidator(validate_comment_content)]
+    

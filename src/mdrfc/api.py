@@ -4,17 +4,19 @@ from typing import Literal
 
 from fastapi import HTTPException
 
+import mdrfc.requests as req_types
 import mdrfc.responses as res_types
 from mdrfc.backend.comment import RFCComment, build_comment_threads, find_comment_thread
 from mdrfc.backend.db import (
     get_rfc_from_db,
     get_rfcs_from_db,
+    patch_rfc_in_db,
     register_rfc_in_db,
     register_comment_in_db,
     get_rfc_comments_from_db,
     check_comment_is_on_rfc
 )
-from mdrfc.backend.document import RFCDocumentInDB
+from mdrfc.backend.document import RFCDocumentInDB, RFCDocumentUpdate
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
@@ -103,6 +105,39 @@ async def get_rfc(
         )
     
     return res_types.GetRfcResponse(
+        rfc=document,
+        metadata={}
+    )
+
+
+async def patch_rfc(
+    rfc_id: int,
+    user: User,
+    request: req_types.PatchRfcRequest
+) -> res_types.PatchRfcResponse:
+    """
+    Handle a request to the endpoint `PATCH /rfc/{rfc_id}`.
+    """
+    update = RFCDocumentUpdate(
+        title=request.title,
+        slug=request.slug,
+        status=request.status,
+        content=request.content,
+        summary=request.summary
+    )
+
+    document = await patch_rfc_in_db(
+        rfc_id=rfc_id,
+        user=user,
+        update=update,
+    )
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="no RFC document with the given ID found"
+        )
+
+    return res_types.PatchRfcResponse(
         rfc=document,
         metadata={}
     )

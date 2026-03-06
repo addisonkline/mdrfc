@@ -48,20 +48,28 @@ class PostRfcResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+class GetRfcResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfc/{rfc_id}`.
+    """
+    rfc: RFCDocument
+    metadata: dict[str, Any]
+
+
+class PatchRfcResponse(BaseModel):
+    """
+    HTTP response object for `PATCH /rfc/{rfc_id}`.
+    """
+    rfc: RFCDocument
+    metadata: dict[str, Any]
+
+
 class PostRfcCommentResponse(BaseModel):
     """
     HTTP response object for `POST /rfc/comment`.
     """
     comment_id: int
     created_at: datetime
-    metadata: dict[str, Any]
-
-
-class GetRfcResponse(BaseModel):
-    """
-    HTTP response object for `GET /rfc/{rfc_id}`.
-    """
-    rfc: RFCDocument
     metadata: dict[str, Any]
 
 

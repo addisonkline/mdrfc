@@ -198,6 +198,22 @@ async def get_rfc_by_id(
     )
 
 
+@app.patch("/rfc/{rfc_id}")
+async def patch_rfc_by_id(
+    rfc_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    request: req_types.PatchRfcRequest
+) -> res_types.PatchRfcResponse:
+    """
+    `PATCH /rfc/{rfc_id}`: Update an existing RFC.
+    """
+    return await api.patch_rfc(
+        rfc_id=rfc_id,
+        user=current_user,
+        request=request
+    )
+
+
 @app.post("/rfc/comment", response_model=res_types.PostRfcCommentResponse)
 async def post_rfc_comment(
     request: req_types.PostRfcCommentRequest,

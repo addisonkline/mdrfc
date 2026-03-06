@@ -1,4 +1,6 @@
+from datetime import datetime
 from os import getenv
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import (
@@ -22,6 +24,7 @@ from mdrfc.backend.document import (
     RFCDocument,
     RFCDocumentInDB,
     RFCDocumentSummary,
+    RFCDocumentUpdate,
 )
 from mdrfc.backend.comment import RFCComment, RFCCommentWithAuthor
 
@@ -261,6 +264,77 @@ async def get_rfc_from_db(
             )
         
 
+async def patch_rfc_in_db(
+    rfc_id: int,
+    user: User,
+    update: RFCDocumentUpdate
+) -> RFCDocument | None:
+    """
+    Attempt to update an existing RFC document in the database.
+    The user updating must be the same as the original author.
+    """
+    if not await check_user_created_rfc(
+        user=user,
+        rfc_id=rfc_id,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="unauthorized to modify this RFC"
+        )
+
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            updates: dict[str, Any] = {}
+            if update.title is not None:
+                updates["title"] = update.title
+            if update.slug is not None:
+                updates["slug"] = update.slug
+            if update.status is not None:
+                updates["status"] = update.status
+            if update.content is not None:
+                updates["content"] = update.content
+            if update.summary is not None:
+                updates["summary"] = update.summary
+            if not updates:
+                return None
+            updates["updated_at"] = datetime.now()
+            
+            set_clauses: list[str] = []
+            args: list = []
+            param_num = 1
+            for column, value in updates.items():
+                set_clauses.append(f"{column} = ${param_num}")
+                args.append(value)
+                param_num += 1
+
+            args.append(rfc_id)
+            where_clause = f"WHERE id = ${param_num}"
+
+            query = f"UPDATE rfcs SET {', '.join(set_clauses)} {where_clause} RETURNING *"
+            updated_rfc = await connection.fetchrow(
+                query, *args
+            )
+
+            if updated_rfc is None:
+                return None
+            creator = await get_user_by_id(updated_rfc.get("created_by"))
+            if creator is None:
+                return None
+            return RFCDocument(
+                id=updated_rfc.get("id"),
+                author_name_last=creator.name_last,
+                author_name_first=creator.name_first,
+                created_at=updated_rfc.get("created_at"),
+                updated_at=updated_rfc.get("updated_at"),
+                title=updated_rfc.get("title"),
+                slug=updated_rfc.get("slug"),
+                status=updated_rfc.get("status"),
+                content=updated_rfc.get("content"),
+                summary=updated_rfc.get("summary")
+            )
+        
+
 async def register_comment_in_db(
     comment: RFCComment,
 ) -> int:
@@ -366,3 +440,22 @@ async def check_comment_is_on_rfc(
             if result is None:
                 return False
             return (result == rfc_id)
+
+
+async def check_user_created_rfc(
+    user: User,
+    rfc_id: int,
+) -> bool:
+    """
+    Check that this user created the RFC with the given ID.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            rfc_author = await connection.fetchval(
+                "SELECT created_by FROM rfcs WHERE id = $1",
+                rfc_id
+            )
+            if rfc_author != user.id:
+                return False
+            return True

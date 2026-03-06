@@ -40,3 +40,11 @@ class RFCDocumentInDB(BaseModel):
     status: RFCStatus
     content: str
     summary: str
+
+
+class RFCDocumentUpdate(BaseModel):
+    title: str | None = None
+    slug: str | None = None
+    status: RFCStatus | None = None
+    content: str | None = None
+    summary: str | None = None
