@@ -208,3 +208,7 @@ __marimo__/
 
 # MDRFC
 *.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
