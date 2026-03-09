@@ -1,16 +1,32 @@
+import re
 from typing import Annotated, Literal
 
 from fastapi import HTTPException
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 import mdrfc.backend.constants as consts
 
 
+USERNAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*[a-z0-9]$|^[a-z0-9]$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
 def validate_username(username: str) -> str:
+    if len(username) < consts.LEN_USERNAME_MIN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"username must be at least {consts.LEN_USERNAME_MIN} characters"
+        )
     if len(username) > consts.LEN_USERNAME:
         raise HTTPException(
             status_code=422,
             detail=f"username must be {consts.LEN_USERNAME} characters or less"
+        )
+    username = username.lower()
+    if not USERNAME_RE.fullmatch(username):
+        raise HTTPException(
+            status_code=422,
+            detail="username must contain only lowercase letters, digits, '.', '_' or '-'"
         )
     return username
 
@@ -21,10 +37,21 @@ def validate_email(email: str) -> str:
             status_code=422,
             detail=f"email must be {consts.LEN_EMAIL} characters or less"
         )
+    email = email.lower()
+    if not EMAIL_RE.fullmatch(email):
+        raise HTTPException(
+            status_code=422,
+            detail="email must be a valid email address"
+        )
     return email
 
 
 def validate_name_last(name: str) -> str:
+    if len(name) == 0:
+        raise HTTPException(
+            status_code=422,
+            detail="last name must not be empty"
+        )
     if len(name) > consts.LEN_NAME_LAST:
         raise HTTPException(
             status_code=422,
@@ -34,6 +61,11 @@ def validate_name_last(name: str) -> str:
 
 
 def validate_name_first(name: str) -> str:
+    if len(name) == 0:
+        raise HTTPException(
+            status_code=422,
+            detail="first name must not be empty"
+        )
     if len(name) > consts.LEN_NAME_FIRST:
         raise HTTPException(
             status_code=422,
@@ -42,15 +74,91 @@ def validate_name_first(name: str) -> str:
     return name
 
 
+def validate_password(password: SecretStr) -> SecretStr:
+    value = password.get_secret_value()
+    if len(value) < consts.LEN_PASSWORD_PLAIN_MIN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"password must be at least {consts.LEN_PASSWORD_PLAIN_MIN} characters"
+        )
+    if len(value) > consts.LEN_PASSWORD_PLAIN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"password must be {consts.LEN_PASSWORD_PLAIN} characters or less"
+        )
+    if value.isspace():
+        raise HTTPException(
+            status_code=422,
+            detail="password must not be whitespace only"
+        )
+    return password
+
+
 class PostSignupRequest(BaseModel):
     """
     HTTP request object for `POST /signup`.
     """
-    username: Annotated[str, AfterValidator(validate_username)]
-    email: Annotated[str, AfterValidator(validate_email)]
-    name_last: Annotated[str, AfterValidator(validate_name_last)]
-    name_first: Annotated[str, AfterValidator(validate_name_first)]
-    password: str
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+    username: Annotated[
+        str,
+        Field(min_length=consts.LEN_USERNAME_MIN, max_length=consts.LEN_USERNAME),
+        AfterValidator(validate_username),
+    ]
+    email: Annotated[
+        str,
+        Field(min_length=3, max_length=consts.LEN_EMAIL),
+        AfterValidator(validate_email),
+    ]
+    name_last: Annotated[
+        str,
+        Field(min_length=1, max_length=consts.LEN_NAME_LAST),
+        AfterValidator(validate_name_last),
+    ]
+    name_first: Annotated[
+        str,
+        Field(min_length=1, max_length=consts.LEN_NAME_FIRST),
+        AfterValidator(validate_name_first),
+    ]
+    password: Annotated[
+        SecretStr,
+        AfterValidator(validate_password),
+    ]
+
+    @field_validator("name_first", "name_last")
+    @classmethod
+    def validate_name_whitespace(cls, value: str) -> str:
+        if not value:
+            raise HTTPException(
+                status_code=422,
+                detail="name fields must not be empty"
+            )
+        return value
+
+
+def validate_verification_token(token: SecretStr) -> SecretStr:
+    value = token.get_secret_value()
+    if len(value) < 32:
+        raise HTTPException(
+            status_code=422,
+            detail="verification token is invalid"
+        )
+    return token
+
+
+class PostVerifyEmailRequest(BaseModel):
+    """
+    HTTP request object for `POST /verify-email`.
+    """
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+    token: Annotated[SecretStr, AfterValidator(validate_verification_token)]
 
 
 def validate_rfc_title(title: str) -> str:

@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
 from os import getenv
+import secrets
 from typing import Annotated, Any
 
 import dotenv
@@ -12,8 +14,10 @@ from pydantic import BaseModel
 
 from mdrfc.backend.db import (
     get_user_from_db,
-    register_user_in_db
+    register_user_in_db,
+    verify_user_by_token_in_db,
 )
+import mdrfc.backend.constants as consts
 from mdrfc.backend.users import (
     User,
     UserInDB
@@ -29,6 +33,14 @@ if SECRET_KEY is None:
 if ALGORITHM is None:
     raise RuntimeError("environment variable JWT_ALGORITHM is required but was not found")
 
+EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES = int(
+    getenv(
+        "EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES",
+        str(consts.MINUTES_EMAIL_VERIFICATION_TOKEN_EXPIRE),
+    )
+)
+DEBUG_RETURN_VERIFICATION_TOKEN = getenv("AUTH_DEBUG_RETURN_VERIFICATION_TOKEN", "false").lower() == "true"
+
 
 class Token(BaseModel):
     access_token: str
@@ -39,9 +51,37 @@ class TokenData(BaseModel):
     username: str | None = None
 
 
+class SignupResult(BaseModel):
+    created_at: datetime
+    verification_expires_at: datetime
+    verification_token: str
+
+
+class EmailVerificationResult(BaseModel):
+    username: str
+    email: str
+    verified_at: datetime
+
+
 password_hash = PasswordHash.recommended()
 DUMMY_HASH = password_hash.hash("dummypassword")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def normalize_username(username: str) -> str:
+    return username.strip().lower()
+
+
+def hash_verification_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_verification_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def verify_password(
@@ -61,12 +101,17 @@ async def authenticate_user(
     username: str,
     password: str,
 ) -> UserInDB | bool:
-    user = await get_user_from_db(username)
+    user = await get_user_from_db(normalize_username(username))
     if not user:
         verify_password(password, DUMMY_HASH)
         return False
     if not verify_password(password, user.password_argon2):
         return False
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="email address not verified",
+        )
     
     return user
 
@@ -126,19 +171,50 @@ async def create_new_user(
     name_last: str,
     name_first: str,
     password: str
-) -> datetime:
-    timestamp = datetime.now()
+) -> SignupResult:
+    timestamp = _utcnow()
+    verification_token = generate_verification_token()
+    verification_expires_at = timestamp + timedelta(minutes=EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES)
 
     user_in_db = UserInDB(
         id=-1,
-        username=username,
-        email=email,
+        username=normalize_username(username),
+        email=email.strip().lower(),
         name_last=name_last,
         name_first=name_first,
-        password_argon2=password_hash.hash(password),
+        password_argon2=get_password_hash(password),
+        is_verified=False,
+        verified_at=None,
+        verification_token_hash=hash_verification_token(verification_token),
+        verification_token_expires_at=verification_expires_at,
         created_at=timestamp
     )
 
     await register_user_in_db(user_in_db)
 
-    return timestamp
+    return SignupResult(
+        created_at=timestamp,
+        verification_expires_at=verification_expires_at,
+        verification_token=verification_token,
+    )
+
+
+async def verify_user_email(
+    token: str,
+) -> EmailVerificationResult:
+    verified_at = _utcnow()
+    user = await verify_user_by_token_in_db(
+        verification_token_hash=hash_verification_token(token),
+        verified_at=verified_at,
+    )
+    if user is None:
+        raise HTTPException(
+            status_code=400,
+            detail="verification token is invalid or expired",
+        )
+
+    return EmailVerificationResult(
+        username=user.username,
+        email=user.email,
+        verified_at=verified_at,
+    )

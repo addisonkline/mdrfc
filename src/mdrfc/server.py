@@ -7,24 +7,30 @@ import logging
 import time
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 import uvicorn
 
 from mdrfc.backend.auth import (
+    DEBUG_RETURN_VERIFICATION_TOKEN,
+    EmailVerificationResult,
     Token,
     User,
     authenticate_user,
     create_access_token,
     create_new_user,
-    get_current_active_user
+    get_current_active_user,
+    verify_user_email,
 )
 from mdrfc.backend.comment import RFCComment
+import mdrfc.backend.constants as consts
 from mdrfc.backend.db import (
     init_db,
     close_db
 )
 from mdrfc.backend.document import RFCDocument
+from mdrfc.backend.email import send_verification_email_task
+from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
 from mdrfc.utils.logging import init_logger
 import mdrfc.api as api
 import mdrfc.requests as req_types
@@ -77,6 +83,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+signup_rate_limiter = SlidingWindowRateLimiter()
 
 
 @app.get("/", response_model=res_types.GetRootResponse)
@@ -118,24 +125,85 @@ async def login_for_access_token(
 
 @app.post("/signup", response_model=res_types.PostSignupResponse)
 async def post_new_user(
-    request: req_types.PostSignupRequest,
+    background_tasks: BackgroundTasks,
+    http_request: Request,
+    payload: req_types.PostSignupRequest,
 ) -> res_types.PostSignupResponse:
     """
     `POST /signup`: Attempt to create a new user with the provided credentials.
     """
-    timestamp = await create_new_user(
-        username=request.username,
-        email=request.email,
-        name_last=request.name_last,
-        name_first=request.name_first,
-        password=request.password
+    client_host = "unknown"
+    if http_request.client is not None and http_request.client.host:
+        client_host = http_request.client.host
+
+    ip_retry_after = await signup_rate_limiter.check_and_record(
+        ("ip", client_host),
+        limit=consts.SIGNUP_RATE_LIMIT_MAX_ATTEMPTS_PER_IP,
+        window_seconds=consts.SIGNUP_RATE_LIMIT_WINDOW_SECONDS,
+    )
+    if ip_retry_after is not None:
+        raise HTTPException(
+            status_code=429,
+            detail="too many signup attempts",
+            headers={"Retry-After": str(ip_retry_after)},
+        )
+
+    identity_retry_after = await signup_rate_limiter.check_and_record(
+        ("identity", payload.username, payload.email),
+        limit=consts.SIGNUP_RATE_LIMIT_MAX_ATTEMPTS_PER_IDENTITY,
+        window_seconds=consts.SIGNUP_RATE_LIMIT_WINDOW_SECONDS,
+    )
+    if identity_retry_after is not None:
+        raise HTTPException(
+            status_code=429,
+            detail="too many signup attempts",
+            headers={"Retry-After": str(identity_retry_after)},
+        )
+
+    signup_result = await create_new_user(
+        username=payload.username,
+        email=payload.email,
+        name_last=payload.name_last,
+        name_first=payload.name_first,
+        password=payload.password.get_secret_value()
+    )
+
+    background_tasks.add_task(
+        send_verification_email_task,
+        to_email=payload.email,
+        username=payload.username,
+        verification_token=signup_result.verification_token,
+        expires_at=signup_result.verification_expires_at,
     )
 
     return res_types.PostSignupResponse(
-        username=request.username,
-        email=request.email,
-        created_at=timestamp,
-        metadata={}
+        username=payload.username,
+        email=payload.email,
+        created_at=signup_result.created_at,
+        metadata={
+            "verification_required": True,
+            "verification_expires_at": signup_result.verification_expires_at.isoformat(),
+            "verification_token": signup_result.verification_token if DEBUG_RETURN_VERIFICATION_TOKEN else None,
+        }
+    )
+
+
+@app.post("/verify-email", response_model=res_types.PostVerifyEmailResponse)
+async def post_verify_email(
+    payload: req_types.PostVerifyEmailRequest,
+) -> res_types.PostVerifyEmailResponse:
+    """
+    `POST /verify-email`: Verify a pending account email address.
+    """
+    verification_result: EmailVerificationResult = await verify_user_email(
+        payload.token.get_secret_value()
+    )
+
+    return res_types.PostVerifyEmailResponse(
+        username=verification_result.username,
+        email=verification_result.email,
+        verified_at=verification_result.verified_at,
+        metadata={},
     )
 
 

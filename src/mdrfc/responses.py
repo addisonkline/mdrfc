@@ -31,6 +31,16 @@ class PostSignupResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+class PostVerifyEmailResponse(BaseModel):
+    """
+    HTTP response object for `POST /verify-email`.
+    """
+    username: str
+    email: str
+    verified_at: datetime
+    metadata: dict[str, Any]
+
+
 class GetRfcsResponse(BaseModel):
     """
     HTTP response object for `GET /rfcs`.

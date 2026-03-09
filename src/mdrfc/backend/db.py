@@ -8,6 +8,7 @@ from sqlalchemy import (
     Table,
     Column,
     Integer,
+    Boolean,
     String,
     DateTime,
     ForeignKey,
@@ -48,6 +49,10 @@ users = Table(
     Column("name_last", String(consts.LEN_NAME_LAST), nullable=False),
     Column("name_first", String(consts.LEN_NAME_FIRST), nullable=False),
     Column("password_argon2", String(consts.LEN_PASSWORD_ARGON2), nullable=False),
+    Column("is_verified", Boolean, nullable=False),
+    Column("verified_at", DateTime, nullable=True),
+    Column("verification_token_hash", String(consts.LEN_VERIFICATION_TOKEN_HASH), nullable=True),
+    Column("verification_token_expires_at", DateTime, nullable=True),
     Column("created_at", DateTime, nullable=False)
 )
 
@@ -109,7 +114,10 @@ async def user_in_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            result = await connection.fetchval("SELECT id FROM users WHERE username = $1", username)
+            result = await connection.fetchval(
+                "SELECT id FROM users WHERE LOWER(username) = LOWER($1)",
+                username,
+            )
             return (result is not None)
         
 
@@ -122,7 +130,10 @@ async def get_user_from_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            result = await connection.fetchrow("SELECT * FROM users WHERE username = $1", username)
+            result = await connection.fetchrow(
+                "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
+                username,
+            )
             if result is None:
                 return None
             return UserInDB(**result)
@@ -157,22 +168,66 @@ async def register_user_in_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             try:
+                existing_user = await connection.fetchval(
+                    """
+                    SELECT id
+                    FROM users
+                    WHERE LOWER(username) = LOWER($1)
+                       OR LOWER(email) = LOWER($2)
+                    """,
+                    user.username,
+                    user.email,
+                )
+                if existing_user is not None:
+                    raise HTTPException(status_code=409, detail="account could not be created")
+
                 result = await connection.fetchval(
-                    "INSERT INTO users(username, email, name_last, name_first, password_argon2, created_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id",
+                    "INSERT INTO users(username, email, name_last, name_first, password_argon2, is_verified, verified_at, verification_token_hash, verification_token_expires_at, created_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
                     user.username,
                     user.email,
                     user.name_last,
-                    user.name_last,
+                    user.name_first,
                     user.password_argon2,
+                    user.is_verified,
+                    user.verified_at,
+                    user.verification_token_hash,
+                    user.verification_token_expires_at,
                     user.created_at
                 )
                 return result
             except asyncpg.UniqueViolationError as e:
-                if e.constraint_name == "uq_users_username":
-                    raise HTTPException(status_code=409, detail="username already taken")
-                elif e.constraint_name == "uq_users_email":
-                    raise HTTPException(status_code=409, detail="email already taken")
-                raise
+                raise HTTPException(status_code=409, detail="account could not be created") from e
+
+
+async def verify_user_by_token_in_db(
+    verification_token_hash: str,
+    verified_at: datetime,
+) -> UserInDB | None:
+    """
+    Verify a user identified by a pending email verification token.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetchrow(
+                """
+                UPDATE users
+                SET is_verified = TRUE,
+                    verified_at = $2,
+                    verification_token_hash = NULL,
+                    verification_token_expires_at = NULL
+                WHERE verification_token_hash = $1
+                  AND is_verified = FALSE
+                  AND verification_token_expires_at IS NOT NULL
+                  AND verification_token_expires_at >= $2
+                RETURNING *
+                """,
+                verification_token_hash,
+                verified_at,
+            )
+            if result is None:
+                return None
+            return UserInDB(**result)
 
 
 async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
