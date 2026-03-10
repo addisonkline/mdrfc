@@ -74,14 +74,18 @@ The backend is deployed at `~/mdrfc` on the tinybox (`ssh tiny@tinybox -p 2223`)
 - Cloudflare tunnel (`mdrfc`, ID `cded8863-8b7e-4071-a9f1-6bbaf8a4a4ce`) exposes it at `https://rfc.chrn.ai`
 - Tunnel config: `~/.cloudflared/config.yml` on the tinybox
 
-### Starting the server
+### Systemd services
+
+Both are enabled and start on boot:
+
+- `mdrfc.service` — the FastAPI backend
+- `cloudflared-mdrfc.service` — the Cloudflare tunnel
 
 ```bash
-cd ~/mdrfc && nohup uv run mdrfc serve -H 0.0.0.0 > /tmp/mdrfc-server.log 2>&1 &
-cloudflared tunnel run mdrfc
+sudo systemctl status mdrfc cloudflared-mdrfc   # check status
+sudo systemctl restart mdrfc                      # restart backend
+sudo journalctl -u mdrfc -f                       # tail logs
 ```
-
-Neither persists across reboots yet — no systemd services configured.
 
 ## Migration caveat
 
