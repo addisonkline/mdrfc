@@ -6,7 +6,9 @@ from pydantic import BaseModel
 from mdrfc.backend.comment import CommentThread
 from mdrfc.backend.document import (
     RFCDocument,
-    RFCDocumentSummary
+    RFCDocumentSummary,
+    RFCRevision,
+    RFCRevisionSummary
 )
 
 
@@ -20,7 +22,9 @@ class GetRootResponse(BaseModel):
     uptime: float
     metadata: dict[str, Any]
 
-
+#
+# AUTH endpoints
+#
 class PostSignupResponse(BaseModel):
     """
     HTTP response object for `POST /signup`.
@@ -40,7 +44,9 @@ class PostVerifyEmailResponse(BaseModel):
     verified_at: datetime
     metadata: dict[str, Any]
 
-
+#
+# RFC endpoints
+#
 class GetRfcsResponse(BaseModel):
     """
     HTTP response object for `GET /rfcs`.
@@ -74,6 +80,36 @@ class PatchRfcResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+#
+# REVISION endpoints
+#
+class GetRfcRevisionsResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfc/{rfc_id}/revs`.
+    """
+    revisions: list[RFCRevisionSummary]
+    metadata: dict[str, Any]
+
+
+class GetRfcRevisionResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfc/{rfc_id}/rev/{rev_id}`.
+    """
+    revision: RFCRevision
+    metadata: dict[str, Any]
+
+
+class PostRfcRevisionResponse(BaseModel):
+    """
+    HTTP response object for `POST /rfc/{rfc_id}/rev`.
+    """
+    revision: RFCRevision
+    metadata: dict[str, Any]
+
+
+#
+# COMMENT endpoints
+#
 class PostRfcCommentResponse(BaseModel):
     """
     HTTP response object for `POST /rfc/comment`.

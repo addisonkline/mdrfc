@@ -1,4 +1,4 @@
-# Hello, World! (edited)
+# Hello, World!
 
 This document is a test of MDRFC, a server for hosting Markdown-based RFC documents.
 

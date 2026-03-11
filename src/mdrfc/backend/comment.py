@@ -31,6 +31,7 @@ class RFCComment(BaseModel):
 class RFCCommentInDB(BaseModel):
     id: int
     parent_id: int | None
+    rfc_id: int
     created_at: datetime
     content: str
     created_by: int

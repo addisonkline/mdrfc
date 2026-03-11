@@ -1,6 +1,8 @@
 from datetime import datetime
+import json
 from os import getenv
 from typing import Any
+import uuid
 
 from fastapi import HTTPException
 from sqlalchemy import (
@@ -28,8 +30,10 @@ from mdrfc.backend.document import (
     RFCDocument,
     RFCDocumentInDB,
     RFCDocumentSummary,
-    RFCDocumentUpdate,
     RFCRevision,
+    RFCRevisionInDB,
+    RFCRevisionRequest,
+    RFCRevisionSummary
 )
 from mdrfc.backend.comment import RFCComment, RFCCommentInDB
 
@@ -101,12 +105,34 @@ rfc_revisions = Table(
     Column("slug", String(consts.LEN_RFC_SLUG_MAX), nullable=False),
     Column("status", String(consts.LEN_RFC_STATUS_MAX), nullable=False),
     Column("content", String(consts.LEN_RFC_CONTENT_MAX), nullable=False),
-    Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False)
+    Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False),
+    Column("message", String(consts.LEN_REVISION_MSG_MAX), nullable=False)
 )
 
 
 # asyncpg connection pool for this module 
 _pool: asyncpg.Pool = None
+
+
+def _serialize_agent_contributions(
+    agent_contributions: dict[uuid.UUID, list[str]],
+) -> str:
+    return json.dumps(
+        {str(revision_id): contributors for revision_id, contributors in agent_contributions.items()}
+    )
+
+
+def _deserialize_agent_contributions(
+    agent_contributions: Any,
+) -> dict[uuid.UUID, list[str]]:
+    if isinstance(agent_contributions, str):
+        raw = json.loads(agent_contributions)
+    else:
+        raw = agent_contributions
+    return {
+        uuid.UUID(revision_id): contributors
+        for revision_id, contributors in raw.items()
+    }
 
 async def init_db():
     """
@@ -128,6 +154,9 @@ async def close_db():
     await _pool.close()
 
 
+#
+# AUTH functions
+#
 async def user_in_db(
     username: str,
 ) -> bool:
@@ -205,7 +234,7 @@ async def register_user_in_db(
                     raise HTTPException(status_code=409, detail="account could not be created")
 
                 result = await connection.fetchval(
-                    "INSERT INTO users(username, email, name_last, name_first, password_argon2, is_verified, verified_at, verification_token_hash, verification_token_expires_at, created_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+                    "INSERT INTO users(username, email, name_last, name_first, password_argon2, is_verified, verified_at, verification_token_hash, verification_token_expires_at, created_at, is_admin) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
                     user.username,
                     user.email,
                     user.name_last,
@@ -215,7 +244,8 @@ async def register_user_in_db(
                     user.verified_at,
                     user.verification_token_hash,
                     user.verification_token_expires_at,
-                    user.created_at
+                    user.created_at,
+                    False
                 )
                 return result
             except asyncpg.UniqueViolationError as e:
@@ -252,7 +282,9 @@ async def verify_user_by_token_in_db(
                 return None
             return UserInDB(**result)
 
-
+#
+# RFC functions
+#
 async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
     """
     Get all RFCs from the database, or `None` if there are none.
@@ -297,8 +329,30 @@ async def register_rfc_in_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            return await connection.fetchval(
-                "INSERT INTO rfcs(created_by, created_at, updated_at, title, slug, status, content, summary, revisions, current_revision, agent_contributions) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+            query = """
+            WITH rfc_insert AS (
+                INSERT INTO rfcs (
+                    created_by, created_at, updated_at,
+                    title, slug, status, content, summary,
+                    revisions, current_revision, agent_contributions
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id
+            ), revision_insert AS (
+                INSERT INTO rfc_revisions (
+                    id, rfc_id, created_by, agent_contributors, created_at,
+                    title, slug, status, content, summary, message
+                )
+                SELECT
+                    $10, id, $1, $12, $2,
+                    $4, $5, $6, $7, $8, $13
+                FROM rfc_insert
+                RETURNING rfc_id
+            )
+            SELECT id FROM rfc_insert;
+            """
+            rfc_id = await connection.fetchval(
+                query,
                 document.created_by,
                 document.created_at,
                 document.updated_at,
@@ -309,8 +363,16 @@ async def register_rfc_in_db(
                 document.summary,
                 document.revisions,
                 document.current_revision,
-                document.agent_contributions,
+                _serialize_agent_contributions(document.agent_contributions),
+                document.agent_contributions.get(document.current_revision, []),
+                "First revision"
             )
+            if rfc_id is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="got rfc_id = None"
+                )
+            return rfc_id
         
 
 async def get_rfc_from_db(
@@ -344,86 +406,165 @@ async def get_rfc_from_db(
                 content=rfc.get("content"),
                 revisions=rfc.get("revisions"),
                 current_revision=rfc.get("current_revision"),
-                agent_contributions=rfc.get("agent_contributions")
+                agent_contributions=_deserialize_agent_contributions(rfc.get("agent_contributions"))
+            )
+
+
+#
+# REVISION functions
+#
+async def get_revisions_from_db(
+    rfc_id: int
+) -> list[RFCRevisionSummary] | None:
+    """
+    Attempt to get a list of all revisions for the existing RFC from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            revisions_in_db = await connection.fetch(
+                "SELECT * FROM rfc_revisions WHERE rfc_id = $1",
+                rfc_id
+            )
+            if revisions_in_db is None:
+                return None
+            summaries: list[RFCRevisionSummary] = []
+            for rev in revisions_in_db:
+                user = await get_user_by_id(rev.get("created_by"))
+                if user is None:
+                    continue
+                summary = RFCRevisionSummary(
+                    id=rev.get("id"),
+                    rfc_id=rev.get("rfc_id"),
+                    created_at=rev.get("created_at"),
+                    author_name_last=user.name_last,
+                    author_name_first=user.name_first,
+                    agent_contributors=rev.get("agent_contributors"),
+                    message=rev.get("message")
+                )
+                summaries.append(summary)
+            return summaries
+        
+
+async def get_revision_from_db(
+    rfc_id: int,
+    revision_id: str,
+) -> RFCRevision | None:
+    """
+    Attempt to fetch the specified revision from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            rev = await connection.fetchrow(
+                "SELECT * FROM rfc_revisions WHERE id = $1 AND rfc_id = $2",
+                revision_id,
+                rfc_id
+            )
+            if rev is None:
+                return None
+            creator = await get_user_by_id(rev.get("created_by"))
+            if creator is None:
+                return None
+            return RFCRevision(
+                id=rev.get("id"),
+                rfc_id=rev.get("rfc_id"),
+                created_at=rev.get("created_at"),
+                author_name_last=creator.name_last,
+                author_name_first=creator.name_first,
+                agent_contributors=rev.get("agent_contributors"),
+                title=rev.get("title"),
+                slug=rev.get("slug"),
+                status=rev.get("status"),
+                content=rev.get("content"),
+                summary=rev.get("summary"),
+                message=rev.get("message")
             )
         
 
-async def patch_rfc_in_db(
+async def register_revision_in_db(
     rfc_id: int,
     user: User,
-    update: RFCDocumentUpdate
-) -> RFCDocument | None:
+    request: RFCRevisionInDB,
+    new_revisions: list[uuid.UUID],
+    new_contributions: dict[uuid.UUID, list[str]]
+) -> RFCRevision | None:
     """
-    Attempt to update an existing RFC document in the database.
-    The user updating must be the same as the original author.
+    Attempt to register a new revision for the specified, existing RFC document in the database.
     """
-    if not await check_user_created_rfc(
-        user=user,
-        rfc_id=rfc_id,
-    ):
+    if not await check_user_created_rfc(user, rfc_id):
         raise HTTPException(
             status_code=401,
-            detail="unauthorized to modify this RFC"
+            detail="unauthorized to revise this RFC"
         )
 
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            updates: dict[str, Any] = {}
-            if update.title is not None:
-                updates["title"] = update.title
-            if update.slug is not None:
-                updates["slug"] = update.slug
-            if update.status is not None:
-                updates["status"] = update.status
-            if update.content is not None:
-                updates["content"] = update.content
-            if update.summary is not None:
-                updates["summary"] = update.summary
-            if update.agent_contributors is not None:
-                updates["agent_contributors"] = update.agent_contributors
-            if not updates:
-                return None
-            updates["updated_at"] = datetime.now()
-            
-            set_clauses: list[str] = []
-            args: list = []
-            param_num = 1
-            for column, value in updates.items():
-                set_clauses.append(f"{column} = ${param_num}")
-                args.append(value)
-                param_num += 1
-
-            args.append(rfc_id)
-            where_clause = f"WHERE id = ${param_num}"
-
-            query = f"UPDATE rfcs SET {', '.join(set_clauses)} {where_clause} RETURNING *"
-            updated_rfc = await connection.fetchrow(
-                query, *args
+            query = """
+            WITH revision_insert AS (
+                INSERT INTO rfc_revisions (
+                    id, rfc_id, created_at, created_by, agent_contributors,
+                    title, slug, status, content, summary, message
+                )
+                VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING *
+            ), rfc_update AS (
+                UPDATE rfcs
+                SET updated_at = $3,
+                    title = $6,
+                    slug = $7,
+                    status = $8,
+                    content = $9,
+                    summary = $10,
+                    revisions = $12,
+                    current_revision = $1,
+                    agent_contributions = $13
+                WHERE id = $2
+                RETURNING id
             )
-
-            if updated_rfc is None:
+            SELECT * FROM revision_insert;
+            """
+            rev = await connection.fetchrow(
+                query,
+                request.id,
+                rfc_id,
+                request.created_at,
+                request.created_by,
+                request.agent_contributors,
+                request.title,
+                request.slug,
+                request.status,
+                request.content,
+                request.summary,
+                request.message,
+                new_revisions,
+                _serialize_agent_contributions(new_contributions)
+            )
+            if rev is None:
                 return None
-            creator = await get_user_by_id(updated_rfc.get("created_by"))
+            creator = await get_user_by_id(request.created_by)
             if creator is None:
                 return None
-            return RFCDocument(
-                id=updated_rfc.get("id"),
+            return RFCRevision(
+                id=rev.get("id"),
+                rfc_id=rev.get("rfc_id"),
+                created_at=rev.get("created_at"),
                 author_name_last=creator.name_last,
                 author_name_first=creator.name_first,
-                created_at=updated_rfc.get("created_at"),
-                updated_at=updated_rfc.get("updated_at"),
-                title=updated_rfc.get("title"),
-                slug=updated_rfc.get("slug"),
-                status=updated_rfc.get("status"),
-                content=updated_rfc.get("content"),
-                summary=updated_rfc.get("summary"),
-                revisions=updated_rfc.get("revisions"),
-                current_revision=updated_rfc.get("current_revision"),
-                agent_contributions=updated_rfc.get("agent_contributions")
+                agent_contributors=rev.get("agent_contributors"),
+                title=rev.get("title"),
+                slug=rev.get("slug"),
+                status=rev.get("status"),
+                content=rev.get("content"),
+                summary=rev.get("summary"),
+                message=rev.get("message")
             )
-        
 
+
+#
+# COMMENT functions
+#
 async def register_comment_in_db(
     comment: RFCCommentInDB,
 ) -> int:
@@ -510,8 +651,10 @@ async def get_rfc_comments_from_db(
             for comment in result:
                 comments.append(RFCComment(**comment))
             return comments
-            
 
+#
+# Utility functions         
+#
 async def check_comment_is_on_rfc(
     comment_id: int,
     rfc_id: int,

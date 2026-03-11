@@ -39,8 +39,6 @@ parser = ArgumentParser(
     usage="<command> [option]...",
     description="The MDRFC CLI client",
     epilog="Copyright (c) 2026 Addison Kline (GitHub: @addisonkline)",
-    add_help=False,
-    exit_on_error=False
 )
 subparsers = parser.add_subparsers(title="commands", dest="command")
 
@@ -51,14 +49,6 @@ ping_p = subparsers.add_parser(
     usage="ping [option]...",
     help=ping_desc,
     description=ping_desc,
-    add_help=False, # the default help option exits the REPL
-    exit_on_error=False,
-)
-ping_p.add_argument( # so replace it with one that doesn't
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this help message and exit",
 )
 ping_p.add_argument(
     "-v",
@@ -74,18 +64,10 @@ login_p = subparsers.add_parser(
     usage="login <username> [option]...",
     help=login_desc,
     description=login_desc,
-    add_help=False,
-    exit_on_error=False
 )
 login_p.add_argument(
     "username",
     help="username for this MDRFC server"
-)
-login_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this help message and exit"
 )
 login_p.add_argument(
     "-v",
@@ -101,14 +83,6 @@ logout_p = subparsers.add_parser(
     usage="logout [option]...",
     help=logout_desc,
     description=logout_desc,
-    add_help=False,
-    exit_on_error=False
-)
-logout_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this message and exit"
 )
 
 # ask the server who this client is
@@ -118,14 +92,6 @@ whoami_p = subparsers.add_parser(
     usage="whoami [option]...",
     help=whoami_desc,
     description=whoami_desc,
-    add_help=False,
-    exit_on_error=False
-)
-whoami_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this help message and exit"
 )
 whoami_p.add_argument(
     "-v",
@@ -141,14 +107,6 @@ rfc_list_p = subparsers.add_parser(
     usage="rfc-list [option]...",
     help=rfc_list_desc,
     description=rfc_list_desc,
-    add_help=False,
-    exit_on_error=False
-)
-rfc_list_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this message and exit"
 )
 rfc_list_p.add_argument(
     "-v",
@@ -164,19 +122,11 @@ rfc_get_p = subparsers.add_parser(
     usage="rfc-get <id> [option]...",
     help=rfc_get_desc,
     description=rfc_get_desc,
-    add_help=False,
-    exit_on_error=False
 )
 rfc_get_p.add_argument(
     "id",
     type=int,
     help="the RFC ID to fetch"
-)
-rfc_get_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this message and exit"
 )
 rfc_get_p.add_argument(
     "-v",
@@ -192,8 +142,6 @@ rfc_post_p = subparsers.add_parser(
     usage="rfc-post <docpath> <title> <slug> <summary> <status> [option]...",
     help=rfc_post_desc,
     description=rfc_post_desc,
-    add_help=False,
-    exit_on_error=False
 )
 rfc_post_p.add_argument(
     "docpath",
@@ -217,71 +165,16 @@ rfc_post_p.add_argument(
     help="the status of the RFC to post"
 )
 rfc_post_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this message and exit"
+    "-a",
+    "--agent-contributors",
+    nargs="*",
+    help="optionally add agent contributor(s)"
 )
 rfc_post_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
     help="include more detailed response metadata"
-)
-
-# update an existing RFC on the server
-rfc_update_desc = "(login required) Update an existing RFC on this server"
-rfc_update_p = subparsers.add_parser(
-    "rfc-update",
-    usage="rfc-update <rfc_id> [option]...",
-    help=rfc_update_desc,
-    description=rfc_update_desc,
-    add_help=False,
-    exit_on_error=False
-)
-rfc_update_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC document to update"
-)
-rfc_update_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this message and exit"
-)
-rfc_update_p.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="include more detailed response metadata"
-)
-rfc_update_p.add_argument(
-    "-t",
-    "--title",
-    type=str,
-    help="the new title"
-)
-rfc_update_p.add_argument(
-    "--slug",
-    type=str,
-    help="the new slug"
-)
-rfc_update_p.add_argument(
-    "--status",
-    type=str,
-    choices=["draft", "open", "accepted", "rejected"],
-    help="the new status"
-)
-rfc_update_p.add_argument(
-    "--summary",
-    type=str,
-    help="the new summary"
-)
-rfc_update_p.add_argument(
-    "--content-file",
-    type=str,
-    help="the filepath of the new content"
 )
 
 # list the comments on a given RFC
@@ -291,19 +184,11 @@ comment_list_p = subparsers.add_parser(
     usage="comment-list <rfc_id> [option]...",
     help=comment_list_desc,
     description=comment_list_desc,
-    add_help=False,
-    exit_on_error=False
 )
 comment_list_p.add_argument(
     "rfc_id",
     type=int,
     help="the RFC ID to fetch comments on"
-)
-comment_list_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this message and exit"
 )
 comment_list_p.add_argument(
     "-v",
@@ -319,8 +204,6 @@ comment_get_p = subparsers.add_parser(
     usage="comment-get <rfc_id> <comment_id> [option]...",
     help=comment_get_desc,
     description=comment_get_desc,
-    add_help=False,
-    exit_on_error=False
 )
 comment_get_p.add_argument(
     "rfc_id",
@@ -331,12 +214,6 @@ comment_get_p.add_argument(
     "comment_id",
     type=int,
     help="the comment ID to fetch"
-)
-comment_get_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this message and exit"
 )
 comment_get_p.add_argument(
     "-v",
@@ -352,8 +229,6 @@ comment_post_p = subparsers.add_parser(
     usage="comment-post <> [option]...",
     help=comment_post_desc,
     description=comment_post_desc,
-    add_help=False,
-    exit_on_error=False
 )
 comment_post_p.add_argument(
     "rfc_id",
@@ -363,12 +238,6 @@ comment_post_p.add_argument(
 comment_post_p.add_argument(
     "content",
     help="the comment content"
-)
-comment_post_p.add_argument(
-    "-h",
-    "--help",
-    action="store_true",
-    help="show this messages and exit"
 )
 comment_post_p.add_argument(
     "-v",
@@ -388,10 +257,6 @@ def _cmd_ping(args: Namespace) -> None:
     """
     Ping the remote MDRFC server.
     """
-    if args.help:
-        ping_p.print_help()
-        return
-
     global _url
     response = httpx.get(
         _url,
@@ -423,10 +288,6 @@ def _cmd_login(args: Namespace) -> None:
     """
     Attempt to log into the server.
     """
-    if args.help:
-        login_p.print_help()
-        return
-    
     username = args.username
     _console = Console()
     password = Prompt.get_input(
@@ -485,10 +346,6 @@ def _cmd_logout(args: Namespace) -> None:
     """
     Attempt to log out of the remote server.
     """
-    if args.help:
-        logout_p.print_help()
-        return
-    
     global _username
     global _token
     if (_username == "{unknown}") or (_token is None):
@@ -503,11 +360,7 @@ def _cmd_logout(args: Namespace) -> None:
 def _cmd_whoami(args: Namespace) -> None:
     """
     Attempt to fetch client info from the server.
-    """
-    if args.help:
-        whoami_p.print_help()
-        return
-    
+    """ 
     global _token
     if _token is None:
         rprint("[bold red]error[/bold red] not logged in")
@@ -547,10 +400,6 @@ def _cmd_rfc_list(args: Namespace) -> None:
     """
     Attempt to list the RFCs currently on this server.
     """
-    if args.help:
-        rfc_list_p.print_help()
-        return
-    
     global _url
     response = httpx.get(
         url=f"{_url}/rfcs",
@@ -593,10 +442,6 @@ def _cmd_rfc_get(args: Namespace) -> None:
     """
     Attempt to get a specific RFC on this server.
     """
-    if args.help:
-        rfc_get_p.print_help()
-        return
-    
     global _url
     response = httpx.get(
         url=f"{_url}/rfc/{args.id}",
@@ -626,6 +471,9 @@ def _cmd_rfc_get(args: Namespace) -> None:
     rprint(f"[bold]summary[/bold]: {rfc.summary}")
     rprint(f"[bold]created at[/bold]: {rfc.created_at}")
     rprint(f"[bold]updated at[/bold]: {rfc.updated_at}")
+    rprint(f"[bold]revisions[/bold]: {rfc.revisions}")
+    rprint(f"[bold]current[/bold]: {rfc.current_revision}")
+    rprint(f"[bold]agent contributions[/bold]: {rfc.agent_contributions}")
     rprint()
     rprint(Markdown(rfc.content))
     rprint()
@@ -635,10 +483,6 @@ def _cmd_rfc_post(args: Namespace) -> None:
     """
     Attempt to post a new RFC to this server.
     """
-    if args.help:
-        rfc_post_p.print_help()
-        return
-    
     global _token
     if _token is None:
         rprint("[bold red]error[/bold red] not logged in")
@@ -657,7 +501,8 @@ def _cmd_rfc_post(args: Namespace) -> None:
         "slug": args.slug,
         "status": args.status,
         "summary": args.summary,
-        "content": rfc_content
+        "content": rfc_content,
+        "agent_contributors": args.agent_contributors or []
     }
     
     global _url
@@ -690,84 +535,10 @@ def _cmd_rfc_post(args: Namespace) -> None:
         rprint(f"successfully posted new RFC with ID {response_obj.rfc_id}")
 
 
-def _cmd_rfc_update(args: Namespace) -> None:
-    """
-    Attempt to update an existing RFC.
-    """
-    if args.help:
-        rfc_update_p.print_help()
-        return
-    
-    global _token
-    if _token is None:
-        rprint("[bold red]error[/bold red] not logged in")
-        return
-
-    if args.content_file is not None:
-        rfc_content = ""
-        try:
-            with open(args.content_file) as file:
-                rfc_content = file.read()
-        except Exception:
-            rprint(f"[bold red]error[/bold red] could not open file '{args.content_file}'")
-            return
-    else:
-        rfc_content = None
-
-    body = {
-        "title": args.title,
-        "slug": args.slug,
-        "status": args.status,
-        "summary": args.summary,
-        "content": rfc_content
-    }
-
-    global _url
-    response = httpx.patch(
-        url=f"{_url}/rfc/{args.rfc_id}",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        },
-        json=body
-    )
-
-    if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
-        return
-    
-    response_json = response.json()
-    try:
-        response_obj = res_types.PatchRfcResponse.model_validate(response_json)
-    except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
-        return
-    
-    if args.verbose:
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
-        rprint("=" * 40)
-    rfc = response_obj.rfc
-    rprint(f"[bold]title[/bold]: {rfc.title}")
-    rprint(f"[bold]author[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
-    rprint(f"[bold]slug[/bold]: {rfc.slug}")
-    rprint(f"[bold]status[/bold]: {rfc.status}")
-    rprint(f"[bold]summary[/bold]: {rfc.summary}")
-    rprint(f"[bold]created at[/bold]: {rfc.created_at}")
-    rprint(f"[bold]updated at[/bold]: {rfc.updated_at}")
-    rprint()
-    rprint(Markdown(rfc.content))
-    rprint()
-
-
 def _cmd_comment_list(args: Namespace) -> None:
     """
     Attempt to list the comments on a given RFC.
     """
-    if args.help:
-        comment_list_p.print_help()
-        return
-    
     rfc_id = args.rfc_id
     global _url
     response = httpx.get(
@@ -798,10 +569,6 @@ def _cmd_comment_get(args: Namespace) -> None:
     """
     Attempt to get a specific comment on a given RFC.
     """
-    if args.help:
-        comment_get_p.print_help()
-        return
-    
     rfc_id = args.rfc_id
     comment_id = args.comment_id
     global _url
@@ -833,10 +600,6 @@ def _cmd_comment_post(args: Namespace) -> None:
     """
     Attempt to post a new comment on a given RFC.
     """
-    if args.help:
-        comment_post_p.print_help()
-        return
-    
     global _token
     if _token is None:
         rprint("[bold red]error[/bold red] not logged in")
@@ -951,7 +714,6 @@ def _run_repl() -> None:
         "rfc-list": _cmd_rfc_list,
         "rfc-get": _cmd_rfc_get,
         "rfc-post": _cmd_rfc_post,
-        "rfc-update": _cmd_rfc_update,
         "comment-list": _cmd_comment_list,
         "comment-get": _cmd_comment_get,
         "comment-post": _cmd_comment_post,
@@ -980,6 +742,8 @@ def _run_repl() -> None:
                 else:
                     parser.print_usage()
                     print("for help, run `help`, `?`")
+            except SystemExit:
+                continue
             except Exception as e:
                 rprint(f"[bold red]error[/bold red] command failed: {e}")
 

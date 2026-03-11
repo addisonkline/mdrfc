@@ -1,23 +1,25 @@
 import time
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 import uuid
 
 from fastapi import HTTPException
 
 import mdrfc.requests as req_types
 import mdrfc.responses as res_types
-from mdrfc.backend.comment import RFCComment, build_comment_threads, find_comment_thread
+from mdrfc.backend.comment import RFCComment, RFCCommentInDB, build_comment_threads, find_comment_thread
 from mdrfc.backend.db import (
+    get_revision_from_db,
+    get_revisions_from_db,
     get_rfc_from_db,
     get_rfcs_from_db,
-    patch_rfc_in_db,
+    register_revision_in_db,
     register_rfc_in_db,
     register_comment_in_db,
     get_rfc_comments_from_db,
     check_comment_is_on_rfc
 )
-from mdrfc.backend.document import AgentContributor, RFCDocumentInDB, RFCDocumentUpdate
+from mdrfc.backend.document import AgentContributor, RFCDocumentInDB, RFCRevisionInDB
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
@@ -39,6 +41,9 @@ def get_root(
     )
 
 
+#
+# RFC endpoints
+#
 async def get_rfcs() -> res_types.GetRfcsResponse:
     """
     Handle a request to the endpoint `GET /rfcs`.
@@ -59,12 +64,7 @@ async def get_rfcs() -> res_types.GetRfcsResponse:
 
 async def post_rfc(
     user: User,
-    title: str,
-    slug: str,
-    status: Literal["draft", "open"],
-    summary: str,
-    content: str,
-    agent_contributors: list[AgentContributor]    
+    request: req_types.PostRfcRequest    
 ) -> res_types.PostRfcResponse:
     """
     Handle a request to the endpoint `POST /rfc`.
@@ -73,7 +73,7 @@ async def post_rfc(
 
     first_revision_id = uuid.uuid4()
     agent_contributions = {
-        first_revision_id: agent_contributors
+        first_revision_id: request.agent_contributors
     }
 
     document = RFCDocumentInDB(
@@ -81,14 +81,14 @@ async def post_rfc(
         created_by=user.id,
         created_at=timestamp,
         updated_at=timestamp,
-        title=title,
-        slug=slug,
-        status=status,
-        content=content,
-        summary=summary,
+        title=request.title,
+        slug=request.slug,
+        status=request.status,
+        content=request.content,
+        summary=request.summary,
         revisions=[first_revision_id],
         current_revision=first_revision_id,
-        agent_contributions=agent_contributions   
+        agent_contributions=agent_contributions # type: ignore
     )
 
     rfc_id = await register_rfc_in_db(document)
@@ -120,58 +120,136 @@ async def get_rfc(
     )
 
 
-async def patch_rfc(
+#
+# REVISION endpoints
+#
+async def get_rfc_revisions(
     rfc_id: int,
-    user: User,
-    request: req_types.PatchRfcRequest
-) -> res_types.PatchRfcResponse:
+) -> res_types.GetRfcRevisionsResponse:
     """
-    Handle a request to the endpoint `PATCH /rfc/{rfc_id}`.
+    Handle a request to the endpoint `GET /rfc/{rfc_id}/revs`.
     """
-    update = RFCDocumentUpdate(
-        title=request.title,
-        slug=request.slug,
-        status=request.status,
-        content=request.content,
-        summary=request.summary,
-        agent_contributors=request.agent_contributors
-    )
+    revisions = await get_revisions_from_db(rfc_id)
 
-    document = await patch_rfc_in_db(
-        rfc_id=rfc_id,
-        user=user,
-        update=update,
-    )
-    if document is None:
+    if revisions is None:
         raise HTTPException(
             status_code=404,
-            detail="no RFC document with the given ID found"
+            detail="no revisions for the given RFC document ID found"
         )
-
-    return res_types.PatchRfcResponse(
-        rfc=document,
+    
+    return res_types.GetRfcRevisionsResponse(
+        revisions=revisions,
         metadata={}
     )
 
 
+async def get_rfc_revision(
+    rfc_id: int,
+    revision_id: str,
+) -> res_types.GetRfcRevisionResponse:
+    """
+    Handle a request to the endpoint `GET /rfc/{rfc_id}/rev/{revision_id}`.    
+    """
+    revision = await get_revision_from_db(
+        rfc_id=rfc_id,
+        revision_id=revision_id,
+    )
+
+    if revision is None:
+        raise HTTPException(
+            status_code=404,
+            detail="revision not found"
+        )
+    
+    return res_types.GetRfcRevisionResponse(
+        revision=revision,
+        metadata={}
+    )
+
+
+async def post_rfc_revision(
+    rfc_id: int,
+    user: User,
+    request: req_types.PostRfcRevisionRequest
+) -> res_types.PostRfcRevisionResponse:
+    """
+    Handle a request to the endpoint `POST /rfc/{rfc_id}/rev`.
+    """
+    timestamp = datetime.now()
+    rev_id = uuid.uuid4()
+
+    rfc = await get_rfc_from_db(rfc_id)
+    if rfc is None:
+        raise HTTPException(
+            status_code=404,
+            detail="RFC not found"
+        )
+    
+    to_update: dict[str, Any] = {
+        "title": request.update.title or rfc.title,
+        "slug": request.update.slug or rfc.slug,
+        "status": request.update.status or rfc.status,
+        "content": request.update.content or rfc.content,
+        "summary": request.update.summary or rfc.summary,
+        "agent_contributors": request.update.agent_contributors or []
+    }
+
+    revision = RFCRevisionInDB(
+        id=rev_id, # not used
+        rfc_id=rfc_id,
+        created_at=timestamp,
+        created_by=user.id,
+        agent_contributors=to_update.get("agent_contributors"), # type: ignore
+        title=to_update.get("title"), # type: ignore
+        slug=to_update.get("slug"), # type: ignore
+        status=to_update.get("status"), # type: ignore
+        content=to_update.get("content"), # type: ignore
+        summary=to_update.get("summary"), # type: ignore
+        message=request.message
+    )
+
+    rfc.revisions.append(rev_id)
+    rfc.agent_contributions[rev_id] = to_update.get("agent_contributors") or [] # type: ignore[index]
+
+    new_revision = await register_revision_in_db(
+        rfc_id=rfc_id,
+        user=user,
+        request=revision,
+        new_revisions=rfc.revisions,
+        new_contributions=rfc.agent_contributions
+    )
+    if new_revision is None:
+        raise HTTPException(
+            status_code=400,
+            detail="unable to revise RFC"
+        )
+
+    return res_types.PostRfcRevisionResponse(
+        revision=new_revision,
+        metadata={}
+    )
+
+
+#
+# COMMENT endpoints
+#
 async def post_rfc_comment(
     rfc_id: int,
-    parent_comment_id: int | None,
-    content: str,
     user: User,
+    request: req_types.PostRfcCommentRequest
 ) -> res_types.PostRfcCommentResponse:
     """
     Handle a request to the endpoint `POST /rfc/comment`.
     """
     timestamp = datetime.now()
 
-    comment = RFCComment(
+    comment = RFCCommentInDB(
         id=-1, # this will not be used
-        parent_id=parent_comment_id,
+        parent_id=request.parent_comment_id,
         rfc_id=rfc_id,
         created_by=user.id,
         created_at=timestamp,
-        content=content
+        content=request.content
     )
 
     comment_id = await register_comment_in_db(comment)

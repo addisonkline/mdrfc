@@ -79,6 +79,16 @@ def validate_agent_contributors(contributors: list[str]) -> list[str]:
     return contributors
 
 
+def validate_revision_message(message: str) -> str:
+    if len(message) < consts.LEN_REVISION_MSG_MIN:
+        raise ValueError(f"message must be at least {consts.LEN_REVISION_MSG_MIN} characters long")
+    if len(message) > consts.LEN_REVISION_MSG_MAX:
+        raise ValueError(f"message must be no greater than {consts.LEN_REVISION_MSG_MAX} characters long")
+    return message
+
+#
+# DOCUMENT types
+#
 class RFCDocument(BaseModel):
     id: int
     author_name_last: Annotated[str, AfterValidator(validate_name_last)]
@@ -107,20 +117,6 @@ class RFCDocumentSummary(BaseModel):
     summary: Annotated[str, AfterValidator(validate_rfc_summary)]
 
 
-class RFCRevision(BaseModel):
-    id: UUID
-    rfc_id: int
-    created_at: datetime
-    author_name_last: Annotated[str, AfterValidator(validate_name_last)]
-    author_name_first: Annotated[str, AfterValidator(validate_name_first)]
-    agent_contributors: list[AgentContributor]
-    title: Annotated[str, AfterValidator(validate_rfc_title)]
-    slug: Annotated[str, AfterValidator(validate_rfc_slug)]
-    status: Annotated[RFCStatus, AfterValidator(validate_rfc_status)]
-    content: Annotated[str, AfterValidator(validate_rfc_content)]
-    summary: Annotated[str, AfterValidator(validate_rfc_summary)]
-
-
 class RFCDocumentInDB(BaseModel):
     id: int
     created_by: int
@@ -135,6 +131,33 @@ class RFCDocumentInDB(BaseModel):
     current_revision: UUID
     agent_contributions: AgentContributions
 
+#
+# REVISION types
+#
+class RFCRevision(BaseModel):
+    id: UUID
+    rfc_id: int
+    created_at: datetime
+    author_name_last: Annotated[str, AfterValidator(validate_name_last)]
+    author_name_first: Annotated[str, AfterValidator(validate_name_first)]
+    agent_contributors: list[AgentContributor]
+    title: Annotated[str, AfterValidator(validate_rfc_title)]
+    slug: Annotated[str, AfterValidator(validate_rfc_slug)]
+    status: Annotated[RFCStatus, AfterValidator(validate_rfc_status)]
+    content: Annotated[str, AfterValidator(validate_rfc_content)]
+    summary: Annotated[str, AfterValidator(validate_rfc_summary)]
+    message: Annotated[str, AfterValidator(validate_revision_message)]
+
+
+class RFCRevisionSummary(BaseModel):
+    id: UUID
+    rfc_id: int
+    created_at: datetime
+    author_name_last: Annotated[str, AfterValidator(validate_name_last)]
+    author_name_first: Annotated[str, AfterValidator(validate_name_first)]
+    agent_contributors: list[AgentContributor]
+    message: Annotated[str, AfterValidator(validate_revision_message)]
+
 
 class RFCRevisionInDB(BaseModel):
     id: UUID
@@ -147,12 +170,13 @@ class RFCRevisionInDB(BaseModel):
     status: RFCStatus
     content: str
     summary: str
+    message: str
 
 
-class RFCDocumentUpdate(BaseModel):
-    title: str | None = None
-    slug: str | None = None
-    status: RFCStatus | None = None
-    content: str | None = None
-    summary: str | None = None
-    agent_contributors: list[AgentContributor] | None = None
+class RFCRevisionRequest(BaseModel):
+    title: Annotated[str, AfterValidator(validate_rfc_title)] | None = None
+    slug: Annotated[str, AfterValidator(validate_rfc_slug)] | None = None
+    status: Annotated[Literal["draft", "open"], AfterValidator(validate_rfc_status)] | None = None
+    summary: Annotated[str, AfterValidator(validate_rfc_summary)] | None = None
+    content: Annotated[str, AfterValidator(validate_rfc_content)] | None = None
+    agent_contributors: Annotated[list[str], AfterValidator(validate_agent_contributors)] | None = None

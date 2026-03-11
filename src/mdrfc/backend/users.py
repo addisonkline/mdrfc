@@ -33,6 +33,14 @@ def validate_email(email: str) -> str:
     return email
 
 
+def validate_password(password: str) -> str:
+    if len(password) < consts.LEN_PASSWORD_PLAIN_MIN:
+        raise ValueError(f"password must be at least {consts.LEN_PASSWORD_PLAIN_MIN} characters long")
+    if not password.strip():
+        raise ValueError("password must not be all whitespace")
+    return password
+
+
 def validate_name_last(name: str) -> str:
     if len(name) < consts.LEN_NAME_LAST_MIN:
         raise ValueError(f"last name must be at least {consts.LEN_NAME_LAST_MIN} characters long")

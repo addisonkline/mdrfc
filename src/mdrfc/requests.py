@@ -7,7 +7,9 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, SecretStr, Va
 from mdrfc.backend.comment import validate_comment_content
 import mdrfc.backend.constants as consts
 from mdrfc.backend.document import (
+    RFCRevisionRequest,
     validate_agent_contributors,
+    validate_revision_message,
     validate_rfc_content,
     validate_rfc_slug,
     validate_rfc_status,
@@ -18,10 +20,14 @@ from mdrfc.backend.users import (
     validate_email,
     validate_name_first,
     validate_name_last,
+    validate_password,
     validate_username
 )
 
 
+#
+# AUTH endpoints
+#
 class PostSignupRequest(BaseModel):
     """
     HTTP request object for `POST /signup`.
@@ -30,7 +36,7 @@ class PostSignupRequest(BaseModel):
     email: Annotated[str, AfterValidator(validate_email)]
     name_last: Annotated[str, AfterValidator(validate_name_last)]
     name_first: Annotated[str, AfterValidator(validate_name_first)]
-    password: Annotated[SecretStr, AfterValidator(validate_password)]
+    password: Annotated[str, AfterValidator(validate_password)]
 
 
 async def validate_post_signup_request(request: Request) -> PostSignupRequest:
@@ -66,6 +72,9 @@ class PostVerifyEmailRequest(BaseModel):
     token: Annotated[SecretStr, AfterValidator(validate_verification_token)]
 
 
+#
+# RFC endpoints
+#
 class PostRfcRequest(BaseModel):
     """
     HTTP request object for `POST /rfc`.
@@ -75,7 +84,7 @@ class PostRfcRequest(BaseModel):
     status: Annotated[Literal["draft", "open"], AfterValidator(validate_rfc_status)]
     summary: Annotated[str, AfterValidator(validate_rfc_summary)]
     content: Annotated[str, AfterValidator(validate_rfc_content)]
-    agent_contributors = Annotated[list[str], AfterValidator(validate_agent_contributors)]
+    agent_contributors: Annotated[list[str], AfterValidator(validate_agent_contributors)]
 
 
 async def validate_post_rfc_request(request: Request) -> PostRfcRequest:
@@ -87,24 +96,23 @@ async def validate_post_rfc_request(request: Request) -> PostRfcRequest:
             status_code=422,
             detail=f"request validation failed: {e}"
         )
+    
 
-
-class PatchRfcRequest(BaseModel):
+#
+# REVISION endpoints
+#
+class PostRfcRevisionRequest(BaseModel):
     """
-    HTTP request object for `PATCH /rfc`.
+    HTTP request object for `POST /rfc/{rfc_id}/rev`.
     """
-    title: Annotated[str, AfterValidator(validate_rfc_title)] | None = None
-    slug: Annotated[str, AfterValidator(validate_rfc_slug)] | None = None
-    status: Annotated[Literal["draft", "open"], AfterValidator(validate_rfc_status)] | None = None
-    summary: Annotated[str, AfterValidator(validate_rfc_summary)] | None = None
-    content: Annotated[str, AfterValidator(validate_rfc_content)] | None = None
-    agent_contributors: Annotated[list[str], AfterValidator(validate_agent_contributors)] | None = None
+    update: RFCRevisionRequest
+    message: Annotated[str, AfterValidator(validate_revision_message)]
+    
 
-
-async def validate_patch_rfc_request(request: Request) -> PatchRfcRequest:
+async def validate_post_rfc_revision_request(request: Request) -> PostRfcRevisionRequest:
     try:
         request_json = await request.json()
-        return PatchRfcRequest.model_validate(request_json)
+        return PostRfcRevisionRequest.model_validate(request_json)
     except ValidationError as e:
         raise HTTPException(
             status_code=422,
@@ -112,6 +120,9 @@ async def validate_patch_rfc_request(request: Request) -> PatchRfcRequest:
         )
 
 
+#
+# COMMENT endpoints
+#
 class PostRfcCommentRequest(BaseModel):
     """
     HTTP request object for `POST /rfc/comment`.

@@ -165,16 +165,18 @@ async def post_new_user(
         email=payload.email,
         name_last=payload.name_last,
         name_first=payload.name_first,
-        password=payload.password.get_secret_value()
+        password=payload.password
     )
 
-    background_tasks.add_task(
-        send_verification_email_task,
-        to_email=payload.email,
-        username=payload.username,
-        verification_token=signup_result.verification_token,
-        expires_at=signup_result.verification_expires_at,
-    )
+    if not DEBUG_RETURN_VERIFICATION_TOKEN:
+        logger.info("sending email...")
+        background_tasks.add_task(
+            send_verification_email_task,
+            to_email=payload.email,
+            username=payload.username,
+            verification_token=signup_result.verification_token,
+            expires_at=signup_result.verification_expires_at,
+        )
 
     return res_types.PostSignupResponse(
         username=payload.username,
@@ -239,12 +241,7 @@ async def post_rfc(
     """
     return await api.post_rfc(
         user=current_user,
-        title=request.title,
-        slug=request.slug,
-        status=request.status,
-        summary=request.summary,
-        content=request.content,
-        agent_contributors=request.agent_contributors # type: ignore
+        request=request,
     )
 
 
@@ -261,16 +258,45 @@ async def get_rfc_by_id(
     )
 
 
-@app.patch("/rfc/{rfc_id}")
-async def patch_rfc_by_id(
+#
+# REVISION endpoints
+#
+@app.get("/rfc/{rfc_id}/revs", response_model=res_types.GetRfcRevisionsResponse)
+async def get_rfc_revisions(
+    rfc_id: int,
+) -> res_types.GetRfcRevisionsResponse:
+    """
+    `GET /rfc/{rfc_id}/revs`: Get all revisions for the given RFC.
+    """
+    return await api.get_rfc_revisions(
+        rfc_id=rfc_id,
+    )
+
+
+@app.get("/rfc/{rfc_id}/rev/{rev_id}", response_model=res_types.GetRfcRevisionResponse)
+async def get_rfc_revision(
+    rfc_id: int,
+    rev_id: str,
+) -> res_types.GetRfcRevisionResponse:
+    """
+    `GET /rfc/{rfc_id}/rev/{rev_id}`: Get a specific revision by ID for the given RFC.
+    """
+    return await api.get_rfc_revision(
+        rfc_id=rfc_id,
+        revision_id=rev_id,
+    )
+
+
+@app.post("/rfc/{rfc_id}/rev", response_model=res_types.PostRfcRevisionResponse)
+async def post_rfc_revision(
     rfc_id: int,
     current_user: Annotated[User, Depends(get_current_active_user)],
-    request: Annotated[req_types.PatchRfcRequest, Depends(req_types.validate_patch_rfc_request)]
-) -> res_types.PatchRfcResponse:
+    request: Annotated[req_types.PostRfcRevisionRequest, Depends(req_types.validate_post_rfc_revision_request)]
+) -> res_types.PostRfcRevisionResponse:
     """
-    `PATCH /rfc/{rfc_id}`: Update an existing RFC.
+    `POST /rfc/{rfc_id}/rev`: Update an existing RFC with a new revision.
     """
-    return await api.patch_rfc(
+    return await api.post_rfc_revision(
         rfc_id=rfc_id,
         user=current_user,
         request=request
@@ -290,9 +316,8 @@ async def post_rfc_comment(
     """
     return await api.post_rfc_comment(
         rfc_id=request.rfc_id,
-        parent_comment_id=request.parent_comment_id,
-        content=request.content,
-        user=current_user
+        user=current_user,
+        request=request
     )
 
 
