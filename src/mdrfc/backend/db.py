@@ -12,6 +12,9 @@ from sqlalchemy import (
     String,
     DateTime,
     ForeignKey,
+    UUID,
+    ARRAY,
+    JSON
 )
 import asyncpg # type: ignore
 import dotenv
@@ -26,8 +29,9 @@ from mdrfc.backend.document import (
     RFCDocumentInDB,
     RFCDocumentSummary,
     RFCDocumentUpdate,
+    RFCRevision,
 )
-from mdrfc.backend.comment import RFCComment, RFCCommentWithAuthor
+from mdrfc.backend.comment import RFCComment, RFCCommentInDB
 
 
 # load DSN from env
@@ -44,16 +48,17 @@ users = Table(
     "users",
     metadata_obj,
     Column("id", Integer, primary_key=True),
-    Column("username", String(consts.LEN_USERNAME), nullable=False, unique=True),
-    Column("email", String(consts.LEN_EMAIL), nullable=False, unique=True),
-    Column("name_last", String(consts.LEN_NAME_LAST), nullable=False),
-    Column("name_first", String(consts.LEN_NAME_FIRST), nullable=False),
+    Column("username", String(consts.LEN_USERNAME_MAX), nullable=False, unique=True),
+    Column("email", String(consts.LEN_EMAIL_MAX), nullable=False, unique=True),
+    Column("name_last", String(consts.LEN_NAME_LAST_MAX), nullable=False),
+    Column("name_first", String(consts.LEN_NAME_FIRST_MAX), nullable=False),
     Column("password_argon2", String(consts.LEN_PASSWORD_ARGON2), nullable=False),
     Column("is_verified", Boolean, nullable=False),
     Column("verified_at", DateTime, nullable=True),
     Column("verification_token_hash", String(consts.LEN_VERIFICATION_TOKEN_HASH), nullable=True),
     Column("verification_token_expires_at", DateTime, nullable=True),
-    Column("created_at", DateTime, nullable=False)
+    Column("created_at", DateTime, nullable=False),
+    Column("is_admin", Boolean, nullable=True)
 )
 
 rfcs = Table(
@@ -63,11 +68,14 @@ rfcs = Table(
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
     Column("updated_at", DateTime, nullable=False),
-    Column("title", String(consts.LEN_RFC_TITLE), nullable=False),
-    Column("slug", String(consts.LEN_RFC_SLUG), nullable=False),
-    Column("status", String(consts.LEN_RFC_STATUS), nullable=False),
-    Column("content", String(consts.LEN_RFC_CONTENT), nullable=False),
-    Column("summary", String(consts.LEN_RFC_SUMMARY), nullable=False)
+    Column("title", String(consts.LEN_RFC_TITLE_MAX), nullable=False),
+    Column("slug", String(consts.LEN_RFC_SLUG_MAX), nullable=False),
+    Column("status", String(consts.LEN_RFC_STATUS_MAX), nullable=False),
+    Column("content", String(consts.LEN_RFC_CONTENT_MAX), nullable=False),
+    Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False),
+    Column("revisions", ARRAY(UUID), nullable=False),
+    Column("current_revision", UUID, ForeignKey("rfc_revisions.id"), nullable=False),
+    Column("agent_contributions", JSON, nullable=False)
 )
 
 rfc_comments = Table(
@@ -78,7 +86,22 @@ rfc_comments = Table(
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime, nullable=False),
-    Column("content", String(consts.LEN_COMMENT_CONTENT), nullable=False)
+    Column("content", String(consts.LEN_COMMENT_CONTENT_MAX), nullable=False)
+)
+
+rfc_revisions = Table(
+    "rfc_revisions",
+    metadata_obj,
+    Column("id", UUID, primary_key=True),
+    Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
+    Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
+    Column("agent_contributors", ARRAY(String), nullable=True),
+    Column("created_at", DateTime, nullable=False),
+    Column("title", String(consts.LEN_RFC_TITLE_MAX), nullable=False),
+    Column("slug", String(consts.LEN_RFC_SLUG_MAX), nullable=False),
+    Column("status", String(consts.LEN_RFC_STATUS_MAX), nullable=False),
+    Column("content", String(consts.LEN_RFC_CONTENT_MAX), nullable=False),
+    Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False)
 )
 
 
@@ -275,7 +298,7 @@ async def register_rfc_in_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             return await connection.fetchval(
-                "INSERT INTO rfcs(created_by, created_at, updated_at, title, slug, status, content, summary) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+                "INSERT INTO rfcs(created_by, created_at, updated_at, title, slug, status, content, summary, revisions, current_revision, agent_contributions) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
                 document.created_by,
                 document.created_at,
                 document.updated_at,
@@ -283,7 +306,10 @@ async def register_rfc_in_db(
                 document.slug,
                 document.status,
                 document.content,
-                document.summary
+                document.summary,
+                document.revisions,
+                document.current_revision,
+                document.agent_contributions,
             )
         
 
@@ -316,6 +342,9 @@ async def get_rfc_from_db(
                 status=rfc.get("status"),
                 summary=rfc.get("summary"),
                 content=rfc.get("content"),
+                revisions=rfc.get("revisions"),
+                current_revision=rfc.get("current_revision"),
+                agent_contributions=rfc.get("agent_contributions")
             )
         
 
@@ -351,6 +380,8 @@ async def patch_rfc_in_db(
                 updates["content"] = update.content
             if update.summary is not None:
                 updates["summary"] = update.summary
+            if update.agent_contributors is not None:
+                updates["agent_contributors"] = update.agent_contributors
             if not updates:
                 return None
             updates["updated_at"] = datetime.now()
@@ -386,12 +417,15 @@ async def patch_rfc_in_db(
                 slug=updated_rfc.get("slug"),
                 status=updated_rfc.get("status"),
                 content=updated_rfc.get("content"),
-                summary=updated_rfc.get("summary")
+                summary=updated_rfc.get("summary"),
+                revisions=updated_rfc.get("revisions"),
+                current_revision=updated_rfc.get("current_revision"),
+                agent_contributions=updated_rfc.get("agent_contributions")
             )
         
 
 async def register_comment_in_db(
-    comment: RFCComment,
+    comment: RFCCommentInDB,
 ) -> int:
     """
     Attempt to register a new comment on an existing RFC document in the database.
@@ -448,7 +482,7 @@ async def get_comment_from_db(
 
 async def get_rfc_comments_from_db(
     rfc_id: int,
-) -> list[RFCCommentWithAuthor]:
+) -> list[RFCComment]:
     """
     Attempt to fetch all comments on the RFC with the given ID from the database,
     including author names.
@@ -472,9 +506,9 @@ async def get_rfc_comments_from_db(
                 """,
                 rfc_id
             )
-            comments: list[RFCCommentWithAuthor] = []
+            comments: list[RFCComment] = []
             for comment in result:
-                comments.append(RFCCommentWithAuthor(**comment))
+                comments.append(RFCComment(**comment))
             return comments
             
 

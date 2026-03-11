@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 from typing import Literal
+import uuid
 
 from fastapi import HTTPException
 
@@ -16,7 +17,7 @@ from mdrfc.backend.db import (
     get_rfc_comments_from_db,
     check_comment_is_on_rfc
 )
-from mdrfc.backend.document import RFCDocumentInDB, RFCDocumentUpdate
+from mdrfc.backend.document import AgentContributor, RFCDocumentInDB, RFCDocumentUpdate
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
@@ -62,12 +63,18 @@ async def post_rfc(
     slug: str,
     status: Literal["draft", "open"],
     summary: str,
-    content: str    
+    content: str,
+    agent_contributors: list[AgentContributor]    
 ) -> res_types.PostRfcResponse:
     """
     Handle a request to the endpoint `POST /rfc`.
     """
     timestamp = datetime.now()
+
+    first_revision_id = uuid.uuid4()
+    agent_contributions = {
+        first_revision_id: agent_contributors
+    }
 
     document = RFCDocumentInDB(
         id=-1, # this will not be used
@@ -78,7 +85,10 @@ async def post_rfc(
         slug=slug,
         status=status,
         content=content,
-        summary=summary     
+        summary=summary,
+        revisions=[first_revision_id],
+        current_revision=first_revision_id,
+        agent_contributions=agent_contributions   
     )
 
     rfc_id = await register_rfc_in_db(document)
@@ -123,7 +133,8 @@ async def patch_rfc(
         slug=request.slug,
         status=request.status,
         content=request.content,
-        summary=request.summary
+        summary=request.summary,
+        agent_contributors=request.agent_contributors
     )
 
     document = await patch_rfc_in_db(

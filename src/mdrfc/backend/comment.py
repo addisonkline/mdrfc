@@ -1,24 +1,39 @@
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
+
+import mdrfc.backend.constants as consts
+from mdrfc.backend.users import (
+    validate_name_last,
+    validate_name_first
+)
+
+
+def validate_comment_content(content: str) -> str:
+    if len(content) < consts.LEN_COMMENT_CONTENT_MAX:
+        raise ValueError(f"content must be at least {consts.LEN_COMMENT_CONTENT_MIN} characters long")
+    if len(content) > consts.LEN_COMMENT_CONTENT_MAX:
+        raise ValueError(f"content must be no greater than {consts.LEN_COMMENT_CONTENT_MAX} characters long")
+    return content
 
 
 class RFCComment(BaseModel):
     id: int
     parent_id: int | None
     rfc_id: int
-    created_by: int
     created_at: datetime
-    content: str
+    content: Annotated[str, AfterValidator(validate_comment_content)]
+    author_name_first: Annotated[str, AfterValidator(validate_name_first)]
+    author_name_last: Annotated[str, AfterValidator(validate_name_last)]
 
 
-class RFCCommentWithAuthor(BaseModel):
+class RFCCommentInDB(BaseModel):
     id: int
     parent_id: int | None
     created_at: datetime
     content: str
-    author_name_first: str
-    author_name_last: str
+    created_by: int
 
 
 class CommentThread(BaseModel):
@@ -32,7 +47,7 @@ class CommentThread(BaseModel):
 
 
 def build_comment_threads(
-    comments: list[RFCCommentWithAuthor]
+    comments: list[RFCComment]
 ) -> list[CommentThread]:
     """
     Create a structured list of nested comment threads from a list of flat DB rows.
