@@ -70,8 +70,8 @@ rfcs = Table(
     metadata_obj,
     Column("id", Integer, primary_key=True),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
-    Column("created_at", DateTime, nullable=False),
-    Column("updated_at", DateTime, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("title", String(consts.LEN_RFC_TITLE_MAX), nullable=False),
     Column("slug", String(consts.LEN_RFC_SLUG_MAX), nullable=False),
     Column("status", String(consts.LEN_RFC_STATUS_MAX), nullable=False),
@@ -89,7 +89,7 @@ rfc_comments = Table(
     Column("parent_id", Integer, ForeignKey("rfc_comments.id", ondelete="CASCADE"), nullable=True),
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
-    Column("created_at", DateTime, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
     Column("content", String(consts.LEN_COMMENT_CONTENT_MAX), nullable=False)
 )
 
@@ -100,7 +100,7 @@ rfc_revisions = Table(
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("agent_contributors", ARRAY(String), nullable=True),
-    Column("created_at", DateTime, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
     Column("title", String(consts.LEN_RFC_TITLE_MAX), nullable=False),
     Column("slug", String(consts.LEN_RFC_SLUG_MAX), nullable=False),
     Column("status", String(consts.LEN_RFC_STATUS_MAX), nullable=False),
