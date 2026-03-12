@@ -46,6 +46,7 @@ subparsers = parser.add_subparsers(title="commands", dest="command")
 ping_desc = "Ping the remote server"
 ping_p = subparsers.add_parser(
     "ping",
+    aliases=["p"],
     usage="ping [option]...",
     help=ping_desc,
     description=ping_desc,
@@ -61,6 +62,7 @@ ping_p.add_argument(
 login_desc = "Log into the remote server"
 login_p = subparsers.add_parser(
     "login",
+    aliases=["l"],
     usage="login <username> [option]...",
     help=login_desc,
     description=login_desc,
@@ -80,6 +82,7 @@ login_p.add_argument(
 logout_desc = "(login required) Log out of the remote server"
 logout_p = subparsers.add_parser(
     "logout",
+    aliases=["lo"],
     usage="logout [option]...",
     help=logout_desc,
     description=logout_desc,
@@ -89,6 +92,7 @@ logout_p = subparsers.add_parser(
 whoami_desc = "(login required) Get client info from this server"
 whoami_p = subparsers.add_parser(
     "whoami",
+    aliases=["me"],
     usage="whoami [option]...",
     help=whoami_desc,
     description=whoami_desc,
@@ -104,6 +108,7 @@ whoami_p.add_argument(
 rfc_list_desc = "List the current RFC documents"
 rfc_list_p = subparsers.add_parser(
     "rfc-list",
+    aliases=["rfc-l"],
     usage="rfc-list [option]...",
     help=rfc_list_desc,
     description=rfc_list_desc,
@@ -119,6 +124,7 @@ rfc_list_p.add_argument(
 rfc_get_desc = "Get an existing RFC by ID"
 rfc_get_p = subparsers.add_parser(
     "rfc-get",
+    aliases=["rfc-g"],
     usage="rfc-get <id> [option]...",
     help=rfc_get_desc,
     description=rfc_get_desc,
@@ -139,6 +145,7 @@ rfc_get_p.add_argument(
 rfc_post_desc = "(login required) Post a new RFC to the server"
 rfc_post_p = subparsers.add_parser(
     "rfc-post",
+    aliases=["rfc-p"],
     usage="rfc-post <docpath> <title> <slug> <summary> <status> [option]...",
     help=rfc_post_desc,
     description=rfc_post_desc,
@@ -181,6 +188,7 @@ rfc_post_p.add_argument(
 comment_list_desc = "List all comment threads on a given RFC"
 comment_list_p = subparsers.add_parser(
     "comment-list",
+    aliases=["com-l"],
     usage="comment-list <rfc_id> [option]...",
     help=comment_list_desc,
     description=comment_list_desc,
@@ -201,6 +209,7 @@ comment_list_p.add_argument(
 comment_get_desc = "Get a specific comment on an RFC"
 comment_get_p = subparsers.add_parser(
     "comment-get",
+    aliases=["com-g"],
     usage="comment-get <rfc_id> <comment_id> [option]...",
     help=comment_get_desc,
     description=comment_get_desc,
@@ -226,7 +235,8 @@ comment_get_p.add_argument(
 comment_post_desc = "(login required) Post a new comment on an RFC"
 comment_post_p = subparsers.add_parser(
     "comment-post",
-    usage="comment-post <> [option]...",
+    aliases=["com-p"],
+    usage="comment-post <content> [option]...",
     help=comment_post_desc,
     description=comment_post_desc,
 )
@@ -250,6 +260,106 @@ comment_post_p.add_argument(
     "--reply-to",
     type=int,
     help="the comment ID to reply to"
+)
+
+revision_list_desc = "Get all revisions for a specific RFC"
+revision_list_p = subparsers.add_parser(
+    "revision-list",
+    aliases=["rev-l"],
+    usage="revision-list <rfc_id> [option]...",
+    help=revision_list_desc,
+    description=revision_list_desc
+)
+revision_list_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the RFC ID to get revisions for"
+)
+revision_list_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+revision_get_desc = "Get a specific revision for an RFC"
+revision_get_p = subparsers.add_parser(
+    "revision-get",
+    aliases=["rev-g"],
+    usage="revision-get <rfc_id> <revision_id> [option]...",
+    help=revision_get_desc,
+    description=revision_get_desc
+)
+revision_get_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the RFC ID to get a revision for"
+)
+revision_get_p.add_argument(
+    "revision_id",
+    type=str,
+    help="the revision ID to get"
+)
+revision_get_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+revision_post_desc = "(login required) Create a new revision for a given RFC"
+revision_post_p = subparsers.add_parser(
+    "revision-post",
+    aliases=["rev-p"],
+    usage="revision-post <rfc_id> <message> [option]...",
+    help=revision_post_desc,
+    description=revision_post_desc,
+)
+revision_post_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the ID of the RFC to revise"
+)
+revision_post_p.add_argument(
+    "message",
+    help="the message for this RFC revision"
+)
+revision_post_p.add_argument(
+    "-t",
+    "--title",
+    help="update the RFC's title"
+)
+revision_post_p.add_argument(
+    "--slug",
+    help="update the RFC's slug"
+)
+revision_post_p.add_argument(
+    "-S",
+    "--status",
+    choices=["draft", "open"],
+    help="update the RFC's status"
+)
+revision_post_p.add_argument(
+    "-s",
+    "--summary",
+    help="update the RFC's summary"
+)
+revision_post_p.add_argument(
+    "-cf",
+    "--content-file",
+    help="update the RFC's content with the given filepath"
+)
+revision_post_p.add_argument(
+    "-a",
+    "--agent-contributors",
+    nargs="*",
+    help="optionally add agent contributor(s)"
+)
+revision_post_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
 )
 
 # command handlers
@@ -644,6 +754,164 @@ def _cmd_comment_post(args: Namespace) -> None:
         rprint(f"successfully posted new comment with ID {response_obj.comment_id}")
 
 
+def _cmd_revision_list(args: Namespace) -> None:
+    """
+    Attempt to list the revisions of a given RFC.
+    """
+    rfc_id = args.rfc_id
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfc/{rfc_id}/revs",
+        headers={"User-Agent": _get_user_agent()}
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcRevisionsResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    if args.verbose:
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        rprint("=" * 40)
+    for summary in response_obj.revisions:
+        rprint(f"[bold]id[/bold]: {summary.id}")
+        rprint(f"[bold]author[/bold]: {summary.author_name_first} {summary.author_name_last}")
+        rprint(f"[bold]created at[/bold]: {summary.created_at}")
+        rprint(f"[bold]message[/bold]: {summary.message}")
+        rprint("=" * 40)
+
+
+def _cmd_revision_get(args: Namespace) -> None:
+    """
+    Attempt to get a specific revision of a given RFC.
+    """
+    rfc_id = args.rfc_id
+    revision_id = args.revision_id
+
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfc/{rfc_id}/rev/{revision_id}",
+        headers={"User-Agent": _get_user_agent()}
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcRevisionResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    if args.verbose:
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        rprint("=" * 40)
+    rev = response_obj.revision
+    rprint(f"[bold]title[/bold]: {rev.title}")
+    rprint(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
+    rprint(f"[bold]slug[/bold]: {rev.slug}")
+    rprint(f"[bold]status[/bold]: {rev.status}")
+    rprint(f"[bold]summary[/bold]: {rev.summary}")
+    rprint(f"[bold]created at[/bold]: {rev.created_at}")
+    rprint(f"[bold]agent contributors[/bold]: {rev.agent_contributors}")
+    rprint()
+    rprint(Markdown(rev.content))
+    rprint()
+
+
+def _cmd_revision_post(args: Namespace) -> None:
+    """
+    Attempt to post a new revision for an existing RFC.
+    """
+    global _token
+    if _token is None:
+        rprint("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_id = args.rfc_id
+    message = args.message
+    try:
+        title = args.title
+    except AttributeError:
+        title = None
+    try:
+        slug = args.slug
+    except AttributeError:
+        slug = None
+    try:
+        status = args.status
+    except AttributeError:
+        status = None
+    try:
+        summary = args.summary
+    except AttributeError:
+        summary = None
+    try:
+        agent_contributors = args.agent_contributors
+    except AttributeError:
+        agent_contributors = []
+    try:
+        content_file = args.content_file
+        with open(content_file) as file:
+            content = file.read()
+    except AttributeError:
+        content = None
+
+    body = {
+        "update": {
+            "title": title,
+            "slug": slug,
+            "status": status,
+            "summary": summary,
+            "content": content,
+            "agent_contributors": agent_contributors,
+        },
+        "message": message
+    }
+
+    global _url
+    response = httpx.post(
+        url=f"{_url}/rfc/{rfc_id}/rev",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        },
+        json=body
+    )
+
+    if response.status_code != 200:
+        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.PostRfcRevisionResponse.model_validate(response_json)
+    except ValidationError as e:
+        rprint("[bold red]error[/bold red] response validation failed")
+        rprint(e)
+        return
+    
+    rev = response_obj.revision
+    if args.verbose:
+        rprint(f"[bold]id[/bold]: {rev.id}")
+        rprint(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
+        rprint(f"[bold]created at[/bold]: {rev.created_at}")
+        rprint(f"[bold]message[/bold]: {rev.message}")
+        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        rprint(f"successfully posted new RFC revision with ID {rev.id}")
+
+
 def _print_comment(comment: CommentThread) -> None:
     """
     Pretty print a comment and its replies.
@@ -691,7 +959,10 @@ def _get_prompt() -> Text:
 
     prompt = Text("mdrfc", style=Style(color="cyan"))
     prompt = prompt.append("::", style=Style(color="white"))
-    prompt = prompt.append(_username, style=Style(color="green", bold=True))
+    if _username == "{unknown}":
+        prompt = prompt.append(_username, style=Style(color="yellow", bold=True))
+    else:
+        prompt = prompt.append(_username, style=Style(color="green", bold=True))
     prompt = prompt.append("@", style=Style(color="white", bold=True))
     prompt = prompt.append(_url, style=Style(color="green", bold=True))
     prompt = prompt.append("$ ", style=Style(color="white"))
@@ -708,15 +979,31 @@ def _run_repl() -> None:
 
     commands = {
         "ping": _cmd_ping,
+        "p": _cmd_ping,
         "login": _cmd_login,
+        "l": _cmd_login,
         "logout": _cmd_logout,
+        "lo": _cmd_logout,
         "whoami": _cmd_whoami,
+        "me": _cmd_whoami,
         "rfc-list": _cmd_rfc_list,
+        "rfc-l": _cmd_rfc_list,
         "rfc-get": _cmd_rfc_get,
+        "rfc-g": _cmd_rfc_get,
         "rfc-post": _cmd_rfc_post,
+        "rfc-p": _cmd_rfc_post,
         "comment-list": _cmd_comment_list,
+        "com-l": _cmd_comment_list,
         "comment-get": _cmd_comment_get,
+        "com-g": _cmd_comment_get,
         "comment-post": _cmd_comment_post,
+        "com-p": _cmd_comment_post,
+        "revision-list": _cmd_revision_list,
+        "rev-l": _cmd_revision_list,
+        "revision-get": _cmd_revision_get,
+        "rev-g": _cmd_revision_get,
+        "revision-post": _cmd_revision_post,
+        "rev-p": _cmd_revision_post,
     }
 
     running = True
