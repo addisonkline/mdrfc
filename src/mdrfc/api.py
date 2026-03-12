@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 import uuid
 
@@ -69,7 +69,7 @@ async def post_rfc(
     """
     Handle a request to the endpoint `POST /rfc`.
     """
-    timestamp = datetime.now()
+    timestamp = datetime.now(timezone.utc)
 
     first_revision_id = uuid.uuid4()
     agent_contributions = {
@@ -175,7 +175,7 @@ async def post_rfc_revision(
     """
     Handle a request to the endpoint `POST /rfc/{rfc_id}/rev`.
     """
-    timestamp = datetime.now()
+    timestamp = datetime.now(timezone.utc)
     rev_id = uuid.uuid4()
 
     rfc = await get_rfc_from_db(rfc_id)
@@ -241,7 +241,7 @@ async def post_rfc_comment(
     """
     Handle a request to the endpoint `POST /rfc/comment`.
     """
-    timestamp = datetime.now()
+    timestamp = datetime.now(timezone.utc)
 
     comment = RFCCommentInDB(
         id=-1, # this will not be used
