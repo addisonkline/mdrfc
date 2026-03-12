@@ -618,7 +618,18 @@ async def get_comment_from_db(
             )
             if result is None:
                 return None
-            return RFCComment(**result)
+            creator = await get_user_by_id(result.get("created_by"))
+            if creator is None:
+                return None
+            return RFCComment(
+                id=result.get("id"),
+                parent_id=result.get("parent_id"),
+                rfc_id=result.get("rfc_id"),
+                created_at=result.get("created_at"),
+                content=result.get("content"),
+                author_name_last=creator.name_last,
+                author_name_first=creator.name_first
+            )
         
 
 async def get_rfc_comments_from_db(
@@ -632,24 +643,26 @@ async def get_rfc_comments_from_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             result = await connection.fetch(
-                """
-                SELECT
-                    c.id,
-                    c.parent_id,
-                    c.created_at,
-                    c.content,
-                    u.name_first AS author_name_first,
-                    u.name_last AS author_name_last
-                FROM rfc_comments AS c
-                JOIN users AS u ON c.created_by = u.id
-                WHERE c.rfc_id = $1
-                ORDER BY c.created_at ASC, c.id ASC
-                """,
+                "SELECT * FROM rfc_comments WHERE rfc_id = $1",
                 rfc_id
             )
+            if result is None:
+                return []
             comments: list[RFCComment] = []
             for comment in result:
-                comments.append(RFCComment(**comment))
+                creator = await get_user_by_id(comment.get("created_by"))
+                if creator is None:
+                    continue
+                comment_obj = RFCComment(
+                    id=comment.get("id"),
+                    rfc_id=comment.get("rfc_id"),
+                    parent_id=comment.get("parent_id"),
+                    created_at=comment.get("created_at"),
+                    content=comment.get("content"),
+                    author_name_last=creator.name_last,
+                    author_name_first=creator.name_first
+                )
+                comments.append(comment_obj)
             return comments
 
 #

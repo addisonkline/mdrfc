@@ -2,6 +2,7 @@ import argparse
 
 from mdrfc.client import run_client
 from mdrfc.server import run_server
+from mdrfc.version import print_version
 from mdrfc.setup.run_setup import run_setup_sync
 
 
@@ -91,7 +92,29 @@ def main() -> None:
         "url",
         help="the MDRFC server URL to connect to"
     )
+    client_parser.add_argument(
+        "-nl",
+        "--no-login",
+        action="store_true",
+        help="do not attempt to log in upon startup"
+    )
     client_parser.set_defaults(func=run_client)
+
+    # get software version
+    version_desc = "get the software version and exit"
+    version_parser = subparsers.add_parser(
+        "version",
+        usage="mdrfc version [option]...",
+        description=version_desc,
+        help=version_desc,
+    )
+    version_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="include more detailed software information"
+    )
+    version_parser.set_defaults(func=print_version)
     
     args = parser.parse_args()
 

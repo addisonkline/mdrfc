@@ -3,10 +3,10 @@ import json
 import os
 from urllib.parse import urlsplit
 
+import dotenv
 import httpx
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import ValidationError
-from rich import print as rprint
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.prompt import Prompt
@@ -21,9 +21,14 @@ from mdrfc.utils.version import get_mdrfc_version
 import shlex
 
 
+dotenv.load_dotenv()
+
+
 _url: str = None # type: ignore
 _username: str = "{unknown}"
 _token: str = None # type: ignore
+
+_console = Console()
 
 
 def _get_user_agent() -> str:
@@ -367,6 +372,7 @@ def _cmd_ping(args: Namespace) -> None:
     """
     Ping the remote MDRFC server.
     """
+    global _console
     global _url
     response = httpx.get(
         _url,
@@ -374,22 +380,22 @@ def _cmd_ping(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.GetRootResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] remote not recognized as an MDRFC server")
+        _console.print("[bold red]error[/bold red] remote not recognized as an MDRFC server")
         return
     
     if args.verbose:
-        rprint(f"[bold]name[/bold]: {response_obj.name}")
-        rprint(f"[bold]version[/bold]: {response_obj.version}")
-        rprint(f"[bold]status[/bold]: {response_obj.status}")
-        rprint(f"[bold]uptime[/bold]: {response_obj.uptime}")
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print(f"[bold]name[/bold]: {response_obj.name}")
+        _console.print(f"[bold]version[/bold]: {response_obj.version}")
+        _console.print(f"[bold]status[/bold]: {response_obj.status}")
+        _console.print(f"[bold]uptime[/bold]: {response_obj.uptime}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
         print("pong")
 
@@ -407,7 +413,7 @@ def _cmd_login(args: Namespace) -> None:
     )
 
     if not password.strip():
-        rprint("[bold red]error[/bold red] password required")
+        _console.print("[bold red]error[/bold red] password required")
         return
 
     body = {
@@ -430,15 +436,15 @@ def _cmd_login(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = Token.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
 
     global _username
@@ -446,10 +452,10 @@ def _cmd_login(args: Namespace) -> None:
     _username = username
     _token = response_obj.access_token
     if args.verbose:
-        rprint(f"[bold]token[/bold]: {response_obj.access_token}")
-        rprint(f"[bold]type[/bold]: {response_obj.token_type}")
+        _console.print(f"[bold]token[/bold]: {response_obj.access_token}")
+        _console.print(f"[bold]type[/bold]: {response_obj.token_type}")
     else:
-        rprint(f"successfully logged in as [green]{_username}[/green]")
+        _console.print(f"successfully logged in as [green]{_username}[/green]")
 
 
 def _cmd_logout(args: Namespace) -> None:
@@ -459,12 +465,12 @@ def _cmd_logout(args: Namespace) -> None:
     global _username
     global _token
     if (_username == "{unknown}") or (_token is None):
-        rprint("[bold red]error[/bold red] not logged in")
+        _console.print("[bold red]error[/bold red] not logged in")
         return
     
     _username = "{unknown}"
     _token = None # type: ignore
-    rprint(f"successfully logged out of {_url}")
+    _console.print(f"successfully logged out of {_url}")
 
 
 def _cmd_whoami(args: Namespace) -> None:
@@ -473,7 +479,7 @@ def _cmd_whoami(args: Namespace) -> None:
     """ 
     global _token
     if _token is None:
-        rprint("[bold red]error[/bold red] not logged in")
+        _console.print("[bold red]error[/bold red] not logged in")
         return
 
     global _url
@@ -486,24 +492,24 @@ def _cmd_whoami(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = User.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     if args.verbose:
-        rprint(f"[bold]username[/bold]: {response_obj.username}")
-        rprint(f"[bold]email[/bold]: {response_obj.email}")
-        rprint(f"[bold]name[/bold]: {response_obj.name_last}, {response_obj.name_first}")
-        rprint(f"[bold]created[/bold]: {response_obj.created_at}")
+        _console.print(f"[bold]username[/bold]: {response_obj.username}")
+        _console.print(f"[bold]email[/bold]: {response_obj.email}")
+        _console.print(f"[bold]name[/bold]: {response_obj.name_last}, {response_obj.name_first}")
+        _console.print(f"[bold]created[/bold]: {response_obj.created_at}")
     else:
-        rprint(f"username: [green]{response_obj.username}[/green]")
+        _console.print(f"username: [green]{response_obj.username}[/green]")
 
 
 def _cmd_rfc_list(args: Namespace) -> None:
@@ -517,35 +523,35 @@ def _cmd_rfc_list(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcsResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     rfcs = [doc for doc in response_obj.rfcs]
     if args.verbose:
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
-        rprint("=" * 40)
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 40)
         for rfc in rfcs:
-            rprint(f"[bold]id[/bold]: {rfc.id}")
-            rprint(f"[bold]title[/bold]: {rfc.title}")
-            rprint(f"[bold]author[/bold]: {rfc.author_name_last}, {rfc.author_name_first}")
-            rprint(f"[bold]slug[/bold]: {rfc.slug}")
-            rprint(f"[bold]summary[/bold]: {rfc.summary}")
-            rprint(f"[bold]status[/bold]: {rfc.status}")
-            rprint(f"[bold]created at[/bold]: {rfc.created_at}")
-            rprint(f"[bold]updated at[/bold]: {rfc.updated_at}")
-            rprint("=" * 40)
+            _console.print(f"[bold]id[/bold]: {rfc.id}")
+            _console.print(f"[bold]title[/bold]: {rfc.title}")
+            _console.print(f"[bold]author[/bold]: {rfc.author_name_last}, {rfc.author_name_first}")
+            _console.print(f"[bold]slug[/bold]: {rfc.slug}")
+            _console.print(f"[bold]summary[/bold]: {rfc.summary}")
+            _console.print(f"[bold]status[/bold]: {rfc.status}")
+            _console.print(f"[bold]created at[/bold]: {rfc.created_at}")
+            _console.print(f"[bold]updated at[/bold]: {rfc.updated_at}")
+            _console.print("=" * 40)
     else:
-        rprint(f"found {len(rfcs)} documents")
+        _console.print(f"found {len(rfcs)} documents")
         for rfc in rfcs:
-            rprint(f"RFC {rfc.id}: {rfc.author_name_last}, {rfc.author_name_first}. '{rfc.title}'. Last updated: {rfc.updated_at}.")
+            _console.print(f"RFC {rfc.id}: {rfc.author_name_last}, {rfc.author_name_first}. '{rfc.title}'. Last updated: {rfc.updated_at}.")
 
 
 def _cmd_rfc_get(args: Namespace) -> None:
@@ -559,34 +565,34 @@ def _cmd_rfc_get(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     if args.verbose:
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
-        rprint("=" * 40)
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 40)
     rfc = response_obj.rfc
-    rprint(f"[bold]title[/bold]: {rfc.title}")
-    rprint(f"[bold]author[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
-    rprint(f"[bold]slug[/bold]: {rfc.slug}")
-    rprint(f"[bold]status[/bold]: {rfc.status}")
-    rprint(f"[bold]summary[/bold]: {rfc.summary}")
-    rprint(f"[bold]created at[/bold]: {rfc.created_at}")
-    rprint(f"[bold]updated at[/bold]: {rfc.updated_at}")
-    rprint(f"[bold]revisions[/bold]: {rfc.revisions}")
-    rprint(f"[bold]current[/bold]: {rfc.current_revision}")
-    rprint(f"[bold]agent contributions[/bold]: {rfc.agent_contributions}")
-    rprint()
-    rprint(Markdown(rfc.content))
-    rprint()
+    _console.print(f"[bold]title[/bold]: {rfc.title}")
+    _console.print(f"[bold]author[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
+    _console.print(f"[bold]slug[/bold]: {rfc.slug}")
+    _console.print(f"[bold]status[/bold]: {rfc.status}")
+    _console.print(f"[bold]summary[/bold]: {rfc.summary}")
+    _console.print(f"[bold]created at[/bold]: {rfc.created_at}")
+    _console.print(f"[bold]updated at[/bold]: {rfc.updated_at}")
+    _console.print(f"[bold]revisions[/bold]: {rfc.revisions}")
+    _console.print(f"[bold]current[/bold]: {rfc.current_revision}")
+    _console.print(f"[bold]agent contributions[/bold]: {rfc.agent_contributions}")
+    _console.print()
+    _console.print(Markdown(rfc.content))
+    _console.print()
 
 
 def _cmd_rfc_post(args: Namespace) -> None:
@@ -595,7 +601,7 @@ def _cmd_rfc_post(args: Namespace) -> None:
     """
     global _token
     if _token is None:
-        rprint("[bold red]error[/bold red] not logged in")
+        _console.print("[bold red]error[/bold red] not logged in")
         return
     
     rfc_content = ""
@@ -603,7 +609,7 @@ def _cmd_rfc_post(args: Namespace) -> None:
         with open(args.docpath) as file:
             rfc_content = file.read()
     except Exception:
-        rprint(f"[bold red]error[/bold red] could not open file '{args.docpath}'")
+        _console.print(f"[bold red]error[/bold red] could not open file '{args.docpath}'")
         return
 
     body = {
@@ -626,23 +632,23 @@ def _cmd_rfc_post(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.PostRfcResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     if args.verbose:
-        rprint(f"[bold]id[/bold]: {response_obj.rfc_id}")
-        rprint(f"[bold]created at[/bold]: {response_obj.created_at}")
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print(f"[bold]id[/bold]: {response_obj.rfc_id}")
+        _console.print(f"[bold]created at[/bold]: {response_obj.created_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
-        rprint(f"successfully posted new RFC with ID {response_obj.rfc_id}")
+        _console.print(f"successfully posted new RFC with ID {response_obj.rfc_id}")
 
 
 def _cmd_comment_list(args: Namespace) -> None:
@@ -657,21 +663,22 @@ def _cmd_comment_list(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcCommentsResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     comment_threads = [thread for thread in response_obj.comment_threads]
     if args.verbose:
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
-        rprint("=" * 40)
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 40)
+    _console.print(f"found {len(comment_threads)} comments")
     _print_comment_threads(comment_threads)
 
 
@@ -688,21 +695,21 @@ def _cmd_comment_get(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcCommentResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     comment = response_obj.comment
     if args.verbose:
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
-        rprint("=" * 40)
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 40)
     _print_comment(comment)
 
 
@@ -712,7 +719,7 @@ def _cmd_comment_post(args: Namespace) -> None:
     """
     global _token
     if _token is None:
-        rprint("[bold red]error[/bold red] not logged in")
+        _console.print("[bold red]error[/bold red] not logged in")
         return
     
     rfc_id = args.rfc_id
@@ -742,16 +749,16 @@ def _cmd_comment_post(args: Namespace) -> None:
     try:
         response_obj = res_types.PostRfcCommentResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     if args.verbose:
-        rprint(f"[bold]id[/bold]: {response_obj.comment_id}")
-        rprint(f"[bold]created at[/bold]: {response_obj.created_at}")
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print(f"[bold]id[/bold]: {response_obj.comment_id}")
+        _console.print(f"[bold]created at[/bold]: {response_obj.created_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
-        rprint(f"successfully posted new comment with ID {response_obj.comment_id}")
+        _console.print(f"successfully posted new comment with ID {response_obj.comment_id}")
 
 
 def _cmd_revision_list(args: Namespace) -> None:
@@ -766,26 +773,26 @@ def _cmd_revision_list(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcRevisionsResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     if args.verbose:
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
-        rprint("=" * 40)
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 40)
     for summary in response_obj.revisions:
-        rprint(f"[bold]id[/bold]: {summary.id}")
-        rprint(f"[bold]author[/bold]: {summary.author_name_first} {summary.author_name_last}")
-        rprint(f"[bold]created at[/bold]: {summary.created_at}")
-        rprint(f"[bold]message[/bold]: {summary.message}")
-        rprint("=" * 40)
+        _console.print(f"[bold]id[/bold]: {summary.id}")
+        _console.print(f"[bold]author[/bold]: {summary.author_name_first} {summary.author_name_last}")
+        _console.print(f"[bold]created at[/bold]: {summary.created_at}")
+        _console.print(f"[bold]message[/bold]: {summary.message}")
+        _console.print("=" * 40)
 
 
 def _cmd_revision_get(args: Namespace) -> None:
@@ -802,31 +809,31 @@ def _cmd_revision_get(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcRevisionResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     if args.verbose:
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
-        rprint("=" * 40)
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 40)
     rev = response_obj.revision
-    rprint(f"[bold]title[/bold]: {rev.title}")
-    rprint(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
-    rprint(f"[bold]slug[/bold]: {rev.slug}")
-    rprint(f"[bold]status[/bold]: {rev.status}")
-    rprint(f"[bold]summary[/bold]: {rev.summary}")
-    rprint(f"[bold]created at[/bold]: {rev.created_at}")
-    rprint(f"[bold]agent contributors[/bold]: {rev.agent_contributors}")
-    rprint()
-    rprint(Markdown(rev.content))
-    rprint()
+    _console.print(f"[bold]title[/bold]: {rev.title}")
+    _console.print(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
+    _console.print(f"[bold]slug[/bold]: {rev.slug}")
+    _console.print(f"[bold]status[/bold]: {rev.status}")
+    _console.print(f"[bold]summary[/bold]: {rev.summary}")
+    _console.print(f"[bold]created at[/bold]: {rev.created_at}")
+    _console.print(f"[bold]agent contributors[/bold]: {rev.agent_contributors}")
+    _console.print()
+    _console.print(Markdown(rev.content))
+    _console.print()
 
 
 def _cmd_revision_post(args: Namespace) -> None:
@@ -835,7 +842,7 @@ def _cmd_revision_post(args: Namespace) -> None:
     """
     global _token
     if _token is None:
-        rprint("[bold red]error[/bold red] not logged in")
+        _console.print("[bold red]error[/bold red] not logged in")
         return
     
     rfc_id = args.rfc_id
@@ -890,33 +897,33 @@ def _cmd_revision_post(args: Namespace) -> None:
     )
 
     if response.status_code != 200:
-        rprint(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
         return
     
     response_json = response.json()
     try:
         response_obj = res_types.PostRfcRevisionResponse.model_validate(response_json)
     except ValidationError as e:
-        rprint("[bold red]error[/bold red] response validation failed")
-        rprint(e)
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
         return
     
     rev = response_obj.revision
     if args.verbose:
-        rprint(f"[bold]id[/bold]: {rev.id}")
-        rprint(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
-        rprint(f"[bold]created at[/bold]: {rev.created_at}")
-        rprint(f"[bold]message[/bold]: {rev.message}")
-        rprint(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print(f"[bold]id[/bold]: {rev.id}")
+        _console.print(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
+        _console.print(f"[bold]created at[/bold]: {rev.created_at}")
+        _console.print(f"[bold]message[/bold]: {rev.message}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
-        rprint(f"successfully posted new RFC revision with ID {rev.id}")
+        _console.print(f"successfully posted new RFC revision with ID {rev.id}")
 
 
 def _print_comment(comment: CommentThread) -> None:
     """
     Pretty print a comment and its replies.
     """
-    rprint(comment.model_dump_json(indent=4))
+    _console.print(comment.model_dump_json(indent=4))
 
 
 def _print_comment_threads(threads: list[CommentThread]) -> None:
@@ -927,45 +934,49 @@ def _print_comment_threads(threads: list[CommentThread]) -> None:
         _print_comment(thread)
 
 
-def _get_preamble() -> Text:
+def _get_preamble() -> str:
     """
     The preamble that the rich console prints upon CLI launch.
     """
-    preamble = Text("warning", style=Style(color="yellow", bold=True))
-    preamble.append(" You are not currently logged in. Run ", style=Style(color="white", bold=False))
-    preamble.append("login", style=Style(color="cyan", bold=False))
-    preamble.append(" with valid credentials\n", style=Style(color="white", bold=False))
-    preamble.append("info", style=Style(color="cyan", bold=True))
-    preamble.append(" For help: ", style=Style(color="white", bold=False))
-    preamble.append("help", style=Style(color="cyan", bold=False))
-    preamble.append(", ", style=Style(color="white", bold=False))
-    preamble.append("?", style=Style(color="cyan", bold=False))
-    preamble.append("\n")
-    preamble.append("info", style=Style(color="cyan", bold=True))
-    preamble.append(" To exit: ", style=Style(color="white", bold=False))
-    preamble.append("exit", style=Style(color="cyan", bold=False))
-    preamble.append(", ", style=Style(color="white", bold=False))
-    preamble.append("quit", style=Style(color="cyan", bold=False))
+    preamble = ""
+
+    global _token
+    global _url
+    global _username
+    if _token is None:
+        preamble += "[bold yellow]warning[/bold yellow] you are not currently logged in\n"
+        preamble += "[bold yellow]warning[/bold yellow] run [cyan]login <username>[/cyan] to authenticate\n"
+    preamble += ("=" * 60) + "\n"
+    preamble += f"[bold]MDRFC CLI Client [cyan]v{get_mdrfc_version()}[/cyan][/bold]\n"
+    preamble += f"[bold]Server[/bold]: {_url}\n"
+    preamble += "[bold]Username[/bold]: "
+    if _username == "{unknown}":
+        preamble += "[italic yellow]{unknown}[/italic yellow]\n"
+    else:
+        preamble += f"[green]{_username}[/green]\n"
+    preamble += "\n"
+    preamble += "For help: [cyan]help[/cyan], [cyan]?[/cyan]\n"
+    preamble += "To exit: [cyan]exit[/cyan], [cyan]quit[/cyan]\n"
+    preamble += ("=" * 60)
 
     return preamble
 
 
-def _get_prompt() -> Text:
+def _get_prompt() -> str:
     """
     The prompt for the CLI client REPL.
     """
     global _url
     global _username
 
-    prompt = Text("mdrfc", style=Style(color="cyan"))
-    prompt = prompt.append("::", style=Style(color="white"))
+    prompt = ""
+    prompt += "([cyan]mdrfc[/cyan]) "
     if _username == "{unknown}":
-        prompt = prompt.append(_username, style=Style(color="yellow", bold=True))
+        prompt += "[italic yellow]{unknown}[/italic yellow]"
     else:
-        prompt = prompt.append(_username, style=Style(color="green", bold=True))
-    prompt = prompt.append("@", style=Style(color="white", bold=True))
-    prompt = prompt.append(_url, style=Style(color="green", bold=True))
-    prompt = prompt.append("$ ", style=Style(color="white"))
+        prompt += f"[bold green]{_username}[/bold green]"
+    prompt += f"@[bold green]{_url}[/bold green]"
+    prompt += "[no_underline white]>[/no_underline white] "
 
     return prompt 
 
@@ -974,8 +985,8 @@ def _run_repl() -> None:
     """
     Enter the client REPL.
     """
-    console = Console()
-    console.print(_get_preamble())
+    global _console
+    _console.print(_get_preamble())
 
     commands = {
         "ping": _cmd_ping,
@@ -1008,10 +1019,8 @@ def _run_repl() -> None:
 
     running = True
     while running:
-        user_input = Prompt.get_input(
-            console=console,
-            prompt=_get_prompt(),
-            password=False
+        user_input = _console.input(
+            prompt=_get_prompt()
         )
 
         if user_input == "":
@@ -1032,7 +1041,7 @@ def _run_repl() -> None:
             except SystemExit:
                 continue
             except Exception as e:
-                rprint(f"[bold red]error[/bold red] command failed: {e}")
+                _console.print(f"[bold red]error[/bold red] command failed: {e}")
 
 
 def _validate_url(url: str) -> None:
@@ -1043,6 +1052,54 @@ def _validate_url(url: str) -> None:
     if split.netloc == "":
         print("error: invalid URL")
         exit(1)
+
+
+def _login_on_startup() -> None:
+    """
+    Attempt to log in on client startup.
+    """
+    username = os.getenv("MDRFC_USERNAME")
+    password = os.getenv("MDRFC_PASSWORD")
+
+    if (username is None) or (password is None):
+        _console.print("[bold red]error[/bold red] env vars `MDRFC_USERNAME` and `MDRFC_PASSWORD` are required to log in")
+        return
+    
+    body = {
+        "grant_type": "password",
+        "username": username,
+        "password": password,
+        "scope": "",
+        "client_id": username,
+        "client_secret": password
+    }
+
+    global _url
+    response = httpx.post(
+        url=f"{_url}/login",
+        data=body,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] login request failed with status code {response.status_code}")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = Token.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+
+    global _username
+    global _token
+    _username = username
+    _token = response_obj.access_token
 
 
 def run_client(
@@ -1060,6 +1117,8 @@ def run_client(
 
     print(f"connecting to {url}...")
 
+    if not args.no_login:
+        _login_on_startup()
     _run_repl()
 
     print(f"disconnected from {url}")

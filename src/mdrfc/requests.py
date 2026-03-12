@@ -127,7 +127,6 @@ class PostRfcCommentRequest(BaseModel):
     """
     HTTP request object for `POST /rfc/comment`.
     """
-    rfc_id: int
     parent_comment_id: int | None
     content: Annotated[str, AfterValidator(validate_comment_content)]
     

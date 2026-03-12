@@ -11,7 +11,7 @@ from mdrfc.backend.users import (
 
 
 def validate_comment_content(content: str) -> str:
-    if len(content) < consts.LEN_COMMENT_CONTENT_MAX:
+    if len(content) < consts.LEN_COMMENT_CONTENT_MIN:
         raise ValueError(f"content must be at least {consts.LEN_COMMENT_CONTENT_MIN} characters long")
     if len(content) > consts.LEN_COMMENT_CONTENT_MAX:
         raise ValueError(f"content must be no greater than {consts.LEN_COMMENT_CONTENT_MAX} characters long")

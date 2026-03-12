@@ -306,8 +306,9 @@ async def post_rfc_revision(
 #
 # COMMENT endpoints
 #
-@app.post("/rfc/comment", response_model=res_types.PostRfcCommentResponse)
+@app.post("/rfc/{rfc_id}/comment", response_model=res_types.PostRfcCommentResponse)
 async def post_rfc_comment(
+    rfc_id: int,
     request: Annotated[req_types.PostRfcCommentRequest, Depends(req_types.validate_post_rfc_comment_request)],
     current_user: Annotated[User, Depends(get_current_active_user)]
 ) -> res_types.PostRfcCommentResponse:
@@ -315,7 +316,7 @@ async def post_rfc_comment(
     `POST /rfc/comment`: Post a new comment on an existing RFC.
     """
     return await api.post_rfc_comment(
-        rfc_id=request.rfc_id,
+        rfc_id=rfc_id,
         user=current_user,
         request=request
     )
