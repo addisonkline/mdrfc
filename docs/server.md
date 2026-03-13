@@ -65,6 +65,7 @@ You can optionally tune these environment variables:
 
 - `SMTP_STARTTLS` (default is `true`)
 - `SMTP_USE_SSL` (default is `false`)
+- `REQUIRED_EMAIL_SUFFIX` (default is none)
 
 Also change `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN` to `false` (since verification tokens will now be delivered via email).
 

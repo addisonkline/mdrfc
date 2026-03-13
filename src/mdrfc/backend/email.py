@@ -7,10 +7,16 @@ from smtplib import SMTP, SMTP_SSL
 from ssl import create_default_context
 from urllib.parse import urlencode
 
+from dotenv import load_dotenv
+from fastapi import HTTPException
+
 import mdrfc.backend.constants as consts
 
 
 logger = logging.getLogger(__name__)
+
+load_dotenv()
+REQUIRED_EMAIL_SUFFIX=getenv("REQUIRED_EMAIL_SUFFIX")
 
 
 def _get_bool_env(name: str, default: bool) -> bool:
@@ -100,6 +106,17 @@ def _build_verification_message(
     message.set_content(text_body)
     message.add_alternative(html_body, subtype="html")
     return message
+
+
+def check_valid_email(
+    email: str,
+) -> None:
+    if REQUIRED_EMAIL_SUFFIX is not None:
+        if not email.endswith(REQUIRED_EMAIL_SUFFIX):
+            raise HTTPException(
+                status_code=401,
+                detail="cannot make an account with this email"
+            )
 
 
 def send_verification_email(

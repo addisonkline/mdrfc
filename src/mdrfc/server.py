@@ -30,7 +30,7 @@ from mdrfc.backend.db import (
     close_db
 )
 from mdrfc.backend.document import RFCDocument
-from mdrfc.backend.email import send_verification_email_task
+from mdrfc.backend.email import check_valid_email, send_verification_email_task
 from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
 from mdrfc.utils.logging import init_logger
 import mdrfc.api as api
@@ -133,6 +133,8 @@ async def post_new_user(
     """
     `POST /signup`: Attempt to create a new user with the provided credentials.
     """
+    check_valid_email(payload.email)
+    
     client_host = "unknown"
     if http_request.client is not None and http_request.client.host:
         client_host = http_request.client.host
