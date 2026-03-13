@@ -103,6 +103,7 @@ class RFCDocument(BaseModel):
     revisions: list[UUID]
     current_revision: UUID
     agent_contributions: AgentContributions
+    public: bool 
 
 
 class RFCDocumentSummary(BaseModel):
@@ -115,6 +116,7 @@ class RFCDocumentSummary(BaseModel):
     slug: Annotated[str, AfterValidator(validate_rfc_slug)]
     status: Annotated[RFCStatus, AfterValidator(validate_rfc_status)]
     summary: Annotated[str, AfterValidator(validate_rfc_summary)]
+    public: bool 
 
 
 class RFCDocumentInDB(BaseModel):
@@ -130,6 +132,7 @@ class RFCDocumentInDB(BaseModel):
     revisions: list[UUID]
     current_revision: UUID
     agent_contributions: AgentContributions
+    public: bool = False
 
 #
 # REVISION types
@@ -147,6 +150,7 @@ class RFCRevision(BaseModel):
     content: Annotated[str, AfterValidator(validate_rfc_content)]
     summary: Annotated[str, AfterValidator(validate_rfc_summary)]
     message: Annotated[str, AfterValidator(validate_revision_message)]
+    public: bool = False
 
 
 class RFCRevisionSummary(BaseModel):
@@ -157,6 +161,7 @@ class RFCRevisionSummary(BaseModel):
     author_name_first: Annotated[str, AfterValidator(validate_name_first)]
     agent_contributors: list[AgentContributor]
     message: Annotated[str, AfterValidator(validate_revision_message)]
+    public: bool = False
 
 
 class RFCRevisionInDB(BaseModel):
@@ -171,6 +176,7 @@ class RFCRevisionInDB(BaseModel):
     content: str
     summary: str
     message: str
+    public: bool = False
 
 
 class RFCRevisionRequest(BaseModel):
@@ -180,3 +186,4 @@ class RFCRevisionRequest(BaseModel):
     summary: Annotated[str, AfterValidator(validate_rfc_summary)] | None = None
     content: Annotated[str, AfterValidator(validate_rfc_content)] | None = None
     agent_contributors: Annotated[list[str], AfterValidator(validate_agent_contributors)] | None = None
+    public: bool = False

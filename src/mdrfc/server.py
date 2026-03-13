@@ -20,6 +20,7 @@ from mdrfc.backend.auth import (
     create_access_token,
     create_new_user,
     get_current_active_user,
+    get_current_active_user_if_one,
     verify_user_email,
 )
 from mdrfc.backend.comment import RFCComment
@@ -224,11 +225,15 @@ async def get_users_me(
 # RFC endpoints
 #
 @app.get("/rfcs", response_model=res_types.GetRfcsResponse)
-async def get_rfcs() -> res_types.GetRfcsResponse:
+async def get_rfcs(
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
+) -> res_types.GetRfcsResponse:
     """
     `GET /rfcs`: Obtain a list of all current RFCs.
     """
-    return await api.get_rfcs()
+    return await api.get_rfcs(
+        current_user=current_user,
+    )
 
 
 @app.post("/rfc", response_model=res_types.PostRfcResponse)
@@ -248,13 +253,15 @@ async def post_rfc(
 @app.get("/rfc/{rfc_id}/rev/current", response_model=res_types.GetRfcResponse)
 @app.get("/rfc/{rfc_id}", response_model=res_types.GetRfcResponse)
 async def get_rfc_by_id(
-    rfc_id: int
+    rfc_id: int,
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
 ) -> res_types.GetRfcResponse:
     """
     `GET /rfc/{rfc_id}`: Get the existing RFC document by ID.
     """
     return await api.get_rfc(
         rfc_id=rfc_id,
+        current_user=current_user,
     )
 
 
@@ -264,12 +271,14 @@ async def get_rfc_by_id(
 @app.get("/rfc/{rfc_id}/revs", response_model=res_types.GetRfcRevisionsResponse)
 async def get_rfc_revisions(
     rfc_id: int,
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcRevisionsResponse:
     """
     `GET /rfc/{rfc_id}/revs`: Get all revisions for the given RFC.
     """
     return await api.get_rfc_revisions(
         rfc_id=rfc_id,
+        current_user=current_user
     )
 
 
@@ -277,6 +286,7 @@ async def get_rfc_revisions(
 async def get_rfc_revision(
     rfc_id: int,
     rev_id: str,
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcRevisionResponse:
     """
     `GET /rfc/{rfc_id}/rev/{rev_id}`: Get a specific revision by ID for the given RFC.
@@ -284,6 +294,7 @@ async def get_rfc_revision(
     return await api.get_rfc_revision(
         rfc_id=rfc_id,
         revision_id=rev_id,
+        current_user=current_user
     )
 
 
@@ -325,12 +336,14 @@ async def post_rfc_comment(
 @app.get("/rfc/{rfc_id}/comments", response_model=res_types.GetRfcCommentsResponse)
 async def get_rfc_comments(
     rfc_id: int,
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
 ) -> res_types.GetRfcCommentsResponse:
     """
     `GET /rfc/{rfc_id}/comments`: Get all comments on an existing RFC.
     """
     return await api.get_rfc_comments(
-        rfc_id=rfc_id
+        rfc_id=rfc_id,
+        current_user=current_user
     )
 
 
@@ -338,13 +351,15 @@ async def get_rfc_comments(
 async def get_rfc_comment(
     rfc_id: int,
     comment_id: int,
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
 ) -> res_types.GetRfcCommentResponse:
     """
     `GET /rfc/{rfc_id}/comment/{comment_id}`: Get a specific comment on a specific RFC.
     """
     return await api.get_rfc_comment(
         rfc_id=rfc_id,
-        comment_id=comment_id
+        comment_id=comment_id,
+        current_user=current_user
     )
 
 

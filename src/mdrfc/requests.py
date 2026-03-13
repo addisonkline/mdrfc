@@ -85,6 +85,7 @@ class PostRfcRequest(BaseModel):
     summary: Annotated[str, AfterValidator(validate_rfc_summary)]
     content: Annotated[str, AfterValidator(validate_rfc_content)]
     agent_contributors: Annotated[list[str], AfterValidator(validate_agent_contributors)]
+    public: bool = False
 
 
 async def validate_post_rfc_request(request: Request) -> PostRfcRequest:

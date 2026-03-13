@@ -66,6 +66,7 @@ class EmailVerificationResult(BaseModel):
 password_hash = PasswordHash.recommended()
 DUMMY_HASH = password_hash.hash("dummypassword")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
 
 def _utcnow() -> datetime:
@@ -162,6 +163,20 @@ async def get_current_user(
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
+    return current_user
+
+
+async def get_current_user_if_one(
+    token: Annotated[str | None, Depends(optional_oauth2_scheme)],
+) -> UserInDB | None:
+    if token is None:
+        return None
+    return await get_current_user(token)
+
+
+async def get_current_active_user_if_one(
+    current_user: Annotated[User | None, Depends(get_current_user_if_one)]
+) -> User | None:
     return current_user
 
 

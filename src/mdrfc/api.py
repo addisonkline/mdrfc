@@ -44,7 +44,9 @@ def get_root(
 #
 # RFC endpoints
 #
-async def get_rfcs() -> res_types.GetRfcsResponse:
+async def get_rfcs(
+    current_user: User | None,
+) -> res_types.GetRfcsResponse:
     """
     Handle a request to the endpoint `GET /rfcs`.
     """
@@ -55,6 +57,9 @@ async def get_rfcs() -> res_types.GetRfcsResponse:
             status_code=404,
             detail="no RFC documents found"
         )
+    
+    if current_user is None:
+        result = [summary for summary in result if summary.public]
     
     return res_types.GetRfcsResponse(
         rfcs=result,
@@ -88,7 +93,8 @@ async def post_rfc(
         summary=request.summary,
         revisions=[first_revision_id],
         current_revision=first_revision_id,
-        agent_contributions=agent_contributions # type: ignore
+        agent_contributions=agent_contributions, # type: ignore
+        public=request.public,
     )
 
     rfc_id = await register_rfc_in_db(document)
@@ -102,6 +108,7 @@ async def post_rfc(
 
 async def get_rfc(
     rfc_id: int,
+    current_user: User | None,
 ) -> res_types.GetRfcResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}`.
@@ -112,6 +119,12 @@ async def get_rfc(
         raise HTTPException(
             status_code=404,
             detail="no RFC document with the given ID found"
+        )
+    
+    if (current_user is None) and (not document.public):
+        raise HTTPException(
+            status_code=401,
+            detail="unable to get this RFC"
         )
     
     return res_types.GetRfcResponse(
@@ -125,10 +138,24 @@ async def get_rfc(
 #
 async def get_rfc_revisions(
     rfc_id: int,
+    current_user: User | None,
 ) -> res_types.GetRfcRevisionsResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}/revs`.
     """
+    rfc = await get_rfc_from_db(rfc_id)
+    if rfc is None:
+        raise HTTPException(
+            status_code=404,
+            detail="no RFC document with the given ID found"
+        )
+    
+    if (current_user is None) and (not rfc.public):
+        raise HTTPException(
+            status_code=401,
+            detail="unable to access this RFC"
+        )
+    
     revisions = await get_revisions_from_db(rfc_id)
 
     if revisions is None:
@@ -146,6 +173,7 @@ async def get_rfc_revisions(
 async def get_rfc_revision(
     rfc_id: int,
     revision_id: str,
+    current_user: User | None
 ) -> res_types.GetRfcRevisionResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}/rev/{revision_id}`.    
@@ -159,6 +187,12 @@ async def get_rfc_revision(
         raise HTTPException(
             status_code=404,
             detail="revision not found"
+        )
+    
+    if (current_user is None) and (not revision.public):
+        raise HTTPException(
+            status_code=401,
+            detail="unable to get this revision"
         )
     
     return res_types.GetRfcRevisionResponse(
@@ -191,7 +225,8 @@ async def post_rfc_revision(
         "status": request.update.status or rfc.status,
         "content": request.update.content or rfc.content,
         "summary": request.update.summary or rfc.summary,
-        "agent_contributors": request.update.agent_contributors or []
+        "agent_contributors": request.update.agent_contributors or [],
+        "public": request.update.public or rfc.public,
     }
 
     revision = RFCRevisionInDB(
@@ -205,6 +240,7 @@ async def post_rfc_revision(
         status=to_update.get("status"), # type: ignore
         content=to_update.get("content"), # type: ignore
         summary=to_update.get("summary"), # type: ignore
+        public=to_update.get("public"), # type: ignore
         message=request.message
     )
 
@@ -263,14 +299,22 @@ async def post_rfc_comment(
 
 async def get_rfc_comments(
     rfc_id: int,
+    current_user: User | None,
 ) -> res_types.GetRfcCommentsResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}/comments`.
     """
-    if await get_rfc_from_db(rfc_id) is None:
+    rfc = await get_rfc_from_db(rfc_id)
+    if rfc is None:
         raise HTTPException(
             status_code=404,
             detail="no RFC document with the given ID found"
+        )
+    
+    if (current_user is None) and (not rfc.public):
+        raise HTTPException(
+            status_code=401,
+            detail="unable to access this RFC"
         )
 
     comment_rows = await get_rfc_comments_from_db(rfc_id)
@@ -285,10 +329,24 @@ async def get_rfc_comments(
 async def get_rfc_comment(
     rfc_id: int,
     comment_id: int,
+    current_user: User | None,
 ) -> res_types.GetRfcCommentResponse:
     """
     Handle a request to the endpoint `GET /rfc/{rfc_id}/comment/{comment_id}`.
     """
+    rfc = await get_rfc_from_db(rfc_id)
+    if rfc is None:
+        raise HTTPException(
+            status_code=404,
+            detail="no RFC document with the given ID found"
+        )
+    
+    if (current_user is None) and (not rfc.public):
+        raise HTTPException(
+            status_code=401,
+            detail="unable to access this RFC"
+        )
+    
     if not await check_comment_is_on_rfc(comment_id, rfc_id):
         raise HTTPException(
             status_code=400,

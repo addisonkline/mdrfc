@@ -79,7 +79,8 @@ rfcs = Table(
     Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False),
     Column("revisions", ARRAY(UUID), nullable=False),
     Column("current_revision", UUID, ForeignKey("rfc_revisions.id"), nullable=False),
-    Column("agent_contributions", JSON, nullable=False)
+    Column("agent_contributions", JSON, nullable=False),
+    Column("is_public", Boolean, nullable=True, default=False)
 )
 
 rfc_comments = Table(
@@ -90,7 +91,7 @@ rfc_comments = Table(
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
-    Column("content", String(consts.LEN_COMMENT_CONTENT_MAX), nullable=False)
+    Column("content", String(consts.LEN_COMMENT_CONTENT_MAX), nullable=False),
 )
 
 rfc_revisions = Table(
@@ -106,6 +107,7 @@ rfc_revisions = Table(
     Column("status", String(consts.LEN_RFC_STATUS_MAX), nullable=False),
     Column("content", String(consts.LEN_RFC_CONTENT_MAX), nullable=False),
     Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False),
+    Column("is_public", Boolean, nullable=True, default=False),
     Column("message", String(consts.LEN_REVISION_MSG_MAX), nullable=False)
 )
 
@@ -312,7 +314,8 @@ async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
                         title=rfc.get("title"),
                         slug=rfc.get("slug"),
                         status=rfc.get("status"),
-                        summary=rfc.get("summary")
+                        summary=rfc.get("summary"),
+                        public=rfc.get("is_public") or False,
                     )
                     summaries.append(summary)
                 return summaries
@@ -406,7 +409,8 @@ async def get_rfc_from_db(
                 content=rfc.get("content"),
                 revisions=rfc.get("revisions"),
                 current_revision=rfc.get("current_revision"),
-                agent_contributions=_deserialize_agent_contributions(rfc.get("agent_contributions"))
+                agent_contributions=_deserialize_agent_contributions(rfc.get("agent_contributions")),
+                public=rfc.get("is_public") or False,
             )
 
 

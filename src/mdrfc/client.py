@@ -517,9 +517,18 @@ def _cmd_rfc_list(args: Namespace) -> None:
     Attempt to list the RFCs currently on this server.
     """
     global _url
+    global _token
+
+    headers = {
+        "User-Agent": _get_user_agent()
+    }
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
     response = httpx.get(
         url=f"{_url}/rfcs",
-        headers={"User-Agent": _get_user_agent()}
+        headers=headers
     )
 
     if response.status_code != 200:
@@ -559,13 +568,24 @@ def _cmd_rfc_get(args: Namespace) -> None:
     Attempt to get a specific RFC on this server.
     """
     global _url
+    global _token
+
+    headers = {
+        "User-Agent": _get_user_agent()
+    }
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
     response = httpx.get(
         url=f"{_url}/rfc/{args.id}",
-        headers={"User-Agent": _get_user_agent()}
+        headers=headers
     )
 
     if response.status_code != 200:
         _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        if args.verbose:
+            _console.print(f"{response.text}")
         return
     
     response_json = response.json()
@@ -657,9 +677,18 @@ def _cmd_comment_list(args: Namespace) -> None:
     """
     rfc_id = args.rfc_id
     global _url
+    global _token
+
+    headers = {
+        "User-Agent": _get_user_agent()
+    }
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
     response = httpx.get(
         url=f"{_url}/rfc/{rfc_id}/comments",
-        headers={"User-Agent": _get_user_agent()}
+        headers=headers
     )
 
     if response.status_code != 200:
@@ -688,10 +717,20 @@ def _cmd_comment_get(args: Namespace) -> None:
     """
     rfc_id = args.rfc_id
     comment_id = args.comment_id
+
     global _url
+    global _token
+
+    headers = {
+        "User-Agent": _get_user_agent()
+    }
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
     response = httpx.get(
         url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}",
-        headers={"User-Agent": _get_user_agent()}
+        headers=headers
     )
 
     if response.status_code != 200:
@@ -766,9 +805,18 @@ def _cmd_revision_list(args: Namespace) -> None:
     """
     rfc_id = args.rfc_id
     global _url
+    global _token
+
+    headers = {
+        "User-Agent": _get_user_agent()
+    }
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
     response = httpx.get(
         url=f"{_url}/rfc/{rfc_id}/revs",
-        headers={"User-Agent": _get_user_agent()}
+        headers=headers
     )
 
     if response.status_code != 200:
@@ -802,9 +850,18 @@ def _cmd_revision_get(args: Namespace) -> None:
     revision_id = args.revision_id
 
     global _url
+    global _token
+
+    headers = {
+        "User-Agent": _get_user_agent()
+    }
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
     response = httpx.get(
         url=f"{_url}/rfc/{rfc_id}/rev/{revision_id}",
-        headers={"User-Agent": _get_user_agent()}
+        headers=headers
     )
 
     if response.status_code != 200:
