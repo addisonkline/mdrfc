@@ -730,14 +730,13 @@ def _cmd_comment_post(args: Namespace) -> None:
         reply_to = None
 
     body = {
-        "rfc_id": rfc_id,
         "content": content,
         "parent_comment_id": reply_to
     }
 
     global _url
     response = httpx.post(
-        url=f"{_url}/rfc/comment",
+        url=f"{_url}/rfc/{rfc_id}/comment",
         headers={
             "Authorization": f"Bearer {_token}",
             "User-Agent": _get_user_agent()
