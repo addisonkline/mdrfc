@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 
 from dotenv import load_dotenv
 from fastapi import HTTPException
+import resend
 
 import mdrfc.backend.constants as consts
 
@@ -36,6 +37,7 @@ class SMTPSettings:
     smtp_password: str | None
     smtp_starttls: bool
     smtp_use_ssl: bool
+    resend_api_key: str | None
 
 
 def load_smtp_settings() -> SMTPSettings:
@@ -65,6 +67,7 @@ def load_smtp_settings() -> SMTPSettings:
         smtp_password=getenv("SMTP_PASSWORD"),
         smtp_starttls=_get_bool_env("SMTP_STARTTLS", True),
         smtp_use_ssl=_get_bool_env("SMTP_USE_SSL", False),
+        resend_api_key=getenv("RESEND_API_KEY")
     )
 
 
@@ -96,16 +99,29 @@ def _build_verification_message(
         f"{verification_url}\n\n"
         f"This link expires at {expires_at_display} UTC.\n"
     )
+    html_body = build_html_body(
+        username=username,
+        verification_url=verification_url,
+        expires_at_display=expires_at_display
+    )
+
+    message.set_content(text_body)
+    message.add_alternative(html_body, subtype="html")
+    return message
+
+
+def build_html_body(
+    username: str,
+    verification_url: str,
+    expires_at_display: str,
+) -> str:
     html_body = (
         f"<p>Hi {username},</p>"
         "<p>Thanks for signing up for MDRFC.</p>"
         f"<p><a href=\"{verification_url}\">Verify your email address</a></p>"
         f"<p>This link expires at {expires_at_display} UTC.</p>"
     )
-
-    message.set_content(text_body)
-    message.add_alternative(html_body, subtype="html")
-    return message
+    return html_body
 
 
 def check_valid_email(
@@ -138,22 +154,34 @@ def send_verification_email(
         verification_url=verification_url,
         expires_at=expires_at,
     )
+    if settings.resend_api_key is not None:
+        params: resend.Emails.SendParams = {
+            "from": message.get("From"), # type: ignore
+            "to": [message.get("To")], # type: ignore
+            "subject": message.get("Subject"), # type: ignore
+            "html": build_html_body(
+                username=username,
+                verification_url=verification_url,
+                expires_at_display=expires_at.isoformat(timespec="seconds")
+            )
+        }
+        email = resend.Emails.send(params)
+    else:
+        smtp_cls = SMTP_SSL if settings.smtp_use_ssl else SMTP
+        with smtp_cls(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            timeout=consts.SMTP_TIMEOUT_SECONDS,
+        ) as smtp:
+            if settings.smtp_use_ssl:
+                pass
+            elif settings.smtp_starttls:
+                smtp.starttls(context=create_default_context())
 
-    smtp_cls = SMTP_SSL if settings.smtp_use_ssl else SMTP
-    with smtp_cls(
-        host=settings.smtp_host,
-        port=settings.smtp_port,
-        timeout=consts.SMTP_TIMEOUT_SECONDS,
-    ) as smtp:
-        if settings.smtp_use_ssl:
-            pass
-        elif settings.smtp_starttls:
-            smtp.starttls(context=create_default_context())
+            if settings.smtp_username and settings.smtp_password:
+                smtp.login(settings.smtp_username, settings.smtp_password)
 
-        if settings.smtp_username and settings.smtp_password:
-            smtp.login(settings.smtp_username, settings.smtp_password)
-
-        smtp.send_message(message)
+            smtp.send_message(message)
 
 
 def send_verification_email_task(

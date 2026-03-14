@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from os import getenv
 from typing import Any
@@ -27,6 +27,7 @@ from mdrfc.backend.users import (
     UserInDB
 )
 from mdrfc.backend.document import (
+    QuarantinedRFCSummary,
     RFCDocument,
     RFCDocumentInDB,
     RFCDocumentSummary,
@@ -35,7 +36,7 @@ from mdrfc.backend.document import (
     RFCRevisionRequest,
     RFCRevisionSummary
 )
-from mdrfc.backend.comment import RFCComment, RFCCommentInDB
+from mdrfc.backend.comment import QuarantinedComment, RFCComment, RFCCommentInDB
 
 
 # load DSN from env
@@ -80,7 +81,8 @@ rfcs = Table(
     Column("revisions", ARRAY(UUID), nullable=False),
     Column("current_revision", UUID, ForeignKey("rfc_revisions.id"), nullable=False),
     Column("agent_contributions", JSON, nullable=False),
-    Column("is_public", Boolean, nullable=True, default=False)
+    Column("is_public", Boolean, nullable=True, default=False),
+    Column("is_quarantined", Boolean, nullable=True, default=False)
 )
 
 rfc_comments = Table(
@@ -92,6 +94,7 @@ rfc_comments = Table(
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("content", String(consts.LEN_COMMENT_CONTENT_MAX), nullable=False),
+    Column("is_quarantined", Boolean, nullable=True, default=False)
 )
 
 rfc_revisions = Table(
@@ -109,6 +112,26 @@ rfc_revisions = Table(
     Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False),
     Column("is_public", Boolean, nullable=True, default=False),
     Column("message", String(consts.LEN_REVISION_MSG_MAX), nullable=False)
+)
+
+quarantined_rfcs = Table(
+    "quarantined_rfcs",
+    metadata_obj,
+    Column("quarantine_id", Integer, primary_key=True),
+    Column("quarantined_by", Integer, ForeignKey("users.id"), nullable=False),
+    Column("quarantined_at", DateTime(timezone=True), nullable=False),
+    Column("reason", String(consts.LEN_QUARANTINED_RFC_REASON_MAX), nullable=False),
+    Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False)
+)
+
+quarantined_comments = Table(
+    "quarantined_comments",
+    metadata_obj,
+    Column("quarantine_id", Integer, primary_key=True),
+    Column("quarantined_by", Integer, ForeignKey("users.id"), nullable=False),
+    Column("quarantined_at", DateTime(timezone=True), nullable=False),
+    Column("reason", String(consts.LEN_QUARANTINED_RFC_REASON_MAX), nullable=False),
+    Column("comment_id", Integer, ForeignKey("rfc_comments.id"), nullable=False)
 )
 
 
@@ -321,6 +344,103 @@ async def get_rfcs_from_db() -> list[RFCDocumentSummary] | None:
                 return summaries
 
 
+async def get_rfcs_quarantined_from_db() -> list[QuarantinedRFCSummary]:
+    """
+    Get all RFCs marked as quarantined in the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            quarantined_rfcs = await connection.fetch(
+                "SELECT * FROM rfcs WHERE is_quarantined IS NOT NULL AND is_quarantined = $1",
+                True
+            )
+            if quarantined_rfcs is None:
+                return []
+            else:
+                summaries: list[QuarantinedRFCSummary] = []
+                for rfc in quarantined_rfcs:
+                    rfc_in_db = await get_rfc_from_db(rfc.get("rfc_id"))
+                    if rfc_in_db is None:
+                        continue
+                    quarantiner = await get_user_by_id(rfc.get("quarantined_by"))
+                    if quarantiner is None:
+                        continue
+                    summary = QuarantinedRFCSummary(
+                        quarantine_id=rfc.get("quarantine_id"),
+                        quarantined_by_name_last=quarantiner.name_last,
+                        quarantined_by_name_first=quarantiner.name_first,
+                        quarantined_at=rfc.get("quarantined_at"),
+                        reason=rfc.get("reason"),
+                        rfc_id=rfc_in_db.id,
+                        rfc_title=rfc_in_db.title,
+                        rfc_slug=rfc_in_db.slug,
+                        rfc_status=rfc_in_db.status,
+                        rfc_summary=rfc_in_db.summary
+                    )
+                    summaries.append(summary)
+                return summaries
+            
+
+async def delete_rfc_from_db(
+    quarantine_id: int,
+) -> None:
+    """
+    Fully delete a quarantined RFC from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query_quarantine = """
+            DELETE FROM quarantined_rfcs * 
+            WHERE quarantined_id = $1
+            RETURNING rfc_id;
+            """
+            rfc_id = await connection.execute(
+                query_quarantine,
+                quarantine_id,
+            )
+            if rfc_id is None:
+                return
+            query_rfc = """
+            DELETE * FROM rfcs
+            WHERE id = $1;
+            """
+            await connection.execute(
+                query_rfc,
+                rfc_id
+            )
+
+
+async def unquarantine_rfc_in_db(
+    quarantine_id: int,
+) -> None:
+    """
+    Unquarantine and republish an RFC in the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query_quarantine = """
+            DELETE FROM quarantined_rfcs * 
+            WHERE quarantined_id = $1
+            RETURNING rfc_id;
+            """
+            rfc_id = await connection.execute(
+                query_quarantine,
+                quarantine_id
+            )
+            if rfc_id is None:
+                return
+            query_rfc = """
+            UPDATE rfcs
+            SET is_quarantined = FALSE
+            WHERE id = SELECT rfc_id FROM quarantine_remove;
+            """
+            await connection.execute(
+                query_rfc
+            )
+
 
 async def register_rfc_in_db(
     document: RFCDocumentInDB
@@ -412,6 +532,57 @@ async def get_rfc_from_db(
                 agent_contributions=_deserialize_agent_contributions(rfc.get("agent_contributions")),
                 public=rfc.get("is_public") or False,
             )
+        
+
+async def quarantine_rfc_in_db(
+    rfc_id: int,
+    reason: str,
+    user: User,
+) -> datetime:
+    """
+    Soft-delete (quarantine) an existing RFC in the database.
+    """
+    rfc = await get_rfc_from_db(rfc_id)
+    if rfc is None:
+        raise HTTPException(
+            status_code=404,
+            detail="RFC not found"
+        )
+    
+    if not await check_user_created_rfc(user, rfc_id):
+        if not user.is_admin:
+            raise HTTPException(
+                status_code=401,
+                detail="cannot delete this RFC"
+            )
+
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query_rfcs = """
+            UPDATE rfcs
+            SET is_quarantined = TRUE
+            WHERE rfc_id = $1;
+            """
+            await connection.execute(
+                query_rfcs,
+                rfc_id
+            )
+            query_quarantined = """
+            INSERT INTO quarantined_rfcs (
+                quarantined_by, quarantined_at, message, rfc_id
+            )
+            VALUES($1, $2, $3, $4)
+            RETURNING quarantined_at;
+            """
+            timestamp = await connection.execute(
+                query_quarantined,
+                user.id,
+                datetime.now(timezone.utc),
+                reason,
+                rfc_id
+            )
+            return timestamp
 
 
 #
@@ -668,6 +839,15 @@ async def get_rfc_comments_from_db(
                 )
                 comments.append(comment_obj)
             return comments
+        
+
+async def get_comments_quarantined_in_db(
+    rfc_id: int,
+) -> list[QuarantinedComment]:
+    """
+    Get all quarantined (soft-deleted) comments on a given RFC in the database.
+    """
+    raise NotImplementedError
 
 #
 # Utility functions         

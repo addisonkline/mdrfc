@@ -9,15 +9,19 @@ import mdrfc.requests as req_types
 import mdrfc.responses as res_types
 from mdrfc.backend.comment import RFCComment, RFCCommentInDB, build_comment_threads, find_comment_thread
 from mdrfc.backend.db import (
+    delete_rfc_from_db,
     get_revision_from_db,
     get_revisions_from_db,
     get_rfc_from_db,
     get_rfcs_from_db,
+    get_rfcs_quarantined_from_db,
+    quarantine_rfc_in_db,
     register_revision_in_db,
     register_rfc_in_db,
     register_comment_in_db,
     get_rfc_comments_from_db,
-    check_comment_is_on_rfc
+    check_comment_is_on_rfc,
+    unquarantine_rfc_in_db
 )
 from mdrfc.backend.document import AgentContributor, RFCDocumentInDB, RFCRevisionInDB
 from mdrfc.backend.users import User
@@ -63,6 +67,53 @@ async def get_rfcs(
     
     return res_types.GetRfcsResponse(
         rfcs=result,
+        metadata={}
+    )
+
+
+async def get_rfcs_quarantined() -> res_types.GetQuarantinedRfcsResponse:
+    """
+    Get a list of all quarantined RFCs.
+    Specifically, all RFCs that have been soft-deleted (made invisible).
+    """
+    result = await get_rfcs_quarantined_from_db()
+
+    return res_types.GetQuarantinedRfcsResponse(
+        quarantined_rfcs=result,
+        metadata={}
+    )
+
+
+async def delete_rfc_quarantined(
+    quarantine_id: int,
+) -> res_types.DeleteQuarantinedRfcResponse:
+    """
+    Permanently delete a quarantined RFC.
+    """
+    await delete_rfc_from_db(
+        quarantine_id=quarantine_id
+    )
+
+    return res_types.DeleteQuarantinedRfcResponse(
+        message="success",
+        deleted_at=datetime.now(timezone.utc),
+        metadata={}
+    )
+
+
+async def post_rfc_quarantined(
+    quarantine_id: int,
+) -> res_types.PostQuarantinedRfcResponse:
+    """
+    Unquarantine and reupload an RFC.
+    """
+    await unquarantine_rfc_in_db(
+        quarantine_id=quarantine_id
+    )
+
+    return res_types.PostQuarantinedRfcResponse(
+        message="success",
+        unquarantined_at=datetime.now(timezone.utc),
         metadata={}
     )
 
@@ -129,6 +180,27 @@ async def get_rfc(
     
     return res_types.GetRfcResponse(
         rfc=document,
+        metadata={}
+    )
+
+
+async def delete_rfc(
+    rfc_id: int,
+    reason: str,
+    user: User,
+) -> res_types.DeleteRfcResponse:
+    """
+    Quarantine (soft-delete) an existing RFC.
+    """
+    timestamp = await quarantine_rfc_in_db(
+        rfc_id=rfc_id,
+        reason=reason,
+        user=user
+    )
+
+    return res_types.DeleteRfcResponse(
+        message="success",
+        quarantined_at=timestamp,
         metadata={}
     )
 
@@ -324,6 +396,33 @@ async def get_rfc_comments(
         comment_threads=comment_threads,
         metadata={}
     )
+
+
+async def get_rfc_comments_quarantined(
+    rfc_id: int,
+) -> res_types.GetQuarantinedCommentsResponse:
+    """
+    Get a list of all quarantined comments on a given RFC.
+    """
+    raise NotImplementedError
+
+
+async def delete_rfc_comment_quarantined(
+    quarantine_id: int,
+) -> res_types.DeleteQuarantinedCommentResponse:
+    """
+    Fully delete a quarantined comment.
+    """
+    raise NotImplementedError
+
+
+async def post_rfc_comment_quarantined(
+    quarantine_id: int,
+) -> res_types.PostQuarantinedCommentResponse:
+    """
+    Unquarantine and reupload a comment.
+    """
+    raise NotImplementedError
 
 
 async def get_rfc_comment(

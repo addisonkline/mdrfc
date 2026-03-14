@@ -3,8 +3,10 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from mdrfc.backend.comment import CommentThread
+from mdrfc.backend.comment import CommentThread, QuarantinedComment
 from mdrfc.backend.document import (
+    QuarantinedRFC,
+    QuarantinedRFCSummary,
     RFCDocument,
     RFCDocumentSummary,
     RFCRevision,
@@ -55,6 +57,32 @@ class GetRfcsResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+class GetQuarantinedRfcsResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfcs/quarantined`.
+    """
+    quarantined_rfcs: list[QuarantinedRFCSummary]
+    metadata: dict[str, Any]
+
+
+class DeleteQuarantinedRfcResponse(BaseModel):
+    """
+    HTTP response object for `DELETE /rfcs/quarantined/{quarantine_id}`.
+    """
+    message: str
+    deleted_at: datetime
+    metadata: dict[str, Any]
+
+
+class PostQuarantinedRfcResponse(BaseModel):
+    """
+    HTTP response object for `POST /rfcs/quarantined/{quarantine_id}`.
+    """
+    message: str
+    unquarantined_at: datetime
+    metadata: dict[str, Any]
+
+
 class PostRfcResponse(BaseModel):
     """
     HTTP response object for `POST /rfc`.
@@ -72,11 +100,12 @@ class GetRfcResponse(BaseModel):
     metadata: dict[str, Any]
 
 
-class PatchRfcResponse(BaseModel):
+class DeleteRfcResponse(BaseModel):
     """
-    HTTP response object for `PATCH /rfc/{rfc_id}`.
+    HTTP response object for `DELETE /rfc/{rfc_id}`.
     """
-    rfc: RFCDocument
+    message: str
+    quarantined_at: datetime
     metadata: dict[str, Any]
 
 
@@ -127,9 +156,44 @@ class GetRfcCommentsResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+class GetQuarantinedCommentsResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfc/{rfc_id}/comments/quarantined`.
+    """
+    quarantined_comments: list[QuarantinedComment]
+    metadata: dict[str, Any]
+
+
+class DeleteQuarantinedCommentResponse(BaseModel):
+    """
+    HTTP response object for `DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`.
+    """
+    message: str
+    deleted_at: datetime
+    metadata: dict[str, Any]
+
+
+class PostQuarantinedCommentResponse(BaseModel):
+    """
+    HTTP response object for `POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`.
+    """
+    message: str
+    unquarantined_at: datetime
+    metadata: dict[str, Any]
+
+
 class GetRfcCommentResponse(BaseModel):
     """
     HTTP response object for `GET /rfc/{rfc_id}/comment/{comment_id}`.
     """
     comment: CommentThread
+    metadata: dict[str, Any]
+
+
+class DeleteRfcCommentResponse(BaseModel):
+    """
+    HTTP response object for `DELETE /rfc/{rfc_id}/comment/{comment_id}`
+    """
+    message: str
+    quarantined_at: datetime
     metadata: dict[str, Any]

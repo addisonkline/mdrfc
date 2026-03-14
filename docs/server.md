@@ -79,6 +79,10 @@ Now try hitting the endpoint `POST /signup` again with new credentials--you shou
 
 After receiving the token, hit the endpoint `POST /verify-email` with the new token. Your new account should register successfully--you can now use this MDRFC server as an authorized user.
 
+### With Resend
+
+If you have a Resend account, you can use that to handle verification emails. Simply set the environment variable `RESEND_API_KEY` with you API key, set `EMAIL_FROM` to your desired sender address, and ensure your domain is verified in Resend.
+
 ## Configuration
 
 When running the server from the CLI (i.e. `mdrfc serve`), you can add the following options:

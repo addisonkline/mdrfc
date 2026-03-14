@@ -35,6 +35,24 @@ class RFCCommentInDB(BaseModel):
     created_at: datetime
     content: str
     created_by: int
+    is_quarantined: bool = False
+
+
+class QuarantinedComment(BaseModel):
+    quarantine_id: int
+    quarantined_by_name_last: str
+    quarantined_by_name_first: str
+    quarantined_at: datetime
+    reason: str
+    comment: RFCComment
+
+
+class QuarantinedCommentInDB(BaseModel):
+    quarantine_id: int
+    quarantined_by: int
+    quarantined_at: datetime
+    reason: str
+    comment_id: int
 
 
 class CommentThread(BaseModel):

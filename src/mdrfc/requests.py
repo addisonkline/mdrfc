@@ -9,6 +9,7 @@ import mdrfc.backend.constants as consts
 from mdrfc.backend.document import (
     RFCRevisionRequest,
     validate_agent_contributors,
+    validate_quarantine_rfc_reason,
     validate_revision_message,
     validate_rfc_content,
     validate_rfc_slug,
@@ -97,7 +98,25 @@ async def validate_post_rfc_request(request: Request) -> PostRfcRequest:
             status_code=422,
             detail=f"request validation failed: {e}"
         )
+
+
+class DeleteRfcRequest(BaseModel):
+    """
+    HTTP request object for `DELETE /rfc/{rfc_id}`.
+    """
+    reason: Annotated[str, AfterValidator(validate_quarantine_rfc_reason)]
     
+
+async def validate_delete_rfc_request(request: Request) -> DeleteRfcRequest:
+    try:
+        request_json = await request.json()
+        return DeleteRfcRequest.model_validate(request_json)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"request validation failed: {e}"
+        ) 
+
 
 #
 # REVISION endpoints

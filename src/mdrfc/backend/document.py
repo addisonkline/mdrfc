@@ -86,6 +86,14 @@ def validate_revision_message(message: str) -> str:
         raise ValueError(f"message must be no greater than {consts.LEN_REVISION_MSG_MAX} characters long")
     return message
 
+
+def validate_quarantine_rfc_reason(message: str) -> str:
+    if len(message) < consts.LEN_QUARANTINED_RFC_REASON_MIN:
+        raise ValueError(f"message must be at least {consts.LEN_QUARANTINED_COMMENT_REASON_MIN} characters long")
+    if len(message) > consts.LEN_QUARANTINED_COMMENT_REASON_MAX:
+        raise ValueError(f"message must be no greater than {consts.LEN_QUARANTINED_COMMENT_REASON_MAX} characters long")
+    return message
+
 #
 # DOCUMENT types
 #
@@ -103,7 +111,7 @@ class RFCDocument(BaseModel):
     revisions: list[UUID]
     current_revision: UUID
     agent_contributions: AgentContributions
-    public: bool 
+    public: bool
 
 
 class RFCDocumentSummary(BaseModel):
@@ -133,6 +141,38 @@ class RFCDocumentInDB(BaseModel):
     current_revision: UUID
     agent_contributions: AgentContributions
     public: bool = False
+    quarantined: bool = False
+
+
+class QuarantinedRFC(BaseModel):
+    quarantine_id: int
+    quarantined_by_name_last: Annotated[str, AfterValidator(validate_name_last)]
+    quarantined_by_name_first: Annotated[str, AfterValidator(validate_name_first)]
+    quarantined_at: datetime
+    reason: Annotated[str, AfterValidator(validate_quarantine_rfc_reason)]
+    rfc: RFCDocument
+
+
+class QuarantinedRFCSummary(BaseModel):
+    quarantine_id: int
+    quarantined_by_name_last: Annotated[str, AfterValidator(validate_name_last)]
+    quarantined_by_name_first: Annotated[str, AfterValidator(validate_name_first)]
+    quarantined_at: datetime
+    reason: Annotated[str, AfterValidator(validate_quarantine_rfc_reason)]
+    rfc_id: int
+    rfc_title: Annotated[str, AfterValidator(validate_rfc_title)]
+    rfc_slug: Annotated[str, AfterValidator(validate_rfc_content)]
+    rfc_status: Annotated[RFCStatus, AfterValidator(validate_rfc_status)]
+    rfc_summary: Annotated[str, AfterValidator(validate_rfc_summary)]
+
+
+class QuarantinedRFCInDB(BaseModel):
+    quarantine_id: int
+    quarantined_by: int
+    quarantined_at: datetime
+    reason: str
+    rfc_id: int
+
 
 #
 # REVISION types

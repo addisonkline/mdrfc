@@ -166,6 +166,17 @@ async def get_current_active_user(
     return current_user
 
 
+async def get_current_active_admin(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=401,
+            detail="unauthorized"
+        )
+    return current_user
+
+
 async def get_current_user_if_one(
     token: Annotated[str | None, Depends(optional_oauth2_scheme)],
 ) -> UserInDB | None:
