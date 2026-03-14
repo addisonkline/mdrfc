@@ -32,75 +32,75 @@ This section describes the various object schemas used in MDRFC.
 
 ### RFC Documents
 
-Documents in MDRFC are core Markdown documents and their associated metadata--title, author, revisions, etc. An individual RFC document MUST be representable by the following JSON schema:
+Documents in MDRFC are core Markdown documents and their associated metadata--title, author, revisions, etc. An individual RFC document MUST be representable by the following Python-style schema:
 
-```json
+```python
 {
-  "id": int, // the unique ID of this RFC
-  "author_name_last": string,
-  "author_name_first": string,
-  "created_at": string, // UTC timestamp as string
-  "updated_at": string, // UTC timestamp as string
-  "title": string,
-  "slug": string,
-  "status": string, // MUST be one of "draft", "open", "accepted", "rejected"
-  "content": string, // the Markdown document content itself
-  "summary": string,
-  "revisions": array, // array of revision UUIDs (string)
-  "current_revision": string, // UUID as string
-  "agent_contributions": object, // keys are revision IDs (UUID as string), values are arrays of agent contributor names (string)
+  "id": int, # the unique ID of this RFC
+  "author_name_last": str,
+  "author_name_first": str,
+  "created_at": datetime,
+  "updated_at": datetime,
+  "title": str,
+  "slug": str,
+  "status": Literal["draft", "open", "accepted", "rejected"],
+  "content": str, # the Markdown document content itself
+  "summary": str,
+  "revisions": list[UUID],
+  "current_revision": UUID, 
+  "agent_contributions": dict[UUID, str]
 }
 ```
 
 ### RFC Comments
 
-Comments in MDRFC are associated with a specific RFC document, and can be posted by any authorized user of the server. Comments MAY contain replies, and any comment MAY be replied to. An individual comment MUST be representable by the following JSON schema:
+Comments in MDRFC are associated with a specific RFC document, and can be posted by any authorized user of the server. Comments MAY contain replies, and any comment MAY be replied to. An individual comment MUST be representable by the following Python-style schema:
 
-```json
+```python
 {
-  "id": int, // the unique ID of this comment
-  "parent_id": int?, // the ID of the comment this is a reply to, if applicable
-  "rfc_id": int, // the ID of the RFC this is a comment on
-  "created_at": string, // UTC timestamp as string
-  "content": string, // the comment content itself
-  "author_name_last": string,
-  "author_name_first": string
+  "id": int, # the unique ID of this comment
+  "parent_id": int | None, # the ID of the comment this is a reply to, if applicable
+  "rfc_id": int, # the ID of the RFC this is a comment on
+  "created_at": datetime, 
+  "content": str, # the comment content itself
+  "author_name_last": str,
+  "author_name_first": str
 }
 ```
 
 ### RFC Revisions
 
-Revisions in MDRFC are specific snapshots of an RFC document in its current state. Each document MUST have at least one associated revision (the initial version). The corresponding document MUST be equal to its most recent revision. An individual revision MUST be representable by the following JSON schema:
+Revisions in MDRFC are specific snapshots of an RFC document in its current state. Each document MUST have at least one associated revision (the initial version). The corresponding document MUST be equal to its most recent revision. An individual revision MUST be representable by the following Python-style schema:
 
-```json
+```python
 {
-  "id": string, // unique ID of this revision (UUID as string)
-  "rfc_id": int, // the ID of the RFC this is a revision of
-  "created_at": string, // UTC timestamp as string
-  "author_name_last": string,
-  "author_name_first": string,
-  "agent_contributors": array, // array of agent contributor names (string)
-  "title": string,
-  "slug": string,
-  "status": string, // MUST be one of "draft", "open", "accepted", "rejected"
-  "content": string, // the Markdown document content itself
-  "summary": string,
-  "message": string // the message associated with this revision
+  "id": UUID, # unique ID of this revision
+  "rfc_id": int, # the ID of the RFC this is a revision of
+  "created_at": datetime,
+  "author_name_last": str,
+  "author_name_first": str,
+  "agent_contributors": list[str],
+  "title": str,
+  "slug": str,
+  "status": Literal["draft", "open", "accepted", "rejected"],
+  "content": str, # the Markdown document content itself
+  "summary": str,
+  "message": str # the message associated with this revision
 }
 ```
 
 ### Users
 
-An MDRFC user is an authorized client for a given server with permission to post documents, comments, and revisions. An individual user MUST be representable by the following JSON schema:
+An MDRFC user is an authorized client for a given server with permission to post documents, comments, and revisions. An individual user MUST be representable by the following Python-style schema:
 
-```json
+```python
 {
-  "id": int, // the unique ID of this user
-  "username": string, // the unique username of this user
-  "email": string, // user's email address
-  "name_last": string,
-  "name_first": string,
-  "created_at": string // UTC timestamp as string
+  "id": int, # the unique ID of this user
+  "username": str, # the unique username of this user
+  "email": str, # user's email address
+  "name_last": str,
+  "name_first": str,
+  "created_at": datetime
 }
 ```
 
