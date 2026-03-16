@@ -189,6 +189,85 @@ rfc_post_p.add_argument(
     help="include more detailed response metadata"
 )
 
+rfc_delete_desc = "(login required) Delete an existing RFC"
+rfc_delete_p = subparsers.add_parser(
+    "rfc-delete",
+    aliases=["rfc-d"],
+    usage="rfc-delete <rfc_id> <reason> [option]...",
+    help=rfc_delete_desc,
+    description=rfc_delete_desc
+)
+rfc_delete_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the ID of the RFC to delete"
+)
+rfc_delete_p.add_argument(
+    "reason",
+    help="the reason for deletion"
+)
+rfc_delete_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+rfc_quarantine_list_desc = "(admin required) List all quarantined RFCs"
+rfc_quarantine_list_p = subparsers.add_parser(
+    "rfc-quarantine-list",
+    aliases=["rfc-ql"],
+    usage="rfc-quarantine-list [option]...",
+    help=rfc_quarantine_list_desc,
+    description=rfc_quarantine_list_desc
+)
+rfc_quarantine_list_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+rfc_quarantine_delete_desc = "(admin required) Delete a specific quarantined RFC"
+rfc_quarantine_delete_p = subparsers.add_parser(
+    "rfc-quarantine-delete",
+    aliases=["rfc-qd"],
+    usage="rfc-quarantine-delete <quarantine_id> [option]...",
+    help=rfc_quarantine_delete_desc,
+    description=rfc_quarantine_delete_desc
+)
+rfc_quarantine_delete_p.add_argument(
+    "quarantine_id",
+    type=int,
+    help="the quarantine ID of the RFC"
+)
+rfc_quarantine_delete_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+rfc_quarantine_post_desc = "(admin required) Unquarantine and reupload an RFC"
+rfc_quarantine_post_p = subparsers.add_parser(
+    "rfc-quarantine-post",
+    aliases=["rfc-qp"],
+    usage="rfc-quarantine-post <quarantine_id> [option]...",
+    help=rfc_quarantine_post_desc,
+    description=rfc_quarantine_post_desc
+)
+rfc_quarantine_post_p.add_argument(
+    "quarantine_id",
+    type=int,
+    help="the quarantine ID of the RFC"
+)
+rfc_quarantine_post_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
 # list the comments on a given RFC
 comment_list_desc = "List all comment threads on a given RFC"
 comment_list_p = subparsers.add_parser(
@@ -671,6 +750,139 @@ def _cmd_rfc_post(args: Namespace) -> None:
         _console.print(f"successfully posted new RFC with ID {response_obj.rfc_id}")
 
 
+def _cmd_rfc_delete(args: Namespace)  -> None:
+    """
+    Attempt to soft-delete (quarantine) an existing RFC.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_id = args.rfc_id
+    reason = args.reason
+
+    query_params = {
+        "reason": reason
+    }
+
+    global _url
+    response = httpx.delete(
+        url=f"{_url}/rfc/{rfc_id}",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        },
+        params=query_params
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.DeleteRfcResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+
+    if args.verbose:
+        _console.print(f"[bold]message[/bold]: {response_obj.message}")
+        _console.print(f"[bold]quarantined at[/bold]: {response_obj.quarantined_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        _console.print("successfully deleted RFC")
+
+
+def _cmd_rfc_quarantine_list(args: Namespace) -> None:
+    """
+    List all quarantined RFCs.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfcs/quarantined",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetQuarantinedRfcsResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    if args.verbose:
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 60)
+    _console.print(f"found {len(response_obj.quarantined_rfcs)} RFCs")
+    for rfc in response_obj.quarantined_rfcs:
+        _console.print("=" * 60)
+        _console.print(f"[bold]quarantine id[/bold]: {rfc.quarantine_id}")
+        _console.print(f"[bold]quarantined by[/bold]: {rfc.quarantined_by_name_first} {rfc.quarantined_by_name_last}")
+        _console.print(f"[bold]quarantined at[/bold]: {rfc.quarantined_at}")
+        _console.print(f"[bold]reason[/bold]: {rfc.reason}")
+        _console.print(f"[bold]RFC id[/bold]: {rfc.rfc_id}")
+        _console.print(f"[bold]RFC title[/bold]: {rfc.rfc_title}")
+        _console.print(f"[bold]RFC slug[/bold]: {rfc.rfc_slug}")
+        _console.print(f"[bold]RFC status[/bold]: {rfc.rfc_status}")
+        _console.print(f"[bold]RFC summary[/bold]: {rfc.rfc_summary}")
+
+
+def _cmd_rfc_quarantine_delete(args: Namespace) -> None:
+    """
+    Permanently delete a quarantined RFC.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    quarantine_id = args.quarantine_id
+
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfcs/quarantined/{quarantine_id}",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.DeleteQuarantinedRfcResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    if args.verbose:
+        _console.print(f"[bold]message[/bold]: {response_obj.message}")
+        _console.print(f"[bold]deleted at[/bold]: {response_obj.deleted_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        _console.print("successfully deleted RFC from quarantine")
+
+
 def _cmd_comment_list(args: Namespace) -> None:
     """
     Attempt to list the comments on a given RFC.
@@ -1059,6 +1271,12 @@ def _run_repl() -> None:
         "rfc-g": _cmd_rfc_get,
         "rfc-post": _cmd_rfc_post,
         "rfc-p": _cmd_rfc_post,
+        "rfc-delete": _cmd_rfc_delete,
+        "rfc-d": _cmd_rfc_delete,
+        "rfc-quarantine-list": _cmd_rfc_quarantine_list,
+        "rfc-ql": _cmd_rfc_quarantine_list,
+        "rfc-quarantine-delete": _cmd_rfc_quarantine_delete,
+        "rfc-qd": _cmd_rfc_quarantine_delete,
         "comment-list": _cmd_comment_list,
         "com-l": _cmd_comment_list,
         "comment-get": _cmd_comment_get,

@@ -246,7 +246,7 @@ async def get_rfcs_quarantined(
     """
     `GET /rfcs/quarantined`: Obtain the list of currently-quarantined RFCs.
     """
-    raise NotImplementedError
+    return await api.get_rfcs_quarantined()
 
 
 @app.delete("/rfcs/quarantined/{quarantine_id}", response_model=res_types.DeleteQuarantinedRfcResponse)
@@ -303,7 +303,7 @@ async def get_rfc_by_id(
 @app.delete("/rfc/{rfc_id}", response_model=res_types.DeleteRfcResponse)
 async def quarantine_rfc(
     rfc_id: int,
-    request: Annotated[req_types.DeleteRfcRequest, Depends(req_types.validate_delete_rfc_request)],
+    reason: str,
     current_user: Annotated[User, Depends(get_current_active_user)]
 ) -> res_types.DeleteRfcResponse:
     """
@@ -311,7 +311,7 @@ async def quarantine_rfc(
     """
     return await api.delete_rfc(
         rfc_id=rfc_id,
-        reason=request.reason,
+        reason=reason,
         user=current_user,
     )
 

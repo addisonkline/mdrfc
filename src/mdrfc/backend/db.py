@@ -352,8 +352,7 @@ async def get_rfcs_quarantined_from_db() -> list[QuarantinedRFCSummary]:
     async with _pool.acquire() as connection:
         async with connection.transaction():
             quarantined_rfcs = await connection.fetch(
-                "SELECT * FROM rfcs WHERE is_quarantined IS NOT NULL AND is_quarantined = $1",
-                True
+                "SELECT * FROM quarantined_rfcs",
             )
             if quarantined_rfcs is None:
                 return []
@@ -538,7 +537,7 @@ async def quarantine_rfc_in_db(
     rfc_id: int,
     reason: str,
     user: User,
-) -> datetime:
+) -> None:
     """
     Soft-delete (quarantine) an existing RFC in the database.
     """
@@ -562,7 +561,7 @@ async def quarantine_rfc_in_db(
             query_rfcs = """
             UPDATE rfcs
             SET is_quarantined = TRUE
-            WHERE rfc_id = $1;
+            WHERE id = $1;
             """
             await connection.execute(
                 query_rfcs,
@@ -570,19 +569,17 @@ async def quarantine_rfc_in_db(
             )
             query_quarantined = """
             INSERT INTO quarantined_rfcs (
-                quarantined_by, quarantined_at, message, rfc_id
+                quarantined_by, quarantined_at, reason, rfc_id
             )
-            VALUES($1, $2, $3, $4)
-            RETURNING quarantined_at;
+            VALUES($1, $2, $3, $4);
             """
-            timestamp = await connection.execute(
+            await connection.execute(
                 query_quarantined,
                 user.id,
                 datetime.now(timezone.utc),
                 reason,
                 rfc_id
             )
-            return timestamp
 
 
 #

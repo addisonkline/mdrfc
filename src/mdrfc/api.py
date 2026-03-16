@@ -192,7 +192,7 @@ async def delete_rfc(
     """
     Quarantine (soft-delete) an existing RFC.
     """
-    timestamp = await quarantine_rfc_in_db(
+    await quarantine_rfc_in_db(
         rfc_id=rfc_id,
         reason=reason,
         user=user
@@ -200,7 +200,7 @@ async def delete_rfc(
 
     return res_types.DeleteRfcResponse(
         message="success",
-        quarantined_at=timestamp,
+        quarantined_at=datetime.now(timezone.utc),
         metadata={}
     )
 
