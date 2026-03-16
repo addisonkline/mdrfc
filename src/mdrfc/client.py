@@ -109,6 +109,9 @@ whoami_p.add_argument(
     help="include more detailed client info"
 )
 
+#
+# RFC commands
+#
 # get the list of RFC documents
 rfc_list_desc = "List the current RFC documents"
 rfc_list_p = subparsers.add_parser(
@@ -268,6 +271,9 @@ rfc_quarantine_post_p.add_argument(
     help="include more detailed response metadata"
 )
 
+#
+# COMMENT commands
+#
 # list the comments on a given RFC
 comment_list_desc = "List all comment threads on a given RFC"
 comment_list_p = subparsers.add_parser(
@@ -346,6 +352,108 @@ comment_post_p.add_argument(
     help="the comment ID to reply to"
 )
 
+comment_delete_desc = "(login required) Delete an existing comment"
+comment_delete_p = subparsers.add_parser(
+    "comment-delete",
+    aliases=["com-d"],
+    usage="comment-delete <rfc_id> <comment_id> <reason> [option]...",
+    help=comment_delete_desc,
+    description=comment_delete_desc
+)
+comment_delete_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the ID of the RFC this comment is on"
+)
+comment_delete_p.add_argument(
+    "comment_id",
+    type=int,
+    help="the ID of the comment to delete"
+)
+comment_delete_p.add_argument(
+    "reason",
+    help="the reason for deletion"
+)
+comment_delete_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+comment_quarantine_list_desc = "(admin required) List all quarantined comments on a given RFC"
+comment_quarantine_list_p = subparsers.add_parser(
+    "comment-quarantine-list",
+    aliases=["com-ql"],
+    usage="comment-quarantine-list <rfc_id> [option]...",
+    help=comment_quarantine_list_desc,
+    description=comment_quarantine_list_desc
+)
+comment_quarantine_list_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the ID of the RFC to check comments on"
+)
+comment_quarantine_list_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+comment_quarantine_delete_desc = "(admin required) Delete a specific quarantined comment"
+comment_quarantine_delete_p = subparsers.add_parser(
+    "comment-quarantine-delete",
+    aliases=["com-qd"],
+    usage="comment-quarantine-delete <rfc_id> <quarantine_id> [option]...",
+    help=comment_quarantine_delete_desc,
+    description=comment_quarantine_delete_desc,
+)
+comment_quarantine_delete_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the ID of the RFC this comment is on"
+)
+comment_quarantine_delete_p.add_argument(
+    "quarantine_id",
+    type=int,
+    help="the quarantine ID of this comment"
+)
+comment_quarantine_delete_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+comment_quarantine_post_desc = "(admin required) Unquarantine and reupload a comment"
+comment_quarantine_post_p = subparsers.add_parser(
+    "comment-quarantine-post",
+    aliases=["com-qp"],
+    usage="comment-quarantine-post <rfc_id> <quarantine_id> [option]...",
+    help=comment_quarantine_post_desc,
+    description=comment_quarantine_post_desc
+)
+comment_quarantine_post_p.add_argument(
+    "rfc_id",
+    type=int,
+    help="the ID of the RFC this comment is on",
+)
+comment_quarantine_post_p.add_argument(
+    "quarantine_id",
+    type=int,
+    help="the quarantine ID of this comment"
+)
+comment_quarantine_post_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata"
+)
+
+#
+# REVISION commands
+#
 revision_list_desc = "Get all revisions for a specific RFC"
 revision_list_p = subparsers.add_parser(
     "revision-list",
@@ -883,6 +991,46 @@ def _cmd_rfc_quarantine_delete(args: Namespace) -> None:
         _console.print("successfully deleted RFC from quarantine")
 
 
+def _cmd_rfc_quarantine_post(args: Namespace) -> None:
+    """
+    Attempt to unquarantine and reupload an RFC.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    quarantine_id = args.quarantine_id
+
+    global _url
+    response = httpx.post(
+        url=f"{_url}/rfcs/quarantined/{quarantine_id}",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.PostQuarantinedRfcResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    if args.verbose:
+        _console.print(f"[bold]message[/bold]: {response_obj.message}")
+        _console.print(f"[bold]unquarantined at[/bold]: {response_obj.unquarantined_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        _console.print("successfully removed RFC from quarantine")
+
+
 def _cmd_comment_list(args: Namespace) -> None:
     """
     Attempt to list the comments on a given RFC.
@@ -1009,6 +1157,184 @@ def _cmd_comment_post(args: Namespace) -> None:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
         _console.print(f"successfully posted new comment with ID {response_obj.comment_id}")
+
+
+def _cmd_comment_delete(args: Namespace) -> None:
+    """
+    Attempt to soft-delete (quarantine) a specific comment.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_id = args.rfc_id
+    comment_id = args.comment_id
+    reason = args.reason
+
+    query_params = {
+        "reason": reason
+    }
+
+    global _url
+    response = httpx.delete(
+        url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        },
+        params=query_params
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        if args.verbose:
+            _console.print(response.text)
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.DeleteRfcCommentResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+
+    if args.verbose:
+        _console.print(f"[bold]message[/bold]: {response_obj.message}")
+        _console.print(f"[bold]quarantined at[/bold]: {response_obj.quarantined_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        _console.print("successfully deleted comment")
+
+
+def _cmd_comment_quarantine_list(args: Namespace) -> None:
+    """
+    List all quarantined comments on a given RFC.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_id = args.rfc_id
+    
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfc/{rfc_id}/comments/quarantined",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetQuarantinedCommentsResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    if args.verbose:
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+        _console.print("=" * 60)
+    _console.print(f"found {len(response_obj.quarantined_comments)} comments")
+    for comment in response_obj.quarantined_comments:
+        _console.print("=" * 60)
+        _console.print(f"[bold]quarantine id[/bold]: {comment.quarantine_id}")
+        _console.print(f"[bold]quarantined by[/bold]: {comment.quarantined_by_name_first} {comment.quarantined_by_name_last}")
+        _console.print(f"[bold]quarantined at[/bold]: {comment.quarantined_at}")
+        _console.print(f"[bold]reason[/bold]: {comment.reason}")
+        _console.print(f"[bold]comment id[/bold]: {comment.comment.id}")
+        _console.print(f"[bold]comment author[/bold]: {comment.comment.author_name_first} {comment.comment.author_name_last}")
+        _console.print(f"[bold]comment content[/bold]: {comment.comment.content}")
+
+
+def _cmd_comment_quarantine_delete(args: Namespace) -> None:
+    """
+    Permanently delete a quarantined comment.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_id = args.rfc_id
+    quarantine_id = args.quarantine_id
+
+    global _url
+    response = httpx.delete(
+        url=f"{_url}/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.DeleteQuarantinedCommentResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    if args.verbose:
+        _console.print(f"[bold]message[/bold]: {response_obj.message}")
+        _console.print(f"[bold]deleted at[/bold]: {response_obj.deleted_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        _console.print("successfully deleted comment from quarantine")
+
+
+def _cmd_comment_quarantine_post(args: Namespace) -> None:
+    """
+    Attempt to unquarantine and reupload a comment.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    rfc_id = args.rfc_id
+    quarantine_id = args.quarantine_id
+
+    global _url
+    response = httpx.post(
+        url=f"{_url}/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.PostQuarantinedCommentResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    if args.verbose:
+        _console.print(f"[bold]message[/bold]: {response_obj.message}")
+        _console.print(f"[bold]unquarantined at[/bold]: {response_obj.unquarantined_at}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        _console.print("successfully removed comment from quarantine")
 
 
 def _cmd_revision_list(args: Namespace) -> None:
@@ -1277,12 +1603,22 @@ def _run_repl() -> None:
         "rfc-ql": _cmd_rfc_quarantine_list,
         "rfc-quarantine-delete": _cmd_rfc_quarantine_delete,
         "rfc-qd": _cmd_rfc_quarantine_delete,
+        "rfc-quarantine-post": _cmd_rfc_quarantine_post,
+        "rfc-qp": _cmd_rfc_quarantine_post,
         "comment-list": _cmd_comment_list,
         "com-l": _cmd_comment_list,
         "comment-get": _cmd_comment_get,
         "com-g": _cmd_comment_get,
         "comment-post": _cmd_comment_post,
         "com-p": _cmd_comment_post,
+        "comment-delete": _cmd_comment_delete,
+        "com-d": _cmd_comment_delete,
+        "comment-quarantine-list": _cmd_comment_quarantine_list,
+        "com-ql": _cmd_comment_quarantine_list,
+        "comment-quarantine-delete": _cmd_comment_quarantine_delete,
+        "com-qd": _cmd_comment_quarantine_delete,
+        "comment-quarantine-post": _cmd_comment_quarantine_post,
+        "com-qp": _cmd_comment_quarantine_post,
         "revision-list": _cmd_revision_list,
         "rev-l": _cmd_revision_list,
         "revision-get": _cmd_revision_get,

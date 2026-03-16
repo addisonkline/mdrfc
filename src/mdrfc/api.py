@@ -9,18 +9,22 @@ import mdrfc.requests as req_types
 import mdrfc.responses as res_types
 from mdrfc.backend.comment import RFCComment, RFCCommentInDB, build_comment_threads, find_comment_thread
 from mdrfc.backend.db import (
+    delete_comment_from_db,
     delete_rfc_from_db,
+    get_comments_quarantined_in_db,
     get_revision_from_db,
     get_revisions_from_db,
     get_rfc_from_db,
     get_rfcs_from_db,
     get_rfcs_quarantined_from_db,
+    quarantine_comment_in_db,
     quarantine_rfc_in_db,
     register_revision_in_db,
     register_rfc_in_db,
     register_comment_in_db,
     get_rfc_comments_from_db,
     check_comment_is_on_rfc,
+    unquarantine_comment_in_db,
     unquarantine_rfc_in_db
 )
 from mdrfc.backend.document import AgentContributor, RFCDocumentInDB, RFCRevisionInDB
@@ -404,25 +408,52 @@ async def get_rfc_comments_quarantined(
     """
     Get a list of all quarantined comments on a given RFC.
     """
-    raise NotImplementedError
+    comments = await get_comments_quarantined_in_db(
+        rfc_id=rfc_id
+    )
+
+    return res_types.GetQuarantinedCommentsResponse(
+        quarantined_comments=comments,
+        metadata={}
+    )
 
 
 async def delete_rfc_comment_quarantined(
+    rfc_id: int,
     quarantine_id: int,
 ) -> res_types.DeleteQuarantinedCommentResponse:
     """
     Fully delete a quarantined comment.
     """
-    raise NotImplementedError
+    await delete_comment_from_db(
+        rfc_id=rfc_id,
+        quarantine_id=quarantine_id
+    )
+
+    return res_types.DeleteQuarantinedCommentResponse(
+        message="success",
+        deleted_at=datetime.now(timezone.utc),
+        metadata={}
+    )
 
 
 async def post_rfc_comment_quarantined(
+    rfc_id: int,
     quarantine_id: int,
 ) -> res_types.PostQuarantinedCommentResponse:
     """
     Unquarantine and reupload a comment.
     """
-    raise NotImplementedError
+    await unquarantine_comment_in_db(
+        rfc_id=rfc_id,
+        quarantine_id=quarantine_id
+    )
+
+    return res_types.PostQuarantinedCommentResponse(
+        message="success",
+        unquarantined_at=datetime.now(timezone.utc),
+        metadata={}
+    )
 
 
 async def get_rfc_comment(
@@ -464,5 +495,28 @@ async def get_rfc_comment(
 
     return res_types.GetRfcCommentResponse(
         comment=comment_thread,
+        metadata={}
+    )
+
+
+async def delete_rfc_comment(
+    rfc_id: int,
+    comment_id: int,
+    reason: str,
+    user: User,
+) -> res_types.DeleteRfcCommentResponse:
+    """
+    Handle a request to the endpoint `DELETE /rfc/{rfc_id}/comment/{comment_id}`.
+    """
+    await quarantine_comment_in_db(
+        rfc_id=rfc_id,
+        comment_id=comment_id,
+        reason=reason,
+        user=user
+    )
+
+    return res_types.DeleteRfcCommentResponse(
+        message="success",
+        quarantined_at=datetime.now(timezone.utc),
         metadata={}
     )

@@ -24,13 +24,13 @@ from mdrfc.backend.auth import (
     get_current_active_user_if_one,
     verify_user_email,
 )
-from mdrfc.backend.comment import RFCComment
+from mdrfc.backend.comment import RFCComment, validate_quarantine_comment_reason
 import mdrfc.backend.constants as consts
 from mdrfc.backend.db import (
     init_db,
     close_db
 )
-from mdrfc.backend.document import RFCDocument
+from mdrfc.backend.document import RFCDocument, validate_quarantine_rfc_reason
 from mdrfc.backend.email import check_valid_email, send_verification_email_task
 from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
 from mdrfc.utils.logging import init_logger
@@ -257,7 +257,9 @@ async def delete_rfc(
     """
     `DELETE /rfcs/quarantined/{quarantine_id}`: Fully delete a quarantined RFC.
     """
-    raise NotImplementedError
+    return await api.delete_rfc_quarantined(
+        quarantine_id=quarantine_id
+    )
 
 
 @app.post("/rfcs/quarantined/{quarantine_id}", response_model=res_types.PostQuarantinedRfcResponse)
@@ -268,7 +270,9 @@ async def unquarantine_rfc(
     """
     `POST /rfc/{rfc_id}/unquarantine`: Republish a quarantined RFC.
     """
-    raise NotImplementedError
+    return await api.post_rfc_quarantined(
+        quarantine_id=quarantine_id
+    )
 
 
 @app.post("/rfc", response_model=res_types.PostRfcResponse)
@@ -303,7 +307,7 @@ async def get_rfc_by_id(
 @app.delete("/rfc/{rfc_id}", response_model=res_types.DeleteRfcResponse)
 async def quarantine_rfc(
     rfc_id: int,
-    reason: str,
+    reason: Annotated[str, Depends(validate_quarantine_rfc_reason)],
     current_user: Annotated[User, Depends(get_current_active_user)]
 ) -> res_types.DeleteRfcResponse:
     """
@@ -406,7 +410,9 @@ async def get_quarantined_comments(
     """
     `GET /rfc/{rfc_id}/comments/quarantined`: Get a list of all quarantined comments on a given RFC.
     """
-    raise NotImplementedError
+    return await api.get_rfc_comments_quarantined(
+        rfc_id=rfc_id
+    )
 
 
 @app.delete("/rfc/{rfc_id}/comments/quarantined/{quarantine_id}", response_model=res_types.DeleteQuarantinedCommentResponse)
@@ -418,7 +424,10 @@ async def delete_comment(
     """
     `DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`: Fully delete a quarantined comment.
     """
-    raise NotImplementedError
+    return await api.delete_rfc_comment_quarantined(
+        rfc_id=rfc_id,
+        quarantine_id=quarantine_id
+    )
 
 
 @app.post("/rfc/{rfc_id}/comments/quarantined/{quarantine_id}", response_model=res_types.PostQuarantinedCommentResponse)
@@ -430,7 +439,10 @@ async def unquarantine_comment(
     """
     `POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`: Unquarantine and reupload a comment.
     """
-    raise NotImplementedError
+    return await api.post_rfc_comment_quarantined(
+        rfc_id=rfc_id,
+        quarantine_id=quarantine_id,
+    )
 
 
 @app.get("/rfc/{rfc_id}/comment/{comment_id}", response_model=res_types.GetRfcCommentResponse)
@@ -453,12 +465,18 @@ async def get_rfc_comment(
 async def quarantine_comment(
     rfc_id: int,
     comment_id: int,
+    reason: Annotated[str, Depends(validate_quarantine_comment_reason)],
     current_user: Annotated[User, Depends(get_current_active_user)]
 ) -> res_types.DeleteRfcCommentResponse:
     """
     `DELETE /rfc/{rfc_id}/comment/{comment_id}`: Quarantine (soft-delete) an existing comment.
     """
-    raise NotImplementedError
+    return await api.delete_rfc_comment(
+        rfc_id=rfc_id,
+        comment_id=comment_id,
+        reason=reason,
+        user=current_user,
+    )
 
 
 def run_server(

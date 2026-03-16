@@ -18,6 +18,14 @@ def validate_comment_content(content: str) -> str:
     return content
 
 
+def validate_quarantine_comment_reason(reason: str) -> str:
+    if len(reason) < consts.LEN_QUARANTINED_COMMENT_REASON_MIN:
+        raise ValueError(f"reason must be at least {consts.LEN_QUARANTINED_COMMENT_REASON_MIN} characters long")
+    if len(reason) > consts.LEN_QUARANTINED_COMMENT_REASON_MAX:
+        raise ValueError(f"reason must be no greater than {consts.LEN_QUARANTINED_COMMENT_REASON_MAX} characters long")
+    return reason
+
+
 class RFCComment(BaseModel):
     id: int
     parent_id: int | None

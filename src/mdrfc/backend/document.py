@@ -90,7 +90,7 @@ def validate_revision_message(message: str) -> str:
 def validate_quarantine_rfc_reason(message: str) -> str:
     if len(message) < consts.LEN_QUARANTINED_RFC_REASON_MIN:
         raise ValueError(f"message must be at least {consts.LEN_QUARANTINED_COMMENT_REASON_MIN} characters long")
-    if len(message) > consts.LEN_QUARANTINED_COMMENT_REASON_MAX:
+    if len(message) > consts.LEN_QUARANTINED_RFC_REASON_MAX:
         raise ValueError(f"message must be no greater than {consts.LEN_QUARANTINED_COMMENT_REASON_MAX} characters long")
     return message
 
