@@ -1,38 +1,50 @@
-# Endpoint `POST /rfc/{rfc_id}/comment`
+# `POST /rfc/{rfc_id}/comment`
 
-Post a new comment on an existing RFC.
+Creates a new comment on an RFC.
 
->[!INFO]
->You must be logged in to use this endpoint.
+## Auth
+
+Requires a bearer token.
 
 ## Request
 
-This endpoint requires the following headers:
+Headers:
 
-```
-Authorization: Bearer {your JWT}
+```txt
+Authorization: Bearer <jwt>
 Content-Type: application/json
 ```
 
-The path parameter `rfc_id` is required and must be a valid integer.
+Path parameter:
 
-This endpoint expects a request body with the following JSON schema:
+```txt
+rfc_id: integer
+```
+
+Body:
 
 ```json
 {
-    "parent_comment_id": int?, // the ID of the comment to reply to, if desired
-    "content": string
+  "parent_comment_id": 10,
+  "content": "Reply text"
 }
 ```
 
-## Response
+Set `parent_comment_id` to `null` for a top-level comment.
 
-If no RFC with the specified `rfc_id` exists, the server returns a `404` response. If the comment operation was successful, the server returns the following JSON body:
+## Success Response
+
+`200 OK`
 
 ```json
 {
-    "comment_id": int, // the ID of the created comment
-    "created_at": string, // timestamp as string
-    "metadata": { ... }
+  "comment_id": 11,
+  "created_at": "2026-03-18T18:25:00Z",
+  "metadata": {}
 }
 ```
+
+## Notes
+
+- Replies must point at a comment on the same RFC.
+- Commenting on a missing or quarantined RFC fails.

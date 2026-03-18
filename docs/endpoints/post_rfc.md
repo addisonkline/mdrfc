@@ -1,40 +1,47 @@
-# Endpoint `POST /rfc`
+# `POST /rfc`
 
-Post a new RFC document to this server.
+Creates a new RFC document.
 
->[!INFO]
->You must be logged in to use this endpoint.
+## Auth
+
+Requires a bearer token.
 
 ## Request
 
-This endpoint requires the following headers:
+Headers:
 
-```
-Authorization: Bearer {your JWT}
+```txt
+Authorization: Bearer <jwt>
 Content-Type: application/json
 ```
 
-The JSON body schema for this request is as follows:
+Body:
 
 ```json
 {
-    "title": string,
-    "slug": string,
-    "status": string, // must be one of "draft", "open"
-    "summary": string,
-    "content": string, // the Markdown document itself
-    "agent_contributors": array // array of agent contributor names (string)
+  "title": "RFC Title",
+  "slug": "rfc-title",
+  "status": "draft",
+  "summary": "Short summary.",
+  "content": "# RFC Title\n\nBody",
+  "agent_contributors": ["codex@openai"],
+  "public": false
 }
 ```
 
-## Response
+## Success Response
 
-If the request is malformed (i.e., one or more body parameters does not follow server/database restrictions), the server returns a `422` response. If the operation was successful, the server returns a `200` response with the following JSON body:
+`200 OK`
 
 ```json
 {
-    "rfc_id": int, // the ID of the RFC just created
-    "created_at": string, // timestamp as string
-    "metadata": { ... }
+  "rfc_id": 1,
+  "created_at": "2026-03-18T18:00:00Z",
+  "metadata": {}
 }
 ```
+
+## Notes
+
+- `status` currently accepts only `draft` or `open` on write.
+- `agent_contributors` entries must be in `agent@host` format.

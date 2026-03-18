@@ -1,33 +1,36 @@
-# Endpoint `POST /login`
+# `POST /login`
 
-Attempt to log into the server and retrieve a temporary access token.
+Logs in a verified user and returns a bearer token.
+
+## Auth
+
+No auth required.
 
 ## Request
 
-This endpoint follows the OAuth2 schema and syntax. Specifically, the following header is required:
+This endpoint expects `application/x-www-form-urlencoded` data, not JSON.
 
-```Content-Type: application/x-www-form-urlencoded```
+Minimum required fields:
 
-With this header, provide the following JSON body:
+```txt
+username
+password
+```
+
+The CLI client also sends the extra OAuth2 password-flow fields, but the server only needs a valid username and password pair.
+
+## Success Response
+
+`200 OK`
 
 ```json
 {
-    "grant_type": "password",
-    "username": string, // your username
-    "password": string, // your password
-    "scope": string?, // can be null or an empty string
-    "client_id": string, // your username
-    "client_secret": string // your password
+  "access_token": "<jwt>",
+  "token_type": "bearer"
 }
 ```
 
-## Response
+## Notes
 
-If the given credentials are not valid, the server returns `401`. If the credentials are valid, the server returns a `200` response with the following JSON body:
-
-```json
-{
-    "access_token": string, // JWT
-    "token_type": "bearer"
-}
-```
+- `401` means the username or password is incorrect.
+- `403` means the account exists but the email address has not been verified yet.

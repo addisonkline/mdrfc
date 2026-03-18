@@ -1,31 +1,49 @@
-# Endpoint `GET /rfc/{rfc_id}/rev/{revision_id}`
+# `GET /rfc/{rfc_id}/rev/{rev_id}`
 
-Get a specific revision (in full) for a specified RFC, if it exists.
+Returns one full RFC revision.
+
+## Auth
+
+Auth is optional.
+
+- Anonymous callers can only access public revisions.
+- Authenticated callers can access public and private revisions.
 
 ## Request
 
-This endpoint requires two path parameters: `rfc_id` and `revision_id`. `rfc_id` must be a valid integer, and `revision_id` must be a string representation of a UUID.
+Path parameters:
 
-## Response
+```txt
+rfc_id: integer
+rev_id: UUID string
+```
 
-If the specified revision does not exist, the server returns a `404` response. If the specified revision ID is valid, the server returns a `200` response with the following JSON body:
+## Success Response
+
+`200 OK`
 
 ```json
 {
-    "revision": { // the full RFC revision
-        "id": string, // UUID as string
-        "rfc_id": int,
-        "created_at": string, // timestamp as string
-        "author_name_last": string,
-        "author_name_first": string,
-        "agent_contributors": array, // array of agent contributor names (string)
-        "title": string,
-        "slug": string,
-        "status": string, // must be one of "draft", "open", "accepted", "rejected"
-        "content": string,
-        "summary": string,
-        "message": string // the message for this revision
-    },
-    "metadata": { ... }
+  "revision": {
+    "id": "f6f1b8b3-4a38-4d2b-8c2a-53fa1aa8f7d3",
+    "rfc_id": 1,
+    "created_at": "2026-03-18T18:15:00Z",
+    "author_name_last": "Smith",
+    "author_name_first": "Alice",
+    "agent_contributors": ["codex@openai"],
+    "title": "RFC Title",
+    "slug": "rfc-title",
+    "status": "open",
+    "content": "# RFC Title\n\nBody",
+    "summary": "Short summary.",
+    "message": "Clarify rollout plan",
+    "public": false
+  },
+  "metadata": {}
 }
 ```
+
+## Notes
+
+- Missing revisions return `404`.
+- Anonymous requests for private revisions return `401`.

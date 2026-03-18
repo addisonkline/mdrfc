@@ -1,100 +1,135 @@
-# MDRFC Server Documentation
+# MDRFC Server Guide
 
-This document contains instructions for setting up the MDRFC server, SMTP integration, and configuration.
+This document covers the current FastAPI backend in `src/mdrfc/server.py`.
 
-## Basic Setup
+## Overview
 
-First, follow [quickstart.md](/docs/quickstart.md) for instructions on downloading/installing MDRFC and setting the necessary environment variables.
+The backend provides:
 
-The database needs to be properly (i.e., all tables created with their required columns). With the virtual environment activated, run the following:
+- email-verified signup and JWT-based login
+- RFC creation, retrieval, revision history, and soft-delete quarantine
+- threaded comments with reply support
+- admin endpoints for reviewing, restoring, and permanently deleting quarantined content
 
-```bash
-alembic upgrade head
-```
+The server loads environment variables from `.env` automatically through `python-dotenv`.
 
-Next, with your server running, try creating a new user:
+## Required Backend Configuration
 
-```bash
-curl -X POST http://localhost:8026/signup \
--H "Content-Type: application/json" \
--d '{"username":"test","email":"test@example.com","name_last":"User","name_first":"Test","password":"insecurechangeme"}'
-```
+Always required:
 
-If everything is set up correctly, you should get a `200` response containing, among other things, a `verification_token` string in the `metadata`.
+- `DATABASE_URL`
+- `SECRET_KEY`
+- `JWT_ALGORITHM`
+- `ACCESS_TOKEN_EXPIRE_MINUTES`
 
-Use this to verify your new account on the server:
+Required when email delivery is enabled:
 
-```bash
-curl -X POST http://localhost:8026/verify-email \
--H "Content-Type: application/json" \
--d '{"token":"{your_verification_token}"}'
-```
+- `APP_BASE_URL`
+- `EMAIL_FROM`
+- `SMTP_HOST`
 
-You should get a `200` response indicating your account was successfully verified.
+Optional email and policy settings:
 
-Now try connecting to the server with the client:
+- `SMTP_PORT` (defaults to `587`)
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `SMTP_STARTTLS` (defaults to `true`)
+- `SMTP_USE_SSL` (defaults to `false`)
+- `RESEND_API_KEY`
+- `REQUIRED_EMAIL_SUFFIX`
+- `EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES`
+- `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN`
 
-```bash
-mdrfc client http://localhost:8026 --no-login
-```
+`AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true` is useful for local development. It returns the raw verification token from `POST /signup` and skips sending email.
 
-You should enter the CLI client REPL, but without being logged in. Try logging in with your credentials:
+## Database and Startup
 
-```bash
-login {your_username}
-```
-
-Then enter your password when prompted. Assuming your credentials are valid, you will now be logged into the server.
-
-You can now post new RFCs, revisions, and comments. Run `help` in the CLI client for a full list of commands.
-
-## Setting Up SMTP
-
-This step is required if you want to enable email verification of new accounts.
-
-The following environment variables are required for SMTP delivery:
-
-- `APP_BASE_URL` (e.g. mdrfc.example.com)
-- `EMAIL_FROM` (e.g. noreply@example.com)
-- `SMTP_HOST` (e.g. smtp.example.com)
-- `SMTP_PORT` (default is 587)
-- `SMTP_USERNAME` (your SMTP username)
-- `SMTP_PASSWORD` (your SMTP password)
-
-You can optionally tune these environment variables:
-
-- `SMTP_STARTTLS` (default is `true`)
-- `SMTP_USE_SSL` (default is `false`)
-- `REQUIRED_EMAIL_SUFFIX` (default is none)
-
-Also change `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN` to `false` (since verification tokens will now be delivered via email).
-
-With these environment variables in place (and assuming they're valid), try launching the server:
+Apply the migrations:
 
 ```bash
-mdrfc serve
+uv run alembic upgrade head
 ```
 
-Now try hitting the endpoint `POST /signup` again with new credentials--you should see that `metadata.verification_token` is now `null`. This token will be sent to the email you registered with.
+Start the API:
 
-After receiving the token, hit the endpoint `POST /verify-email` with the new token. Your new account should register successfully--you can now use this MDRFC server as an authorized user.
+```bash
+uv run mdrfc serve --reload
+```
 
-### With Resend
+Default runtime:
 
-If you have a Resend account, you can use that to handle verification emails. Simply set the environment variable `RESEND_API_KEY` with you API key, set `EMAIL_FROM` to your desired sender address, and ensure your domain is verified in Resend.
+- host: `127.0.0.1`
+- port: `8026`
+- log file: `mdrfc.log`
 
-## Configuration
+FastAPI's interactive docs are available at `http://127.0.0.1:8026/docs`.
 
-When running the server from the CLI (i.e. `mdrfc serve`), you can add the following options:
+## Authentication Flow
 
-- `-H HOST, --host HOST`: The host to serve on (defualt is `"127.0.0.1"`).
-- `-p PORT, --port PORT`: The port to serve on (default is `8026`).
-- `-r, --reload`: Flag to reload on detected code changes.
-- `-lf LOG_FILE, --log-file LOG_FILE`: The filepath to write logs to (default is `"mdrfc.log"`).
-- `-llf LEVEL, --log-level-file LEVEL`: The minimum log level to write to the log file (default is "`INFO"`). Must be one of `["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]`.
-- `-llc LEVEL, --log-level-console LEVEL`: The minimum log level to write to the console (default is "`INFO"`). Must be one of `["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]`.
+The current auth flow is:
 
-## Endpoints
+1. `POST /signup` creates an unverified account.
+2. `POST /verify-email` activates the account with a one-time token.
+3. `POST /login` returns a bearer token.
+4. Authenticated requests send `Authorization: Bearer <token>`.
 
-The MDRFC server provides various HTTP endpoints for RFC management, comments, and user authentication. For a comprehensive list of endpoints, see [endpoints/](/docs/endpoints/README.md).
+`POST /login` uses form data, not JSON.
 
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:8026/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=alice&password=StrongPassword1"
+```
+
+If the account has not been verified yet, login returns `403`.
+
+## Access Model
+
+- Anonymous users can only see public RFCs and their comments or revisions.
+- Authenticated users can see both public and private RFCs.
+- Only the RFC author can create a revision for an RFC.
+- Only the RFC author or an admin can quarantine an RFC.
+- Only the comment author or an admin can quarantine a comment.
+- Only admins can use the quarantine review, restore, and permanent-delete endpoints.
+
+## Moderation and Quarantine
+
+RFC and comment deletes are soft deletes:
+
+- `DELETE /rfc/{rfc_id}` moves an RFC into quarantine.
+- `DELETE /rfc/{rfc_id}/comment/{comment_id}` moves a comment into quarantine.
+
+Admin-only follow-up endpoints live under:
+
+- `/rfcs/quarantined`
+- `/rfc/{rfc_id}/comments/quarantined`
+
+These routes let an admin list quarantined items, restore them, or delete them permanently.
+
+## Signup Restrictions and Rate Limits
+
+The backend enforces the following signup rules:
+
+- usernames and emails are normalized to lowercase
+- `REQUIRED_EMAIL_SUFFIX`, if set, restricts which email domains are accepted
+- signup attempts are rate-limited in memory to 5 attempts per IP per 15 minutes
+- the same 5-attempt limit also applies per `(username, email)` identity pair
+
+## `mdrfc serve` Options
+
+`mdrfc serve` currently supports:
+
+- `-H`, `--host`
+- `-p`, `--port`
+- `-r`, `--reload`
+- `-lf`, `--log-file`
+- `-llf`, `--log-level-file`
+- `-llc`, `--log-level-console`
+
+## Related Docs
+
+- [Quickstart](quickstart.md)
+- [CLI client guide](client.md)
+- [Endpoint reference](endpoints/README.md)

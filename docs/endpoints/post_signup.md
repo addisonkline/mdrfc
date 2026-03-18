@@ -1,45 +1,54 @@
-# Endpoint `POST /signup`
+# `POST /signup`
 
-Attempt to create a new account on an MDRFC server.
+Creates a new unverified account.
 
->[!INFO]
->Any new account must be verified after this endpoint succeeds. See [`POST /verify-email`](/docs/endpoints/post_verify_email.md) for more info.
+After a successful signup, the account must be activated through [`POST /verify-email`](post_verify_email.md).
+
+## Auth
+
+No auth required.
 
 ## Request
 
-This endpoint accepts a JSON body, so the following header is required:
+Header:
 
-```Content-Type: application/json```
+```txt
+Content-Type: application/json
+```
 
-The JSON body schema is as follows:
+Body:
 
 ```json
 {
-    "username": string,
-    "email": string,
-    "name_last": string,
-    "name_first": string,
-    "password": string
+  "username": "alice",
+  "email": "alice@example.com",
+  "name_last": "Smith",
+  "name_first": "Alice",
+  "password": "StrongPassword1"
 }
 ```
 
-## Response
+## Success Response
 
-It is possible that the client may not be permitted to sign up, either because of rate limits or IP limits--in which case, a `4xx` response is returned. If the signup attempt succeeds, the server returns a `200` response with the following JSON body:
+`200 OK`
 
 ```json
 {
-    "username": string, // the username requested
-    "email": string, // the email requested
-    "created_at": string, // as a timestamp
-    "metadata": {
-        "verification_required": true,
-        "verification_expires_at": string, // as a timestamp
-        "verification_token": string? // null if email bypass is enabled
-    } 
+  "username": "alice",
+  "email": "alice@example.com",
+  "created_at": "2026-03-18T18:00:00",
+  "metadata": {
+    "verification_required": true,
+    "verification_expires_at": "2026-03-18T19:00:00",
+    "verification_token": "raw-token-or-null"
+  }
 }
 ```
 
-Note that the response field `metadata.verification_token` will be `null` unless the server is intentionally bypassing the verification email process.
+## Notes
 
-Once a `verification_token` has been received, you can verify your account with the endpoint [`POST /verify-email`](/docs/endpoints/post_verify_email.md).
+- When `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true`, `metadata.verification_token` contains the raw token.
+- Otherwise the server sends the token by email and `metadata.verification_token` is `null`.
+- Signup can fail with `429` when the in-memory rate limiter is triggered.
+- If `REQUIRED_EMAIL_SUFFIX` is configured and the email does not match it, the request fails with `401`.
+- Duplicate usernames or emails fail with `409`.

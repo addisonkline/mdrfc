@@ -1,31 +1,41 @@
-# MDRFC Server Endpoints
+# MDRFC HTTP Endpoint Reference
 
-This directory contains documentation for all endpoints supported by the MDRFC HTTP server.
+This directory documents the current routes exposed by `src/mdrfc/server.py`.
 
-## Basic Endpoints
+## Basic
 
-- [`GET /`](/docs/endpoints/get_root.md): Obtain basic server information and metadata.
+- [`GET /`](get_root.md)
 
-## Authentication Endpoints
+## Authentication
 
-- [`POST /login`](/docs/endpoints/post_login.md): Log in to obtain a temporary access token. 
-- [`POST /signup`](/docs/endpoints/post_signup.md): Sign up and create an (unverified) account.
-- [`POST /verify-email`](/docs/endpoints/post_verify_email.md): Verify an existing account to enable user access.
+- [`POST /login`](post_login.md)
+- [`POST /signup`](post_signup.md)
+- [`POST /verify-email`](post_verify_email.md)
+- [`GET /users/me`](get_users_me.md)
 
-## RFC Endpoints
+## RFCs
 
-- [`GET /rfcs`](/docs/endpoints/get_rfcs.md): Get all existing RFC documents.
-- [`GET /rfc/{rfc_id}`](/docs/endpoints/get_rfc.md): Get a specific RFC document by ID.
-- [`POST /rfc`](/docs/endpoints/post_rfc.md): Add a new RFC to this server.
+- [`GET /rfcs`](get_rfcs.md)
+- [`GET /rfcs/quarantined`](get_rfcs_quarantined.md)
+- [`DELETE /rfcs/quarantined/{quarantine_id}`](delete_rfcs_quarantined.md)
+- [`POST /rfcs/quarantined/{quarantine_id}`](post_rfcs_quarantined.md)
+- [`POST /rfc`](post_rfc.md)
+- [`GET /rfc/{rfc_id}`](get_rfc.md)
+- `GET /rfc/{rfc_id}/rev/current` is an alias for `GET /rfc/{rfc_id}`
+- [`DELETE /rfc/{rfc_id}`](delete_rfc.md)
 
-## Revision Endpoints
+## Revisions
 
-- [`GET /rfc/{rfc_id}/revs`](/docs/endpoints/get_revs.md): Get all existing revisions for a given RFC.
-- [`GET /rfc/{rfc_id}/rev/{revision_id}`](/docs/endpoints/get_rev.md): Get a specific revision for a given RFC.
-- [`POST /rfc/{rfc_id}/rev`](/docs/endpoints/post_rev.md): Create a new revision on an existing RFC.
+- [`GET /rfc/{rfc_id}/revs`](get_revs.md)
+- [`GET /rfc/{rfc_id}/rev/{rev_id}`](get_rev.md)
+- [`POST /rfc/{rfc_id}/rev`](post_rev.md)
 
-## Comment Endpoints
+## Comments
 
-- [`GET /rfc/{rfc_id}/comments`](/docs/endpoints/get_comments.md): Get all existing comments on a given RFC.
-- [`GET /rfc/{rfc_id}/comment/{comment_id}`](/docs/endpoints/get_comment.md): Get a specific comment on a given RFC.
-- [`POST /rfc/{rfc_id}/comment`](/docs/endpoints/post_comment.md): Post a new comment on an existing RFC.
+- [`POST /rfc/{rfc_id}/comment`](post_comment.md)
+- [`GET /rfc/{rfc_id}/comments`](get_comments.md)
+- [`GET /rfc/{rfc_id}/comments/quarantined`](get_comments_quarantined.md)
+- [`DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`](delete_comment_quarantined.md)
+- [`POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`](post_comment_quarantined.md)
+- [`GET /rfc/{rfc_id}/comment/{comment_id}`](get_comment.md)
+- [`DELETE /rfc/{rfc_id}/comment/{comment_id}`](delete_comment.md)

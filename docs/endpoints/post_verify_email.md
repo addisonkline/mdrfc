@@ -1,30 +1,41 @@
-# Endpoint `POST /verify-email`
+# `POST /verify-email`
 
-Attempt to verify an existing, unverified account on this server.
+Activates a pending account with a verification token.
+
+## Auth
+
+No auth required.
 
 ## Request
 
-Since this request accepts a JSON body, the following header is required:
+Header:
 
-```Content-Type: application/json```
+```txt
+Content-Type: application/json
+```
 
-The JSON body schema is as follows:
+Body:
 
 ```json
 {
-    "token": string // your verification token
+  "token": "<verification-token>"
 }
 ```
 
-## Response
+## Success Response
 
-If the provided verification token is still valid, and the account has not already been verified, then the server returns a `200` response with the following JSON schema:
+`200 OK`
 
 ```json
 {
-    "username": string, // your username
-    "email": string, // your email
-    "created_at": string, // timestamp as string
-    "metadata": { ... }
+  "username": "alice",
+  "email": "alice@example.com",
+  "verified_at": "2026-03-18T18:05:00",
+  "metadata": {}
 }
 ```
+
+## Notes
+
+- Invalid or expired tokens fail with `400`.
+- Very short or malformed tokens fail request validation with `422`.

@@ -1,30 +1,42 @@
-# Endpoint `GET /rfcs`
+# `GET /rfcs`
 
-Get summarized versions of all RFC documents currently on this server.
+Returns RFC summaries.
+
+## Auth
+
+Auth is optional.
+
+- Anonymous callers only receive public RFCs.
+- Authenticated callers receive both public and private RFCs.
 
 ## Request
 
-No parameters (path, query, or body) are accepted by this endpoint.
+No path parameters, query parameters, or request body.
 
-## Response
+## Success Response
 
-The server should return a `200` response with the following JSON body:
+`200 OK`
 
 ```json
 {
-    "rfcs": [ // list of RFC document summaries
-        {
-            "id": int,
-            "author_name_last": string,
-            "author_name_first": string,
-            "created_at": string, // timestamp as string
-            "updated_at": string, // timestmap as string
-            "title": string,
-            "slug": string,
-            "status": string, // must be one of "draft", "open", "accepted", "rejected"
-            "summary": string
-        }
-    ],
-    "metadata": { ... }
+  "rfcs": [
+    {
+      "id": 1,
+      "author_name_last": "Smith",
+      "author_name_first": "Alice",
+      "created_at": "2026-03-18T18:00:00Z",
+      "updated_at": "2026-03-18T18:00:00Z",
+      "title": "RFC Title",
+      "slug": "rfc-title",
+      "status": "open",
+      "summary": "Short summary.",
+      "public": true
+    }
+  ],
+  "metadata": {}
 }
 ```
+
+## Notes
+
+- If there are no RFCs, the current implementation returns `404`.

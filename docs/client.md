@@ -1,32 +1,104 @@
-# MDRFC Client Documentation
+# MDRFC CLI Client Guide
 
-This document contains instructions on how to set up, configure, and use the MDRFC client through the CLI.
+This document covers the terminal client implemented in `src/mdrfc/client.py`.
 
-## Setup
+## Launching the Client
 
-First, follow [quickstart.md](/docs/quickstart.md) for instructions on downloading/installing MDRFC and setting the necessary environment variables.
-
-If using your own server, ensure that it is set up, configured, and running properly (see [server.md](/docs/server.md) for more info).
-
-You can add your account username and password as environment variables to enable auto-login on client startup:
-
-```env
-MDRFC_USERNAME="your_username"
-MDRFC_PASSWORD="your_password"
-```
-
-With these variables set, connect to the server with the client:
+Start the REPL with:
 
 ```bash
-mdrfc client {server_url}
+uv run mdrfc client http://127.0.0.1:8026 --no-login
 ```
 
-You should enter the CLI client REPL logged in with your credentials (assuming they're valid). To log out of the server without disconnecting, enter `logout` (you can `login` again with the same or different credentials). To close the CLI client, enter `exit` or `quit`. 
+By default the client does two things on startup:
 
-## CLI Client
+- it loads `mdrfc_client.config` from the current working directory
+- it attempts auto-login with `MDRFC_USERNAME` and `MDRFC_PASSWORD`
 
-The MDRFC CLI client is a terminal-based client for accessing a given MDRFC server. It supports commands for all corresponding HTTP endpoints on the server. 
+If you do not want those behaviors, use:
 
-For a full list of commands that can be used in the CLI client, enter `help` or `?`.
+- `--no-config`
+- `--no-login`
 
-For help with a specific command, enter `{command} -h`.
+## Optional Environment Variables
+
+```env
+MDRFC_USERNAME=alice
+MDRFC_PASSWORD=StrongPassword1
+```
+
+If both are set, the client will try to log in automatically on startup. The `refresh` command also reuses `MDRFC_PASSWORD` instead of prompting again.
+
+## Client Config File
+
+The config model is versioned and currently expects version `0.2.0`.
+
+Example:
+
+```json
+{
+  "version": "0.2.0",
+  "aliases": [
+    { "alias": "ls", "command": "rfc-list" },
+    { "alias": "cat", "command": "rfc-get" }
+  ]
+}
+```
+
+The repository root already contains a sample [`mdrfc_client.config`](../mdrfc_client.config).
+
+## Common Commands
+
+Authentication:
+
+- `ping`
+- `login <username>`
+- `refresh`
+- `logout`
+- `whoami`
+
+RFCs:
+
+- `rfc-list`
+- `rfc-get <id>`
+- `rfc-post <docpath> <title> <slug> <summary> <status>`
+- `rfc-delete <rfc_id> <reason>`
+
+Revisions:
+
+- `revision-list <rfc_id>`
+- `revision-get <rfc_id> <revision_id>`
+- `revision-post <rfc_id> <message> [--title ... --slug ... --status ... --summary ... --content-file ...]`
+
+Comments:
+
+- `comment-list <rfc_id>`
+- `comment-get <rfc_id> <comment_id>`
+- `comment-post <rfc_id> <content> [--reply-to <comment_id>]`
+- `comment-delete <rfc_id> <comment_id> <reason>`
+
+Admin moderation:
+
+- `rfc-quarantine-list`
+- `rfc-quarantine-post <quarantine_id>`
+- `comment-quarantine-list <rfc_id>`
+- `comment-quarantine-post <rfc_id> <quarantine_id>`
+
+Aliases:
+
+- `alias-set <command> <alias>`
+- `alias-get <alias>`
+- `alias-list`
+
+## REPL Behavior
+
+- `help` or `?` prints the command list
+- `<command> -h` shows help for a single command
+- `exit` and `quit` close the session
+
+`login` prompts for a password interactively. `rfc-post` reads Markdown content from the file path you pass in `docpath`.
+
+## Notes
+
+- The client is useful for day-to-day API access, but the [endpoint reference](endpoints/README.md) is still the source of truth for the full HTTP surface.
+- The browser frontend in [`frontend/`](../frontend/) is separate from the CLI client.

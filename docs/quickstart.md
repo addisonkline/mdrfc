@@ -1,118 +1,126 @@
-# MDRFC Setup
+# MDRFC Quickstart
 
-This document contains instructions on how to download, install, and set up an MDRFC instance.
+This guide brings up the backend first, then optionally the frontend and CLI client.
 
 ## 1. Prerequisites
 
-- Python version 3.12 or higher
-- The [`uv`](https://github.com/astral-sh/uv) package manager
+- Python 3.12 or newer
+- [`uv`](https://github.com/astral-sh/uv)
+- PostgreSQL
+- Node.js and npm if you want to run the React frontend
 
-## 2. Download and Install
+## 2. Install the Backend Dependencies
 
-First, clone the repository from GitHub:
-
-```bash
-git clone https://github.com/addisonkline/mdrfc
-```
-
-Next, go to the project and install the required Python dependencies:
+From the repository root:
 
 ```bash
-cd mdrfc
-uv venv
+uv sync --dev
 ```
 
-Activate the virtual environment:
+This installs the package, the `mdrfc` CLI, and the development tools used by the repository.
 
-```bash
-source .venv/bin/activate
-```
+## 3. Configure `.env`
 
-Now try and run the project script:
-
-```bash
-mdrfc --help
-```
-
-You should see the MDRFC CLI help message. If the command failed, make sure your environment is set up and installed properly.
-
-## 3. Environment Variables
-
-Refer to the file `.env.example` in the project root to see which environment variables are required:
+Copy `.env.example` to `.env` and set the minimum backend configuration:
 
 ```env
-# MDRFC server
-## database integration
-DATABASE_URL=str
-
-## JWT auth
-SECRET_KEY=str
-JWT_ALGORITHM=str
-ACCESS_TOKEN_EXPIRE_MINUTES=int
-
-## SMTP stuff
-REQUIRED_EMAIL_SUFFIX=str
-APP_BASE_URL=str
-EMAIL_FROM=str
-SMTP_HOST=str
-
-## utils
-AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=bool
-
-# MDRFC client
-MDRFC_USERNAME=str
-MDRFC_PASSWORD=str
+DATABASE_URL=postgresql://...
+SECRET_KEY=...
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true
 ```
 
-We will focus on just the required variables for the server for now.
-
-Start by setting `JWT_ALGORITHM` to `"HS256"` and `ACCESS_TOKEN_EXPIRE_MINUTES` to `30`. Then, generate and set the `SECRET_KEY` to a string that is ideally longer than 32 characters. You can generate one with the following command:
+Generate a secret key with:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Next, connect your existing PostgreSQL database by setting the variable `DATABASE_URL`.
+For local development, `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true` is the simplest option because it skips SMTP delivery and returns the verification token directly from `POST /signup`.
 
-Finally, set `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN` to `true`--we don't want to worry about SMTP email handling right now.
-
-## 4. Running the Server
-
-With your environment variables set, try starting the server up:
+## 4. Run the Database Migrations
 
 ```bash
-mdrfc serve
+uv run alembic upgrade head
 ```
 
-You should see the the server start up successfully. It is hosted on `http://localhost:8026` by default. Press `Ctrl+C` to shut it down.
+`mdrfc setup` is not ready yet, so Alembic is the current setup path.
 
-## 5. Running the Client
-
-With the server running, open another terminal and connect to it using the MDRFC client:
+## 5. Start the Backend
 
 ```bash
-mdrfc client http://localhost:8026 --no-login
+uv run mdrfc serve --reload
 ```
 
-You should enter the CLI client, connected to your server. Try pinging the server:
+By default the server listens on `http://127.0.0.1:8026`.
+
+Useful URLs:
+
+- API root: `http://127.0.0.1:8026/`
+- FastAPI docs: `http://127.0.0.1:8026/docs`
+
+## 6. Create and Verify a User
+
+With `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true`, you can create and verify a user with `curl`:
 
 ```bash
-ping -v
+curl -s -X POST http://127.0.0.1:8026/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "alice",
+    "email": "alice@example.com",
+    "name_first": "Alice",
+    "name_last": "Smith",
+    "password": "StrongPassword1"
+  }'
 ```
 
-You should get a response like the following:
+The response includes `metadata.verification_token`. Use it here:
 
-```
-name: mdrfc
-version: 0.1.0
-status: ok
-uptime: 10.0
-metadata: {}
+```bash
+curl -X POST http://127.0.0.1:8026/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"token":"<verification_token>"}'
 ```
 
-Congratulations, you have now set up an MDRFC server and connected to it with the client!
+If you sign up through the React frontend while debug-token mode is enabled, the UI still says "check your email". For local development, use the network response or `curl` to read the raw token.
 
-## 6. Next Steps
+## 7. Optional: Run the Frontend
 
-- More detailed server setup options and instructions: [server.md](/docs/server.md)
-- More detailed client configuration options: [client.md](/docs/client.md)
+The browser app lives in [`frontend/`](../frontend/):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The Vite dev server proxies `/api/*` to `http://127.0.0.1:8026`, so the frontend can talk to the local backend without extra configuration.
+
+## 8. Optional: Run the CLI Client
+
+Start the REPL client from the repository root:
+
+```bash
+uv run mdrfc client http://127.0.0.1:8026 --no-login
+```
+
+Then log in interactively:
+
+```text
+login alice
+```
+
+If you want automatic login on startup, set:
+
+```env
+MDRFC_USERNAME=alice
+MDRFC_PASSWORD=StrongPassword1
+```
+
+## Next Steps
+
+- [Server guide](server.md)
+- [CLI client guide](client.md)
+- [Endpoint reference](endpoints/README.md)

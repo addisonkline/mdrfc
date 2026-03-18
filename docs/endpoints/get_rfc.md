@@ -1,32 +1,53 @@
-# Endpoint `GET /rfc/{rfc_id}`
+# `GET /rfc/{rfc_id}`
 
-Get an existing RFC document by its ID.
+Returns a full RFC document.
+
+`GET /rfc/{rfc_id}/rev/current` is an alias for the same handler and response shape.
+
+## Auth
+
+Auth is optional.
+
+- Anonymous callers can only read public RFCs.
+- Authenticated callers can read public and private RFCs.
 
 ## Request
 
-This endpoint accepts a path parameter, `rfc_id`, which must be an integer.
+Path parameter:
 
-## Response
+```txt
+rfc_id: integer
+```
 
-If no RFC exists with the specified ID, the server returns a `404` response. If an RFC was found, the server returns a `200` response with the following JSON body:
+## Success Response
+
+`200 OK`
 
 ```json
 {
-    "rfc": { // the RFC document
-        "id": int,
-        "author_name_last": string,
-        "author_name_first": string,
-        "created_at": string, // timestamp as string
-        "updated_at": string, // timestamp as string
-        "title": string,
-        "slug": string,
-        "status": string, // must be one of "draft", "open", "accepted", "rejected"
-        "content": string, // the Markdown document
-        "summary": string,
-        "revisions": array, // array of UUIDs as strings
-        "current_revision": string, // UUID as string
-        "agent_contributions": object, // keys are revision IDs (UUID as string), values are arrays of agent contributors (string)
+  "rfc": {
+    "id": 1,
+    "author_name_last": "Smith",
+    "author_name_first": "Alice",
+    "created_at": "2026-03-18T18:00:00Z",
+    "updated_at": "2026-03-18T18:15:00Z",
+    "title": "RFC Title",
+    "slug": "rfc-title",
+    "status": "open",
+    "content": "# RFC Title\n\nBody",
+    "summary": "Short summary.",
+    "revisions": ["f6f1b8b3-4a38-4d2b-8c2a-53fa1aa8f7d3"],
+    "current_revision": "f6f1b8b3-4a38-4d2b-8c2a-53fa1aa8f7d3",
+    "agent_contributions": {
+      "f6f1b8b3-4a38-4d2b-8c2a-53fa1aa8f7d3": ["codex@openai"]
     },
-    "metadata": { ... }
+    "public": true
+  },
+  "metadata": {}
 }
 ```
+
+## Notes
+
+- Missing RFCs return `404`.
+- Anonymous requests for private RFCs return `401`.

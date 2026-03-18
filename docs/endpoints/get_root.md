@@ -1,21 +1,25 @@
-# Endpoint `GET /`
+# `GET /`
 
-Obtain basic server information and metadata.
+Returns basic server metadata and uptime.
+
+## Auth
+
+No auth required.
 
 ## Request
 
-No parameters (path, query, or body) are accepted.
+No path parameters, query parameters, or request body.
 
-## Response
+## Success Response
 
-If the server is running, it should return a `200` response with the following JSON body:
+`200 OK`
 
 ```json
 {
-    "name": "mdrfc",
-    "version": string, // the current MDRFC version
-    "status": "ok",
-    "uptime": float, // must be > 0.0
-    "metadata": { ... }
+  "name": "mdrfc",
+  "version": "0.1.0",
+  "status": "ok",
+  "uptime": 12.34,
+  "metadata": {}
 }
 ```

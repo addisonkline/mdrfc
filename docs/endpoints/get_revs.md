@@ -1,28 +1,45 @@
-# Endpoint `GET /rfc/{rfc_id}/revs`
+# `GET /rfc/{rfc_id}/revs`
 
-Get a summary for every revision on the specified RFC, if it exists.
+Returns revision summaries for one RFC.
+
+## Auth
+
+Auth is optional.
+
+- Anonymous callers can only access public RFCs.
+- Authenticated callers can access public and private RFCs.
 
 ## Request
 
-This endpoint expects the path parameter `rfc_id`, which must be a valid integer.
+Path parameter:
 
-## Response
+```txt
+rfc_id: integer
+```
 
-If no RFC with the given ID exists, the server returns a `404` response. If the RFC ID is valid, the server returns a `200` response with the following JSON body:
+## Success Response
+
+`200 OK`
 
 ```json
 {
-    "revisions": [ // all revision objects for this RFC
-        {
-            "id": string, // UUID as string
-            "rfc_id": int,
-            "created_at": string, // timestamp as string
-            "author_name_last": string,
-            "author_name_first": string,
-            "agent_contributors": array, // array of agent contributor names (string)
-            "message": string, // message for this revision
-        }
-    ],
-    "metadata": { ... }
+  "revisions": [
+    {
+      "id": "f6f1b8b3-4a38-4d2b-8c2a-53fa1aa8f7d3",
+      "rfc_id": 1,
+      "created_at": "2026-03-18T18:15:00Z",
+      "author_name_last": "Smith",
+      "author_name_first": "Alice",
+      "agent_contributors": ["codex@openai"],
+      "message": "Clarify rollout plan",
+      "public": false
+    }
+  ],
+  "metadata": {}
 }
 ```
+
+## Notes
+
+- Missing RFCs return `404`.
+- Anonymous requests against private RFCs return `401`.

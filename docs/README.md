@@ -1,18 +1,17 @@
-# MDRFC Documentation Index
+# MDRFC Documentation
 
-This file serves as a reference to the MDRFC documentation (`docs/` in the project root). It may never be fully comprehensive or complete; feel free to make any changes as needed.
+This directory documents the current backend, CLI client, and repository workflow.
 
---Addison
+## Start Here
 
-## Quickstart
+- [Quickstart](quickstart.md)
+- [Server guide](server.md)
+- [CLI client guide](client.md)
 
-- Basic installation and setup instructions: [quickstart.md](/docs/setup.md)
+## API Reference
 
-## Server
+- [Endpoint index](endpoints/README.md)
 
-- Basic server information: [server.md](/docs/server.md)
-- Server endpoints: [endpoints/](/docs/endpoints/README.md)
+## Planning
 
-## Client
-
-- Basic client information: [client.md](/docs/client.md)
+- [Roadmap](ROADMAP.md)
