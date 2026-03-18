@@ -13,9 +13,13 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def validate_username(username: str) -> str:
     if len(username) < consts.LEN_USERNAME_MIN:
-        raise ValueError(f"username must be at least {consts.LEN_USERNAME_MIN} characters long")
+        raise ValueError(
+            f"username must be at least {consts.LEN_USERNAME_MIN} characters long"
+        )
     if len(username) > consts.LEN_USERNAME_MAX:
-        raise ValueError(f"username must be no greater than {consts.LEN_USERNAME_MAX} characters long")
+        raise ValueError(
+            f"username must be no greater than {consts.LEN_USERNAME_MAX} characters long"
+        )
     username = username.lower()
     if not USERNAME_RE.fullmatch(username):
         raise ValueError("invalid username schema")
@@ -24,9 +28,13 @@ def validate_username(username: str) -> str:
 
 def validate_email(email: str) -> str:
     if len(email) < consts.LEN_EMAIL_MIN:
-        raise ValueError(f"email must be at least {consts.LEN_EMAIL_MIN} characters long")
+        raise ValueError(
+            f"email must be at least {consts.LEN_EMAIL_MIN} characters long"
+        )
     if len(email) > consts.LEN_EMAIL_MAX:
-        raise ValueError(f"email must be no greater than {consts.LEN_EMAIL_MAX} characters long")
+        raise ValueError(
+            f"email must be no greater than {consts.LEN_EMAIL_MAX} characters long"
+        )
     email = email.lower()
     if not EMAIL_RE.fullmatch(email):
         raise ValueError("invalid email schema")
@@ -35,7 +43,9 @@ def validate_email(email: str) -> str:
 
 def validate_password(password: str) -> str:
     if len(password) < consts.LEN_PASSWORD_PLAIN_MIN:
-        raise ValueError(f"password must be at least {consts.LEN_PASSWORD_PLAIN_MIN} characters long")
+        raise ValueError(
+            f"password must be at least {consts.LEN_PASSWORD_PLAIN_MIN} characters long"
+        )
     if not password.strip():
         raise ValueError("password must not be all whitespace")
     return password
@@ -43,17 +53,25 @@ def validate_password(password: str) -> str:
 
 def validate_name_last(name: str) -> str:
     if len(name) < consts.LEN_NAME_LAST_MIN:
-        raise ValueError(f"last name must be at least {consts.LEN_NAME_LAST_MIN} characters long")
+        raise ValueError(
+            f"last name must be at least {consts.LEN_NAME_LAST_MIN} characters long"
+        )
     if len(name) > consts.LEN_NAME_LAST_MAX:
-        raise ValueError(f"last name must be no greater than {consts.LEN_NAME_LAST_MAX} characters long")
+        raise ValueError(
+            f"last name must be no greater than {consts.LEN_NAME_LAST_MAX} characters long"
+        )
     return name
 
 
 def validate_name_first(name: str) -> str:
     if len(name) < consts.LEN_NAME_FIRST_MIN:
-        raise ValueError(f"first name must be at least {consts.LEN_NAME_FIRST_MIN} characters long")
+        raise ValueError(
+            f"first name must be at least {consts.LEN_NAME_FIRST_MIN} characters long"
+        )
     if len(name) > consts.LEN_NAME_FIRST_MAX:
-        raise ValueError(f"first name must be no greater than {consts.LEN_NAME_FIRST_MAX} characters long")
+        raise ValueError(
+            f"first name must be no greater than {consts.LEN_NAME_FIRST_MAX} characters long"
+        )
     return name
 
 

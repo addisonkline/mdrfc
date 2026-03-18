@@ -5,6 +5,7 @@ Revises: caa5021323c7
 Create Date: 2026-03-11 18:05:00.000000+00:00
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -21,7 +22,12 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column(
         "rfc_revisions",
-        sa.Column("message", sa.String(length=256), nullable=False, server_default="Initial revision"),
+        sa.Column(
+            "message",
+            sa.String(length=256),
+            nullable=False,
+            server_default="Initial revision",
+        ),
     )
     op.alter_column("rfc_revisions", "message", server_default=None)
 

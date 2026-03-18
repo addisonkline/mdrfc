@@ -17,7 +17,7 @@ import mdrfc.backend.constants as consts
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-REQUIRED_EMAIL_SUFFIX=getenv("REQUIRED_EMAIL_SUFFIX")
+REQUIRED_EMAIL_SUFFIX = getenv("REQUIRED_EMAIL_SUFFIX")
 
 
 def _get_bool_env(name: str, default: bool) -> bool:
@@ -46,11 +46,17 @@ def load_smtp_settings() -> SMTPSettings:
     smtp_host = getenv("SMTP_HOST")
 
     if not app_base_url:
-        raise RuntimeError("environment variable APP_BASE_URL is required but was not found")
+        raise RuntimeError(
+            "environment variable APP_BASE_URL is required but was not found"
+        )
     if not email_from:
-        raise RuntimeError("environment variable EMAIL_FROM is required but was not found")
+        raise RuntimeError(
+            "environment variable EMAIL_FROM is required but was not found"
+        )
     if not smtp_host:
-        raise RuntimeError("environment variable SMTP_HOST is required but was not found")
+        raise RuntimeError(
+            "environment variable SMTP_HOST is required but was not found"
+        )
 
     smtp_port_raw = getenv("SMTP_PORT", "587")
     try:
@@ -67,7 +73,7 @@ def load_smtp_settings() -> SMTPSettings:
         smtp_password=getenv("SMTP_PASSWORD"),
         smtp_starttls=_get_bool_env("SMTP_STARTTLS", True),
         smtp_use_ssl=_get_bool_env("SMTP_USE_SSL", False),
-        resend_api_key=getenv("RESEND_API_KEY")
+        resend_api_key=getenv("RESEND_API_KEY"),
     )
 
 
@@ -102,7 +108,7 @@ def _build_verification_message(
     html_body = build_html_body(
         username=username,
         verification_url=verification_url,
-        expires_at_display=expires_at_display
+        expires_at_display=expires_at_display,
     )
 
     message.set_content(text_body)
@@ -118,7 +124,7 @@ def build_html_body(
     html_body = (
         f"<p>Hi {username},</p>"
         "<p>Thanks for signing up for MDRFC.</p>"
-        f"<p><a href=\"{verification_url}\">Verify your email address</a></p>"
+        f'<p><a href="{verification_url}">Verify your email address</a></p>'
         f"<p>This link expires at {expires_at_display} UTC.</p>"
     )
     return html_body
@@ -130,8 +136,7 @@ def check_valid_email(
     if REQUIRED_EMAIL_SUFFIX is not None:
         if not email.endswith(REQUIRED_EMAIL_SUFFIX):
             raise HTTPException(
-                status_code=401,
-                detail="cannot make an account with this email"
+                status_code=401, detail="cannot make an account with this email"
             )
 
 
@@ -156,14 +161,14 @@ def send_verification_email(
     )
     if settings.resend_api_key is not None:
         params: resend.Emails.SendParams = {
-            "from": message.get("From"), # type: ignore
-            "to": [message.get("To")], # type: ignore
-            "subject": message.get("Subject"), # type: ignore
+            "from": message.get("From"),  # type: ignore
+            "to": [message.get("To")],  # type: ignore
+            "subject": message.get("Subject"),  # type: ignore
             "html": build_html_body(
                 username=username,
                 verification_url=verification_url,
-                expires_at_display=expires_at.isoformat(timespec="seconds")
-            )
+                expires_at_display=expires_at.isoformat(timespec="seconds"),
+            ),
         }
         email = resend.Emails.send(params)
     else:

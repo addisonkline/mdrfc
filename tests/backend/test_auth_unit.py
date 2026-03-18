@@ -13,8 +13,12 @@ def test_normalize_username_strips_and_lowercases() -> None:
 
 
 def test_hash_verification_token_is_deterministic() -> None:
-    assert auth.hash_verification_token("token") == auth.hash_verification_token("token")
-    assert auth.hash_verification_token("token") != auth.hash_verification_token("other-token")
+    assert auth.hash_verification_token("token") == auth.hash_verification_token(
+        "token"
+    )
+    assert auth.hash_verification_token("token") != auth.hash_verification_token(
+        "other-token"
+    )
 
 
 def test_create_access_token_encodes_subject_and_expiry() -> None:

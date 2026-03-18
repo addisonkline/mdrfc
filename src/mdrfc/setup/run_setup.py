@@ -8,7 +8,7 @@ import secrets
 
 from alembic import command
 from alembic.config import Config
-import asyncpg # type: ignore
+import asyncpg  # type: ignore
 from dotenv import dotenv_values, load_dotenv
 
 
@@ -58,11 +58,7 @@ def _read_env_file(env_path: Path) -> dict[str, str]:
         return {}
 
     raw_values = dotenv_values(env_path)
-    return {
-        key: value
-        for key, value in raw_values.items()
-        if value is not None
-    }
+    return {key: value for key, value in raw_values.items() if value is not None}
 
 
 def _load_effective_env(env_path: Path) -> dict[str, str]:
@@ -102,11 +98,7 @@ def _require_int(name: str, value: str) -> int:
 
 
 def _validate_env_values(env_values: Mapping[str, str]) -> None:
-    missing = [
-        key
-        for key in REQUIRED_ENV_KEYS
-        if not env_values.get(key, "").strip()
-    ]
+    missing = [key for key in REQUIRED_ENV_KEYS if not env_values.get(key, "").strip()]
 
     debug_mode_value = env_values.get("AUTH_DEBUG_RETURN_VERIFICATION_TOKEN", "false")
     debug_mode = _parse_bool("AUTH_DEBUG_RETURN_VERIFICATION_TOKEN", debug_mode_value)
@@ -120,12 +112,17 @@ def _validate_env_values(env_values: Mapping[str, str]) -> None:
         missing_str = ", ".join(sorted(set(missing)))
         raise SetupError(f"missing required environment values: {missing_str}")
 
-    _require_int("ACCESS_TOKEN_EXPIRE_MINUTES", env_values["ACCESS_TOKEN_EXPIRE_MINUTES"])
+    _require_int(
+        "ACCESS_TOKEN_EXPIRE_MINUTES", env_values["ACCESS_TOKEN_EXPIRE_MINUTES"]
+    )
 
     if "SMTP_PORT" in env_values and env_values["SMTP_PORT"].strip():
         _require_int("SMTP_PORT", env_values["SMTP_PORT"])
 
-    if "EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES" in env_values and env_values["EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES"].strip():
+    if (
+        "EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES" in env_values
+        and env_values["EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES"].strip()
+    ):
         _require_int(
             "EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES",
             env_values["EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES"],
@@ -139,9 +136,7 @@ def _validate_env_values(env_values: Mapping[str, str]) -> None:
 def _ensure_dev_defaults(env_path: Path) -> list[str]:
     existing_values = _read_env_file(env_path)
     missing_defaults = [
-        key
-        for key in LOCAL_DEV_DEFAULTS
-        if not existing_values.get(key, "").strip()
+        key for key in LOCAL_DEV_DEFAULTS if not existing_values.get(key, "").strip()
     ]
 
     if not missing_defaults:
@@ -202,8 +197,7 @@ async def run_setup(args: Namespace) -> None:
         written_defaults = _ensure_dev_defaults(env_path)
         if written_defaults:
             _log(
-                "Wrote local development defaults for: "
-                + ", ".join(written_defaults),
+                "Wrote local development defaults for: " + ", ".join(written_defaults),
                 verbose=True,
             )
         else:

@@ -24,13 +24,10 @@ from mdrfc.backend.auth import (
     get_current_active_user_if_one,
     verify_user_email,
 )
-from mdrfc.backend.comment import RFCComment, validate_quarantine_comment_reason
+from mdrfc.backend.comment import validate_quarantine_comment_reason
 import mdrfc.backend.constants as consts
-from mdrfc.backend.db import (
-    init_db,
-    close_db
-)
-from mdrfc.backend.document import RFCDocument, validate_quarantine_rfc_reason
+from mdrfc.backend.db import init_db, close_db
+from mdrfc.backend.document import validate_quarantine_rfc_reason
 from mdrfc.backend.email import check_valid_email, send_verification_email_task
 from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
 from mdrfc.utils.logging import init_logger
@@ -44,7 +41,9 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 token_expiry_time = getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 if token_expiry_time is None:
-    raise RuntimeError("environment variable ACCESS_TOKEN_EXPIRE_MINUTES is required but was not found")
+    raise RuntimeError(
+        "environment variable ACCESS_TOKEN_EXPIRE_MINUTES is required but was not found"
+    )
 ACCESS_TOKEN_EXPIRE_MINUTES = int(token_expiry_time)
 
 
@@ -101,7 +100,7 @@ async def get_root() -> res_types.GetRootResponse:
 #
 @app.post("/login", response_model=Token)
 async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
     """
     `POST /login`: Log in using OAuth2 and obtain an access token.
@@ -113,23 +112,22 @@ async def login_for_access_token(
             detail="incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES) # type: ignore
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)  # type: ignore
     access_token = create_access_token(
-        data={"sub": user.username}, # type: ignore
-        expires_delta=access_token_expires
+        data={"sub": user.username},  # type: ignore
+        expires_delta=access_token_expires,
     )
-    return Token(
-        access_token=access_token,
-        token_type="bearer"
-    )
+    return Token(access_token=access_token, token_type="bearer")
 
 
 @app.post("/signup", response_model=res_types.PostSignupResponse)
 async def post_new_user(
     background_tasks: BackgroundTasks,
     http_request: Request,
-    payload: Annotated[req_types.PostSignupRequest, Depends(req_types.validate_post_signup_request)],
+    payload: Annotated[
+        req_types.PostSignupRequest, Depends(req_types.validate_post_signup_request)
+    ],
 ) -> res_types.PostSignupResponse:
     """
     `POST /signup`: Attempt to create a new user with the provided credentials.
@@ -169,7 +167,7 @@ async def post_new_user(
         email=payload.email,
         name_last=payload.name_last,
         name_first=payload.name_first,
-        password=payload.password
+        password=payload.password,
     )
 
     if not DEBUG_RETURN_VERIFICATION_TOKEN:
@@ -189,8 +187,10 @@ async def post_new_user(
         metadata={
             "verification_required": True,
             "verification_expires_at": signup_result.verification_expires_at.isoformat(),
-            "verification_token": signup_result.verification_token if DEBUG_RETURN_VERIFICATION_TOKEN else None,
-        }
+            "verification_token": signup_result.verification_token
+            if DEBUG_RETURN_VERIFICATION_TOKEN
+            else None,
+        },
     )
 
 
@@ -213,10 +213,9 @@ async def post_verify_email(
     )
 
 
-
 @app.get("/users/me", response_model=User)
 async def get_users_me(
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
     """
     `GET /users/me`: Get information on the current user.
@@ -229,7 +228,7 @@ async def get_users_me(
 #
 @app.get("/rfcs", response_model=res_types.GetRfcsResponse)
 async def get_rfcs(
-    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcsResponse:
     """
     `GET /rfcs`: Obtain a list of all current RFCs.
@@ -241,7 +240,7 @@ async def get_rfcs(
 
 @app.get("/rfcs/quarantined", response_model=res_types.GetQuarantinedRfcsResponse)
 async def get_rfcs_quarantined(
-    current_admin: Annotated[User, Depends(get_current_active_admin)]
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.GetQuarantinedRfcsResponse:
     """
     `GET /rfcs/quarantined`: Obtain the list of currently-quarantined RFCs.
@@ -249,36 +248,40 @@ async def get_rfcs_quarantined(
     return await api.get_rfcs_quarantined()
 
 
-@app.delete("/rfcs/quarantined/{quarantine_id}", response_model=res_types.DeleteQuarantinedRfcResponse)
+@app.delete(
+    "/rfcs/quarantined/{quarantine_id}",
+    response_model=res_types.DeleteQuarantinedRfcResponse,
+)
 async def delete_rfc(
     quarantine_id: int,
-    current_admin: Annotated[User, Depends(get_current_active_admin)]
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.DeleteQuarantinedRfcResponse:
     """
     `DELETE /rfcs/quarantined/{quarantine_id}`: Fully delete a quarantined RFC.
     """
-    return await api.delete_rfc_quarantined(
-        quarantine_id=quarantine_id
-    )
+    return await api.delete_rfc_quarantined(quarantine_id=quarantine_id)
 
 
-@app.post("/rfcs/quarantined/{quarantine_id}", response_model=res_types.PostQuarantinedRfcResponse)
+@app.post(
+    "/rfcs/quarantined/{quarantine_id}",
+    response_model=res_types.PostQuarantinedRfcResponse,
+)
 async def unquarantine_rfc(
     quarantine_id: int,
-    current_admin: Annotated[User, Depends(get_current_active_admin)]
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.PostQuarantinedRfcResponse:
     """
     `POST /rfc/{rfc_id}/unquarantine`: Republish a quarantined RFC.
     """
-    return await api.post_rfc_quarantined(
-        quarantine_id=quarantine_id
-    )
+    return await api.post_rfc_quarantined(quarantine_id=quarantine_id)
 
 
 @app.post("/rfc", response_model=res_types.PostRfcResponse)
 async def post_rfc(
-    request: Annotated[req_types.PostRfcRequest, Depends(req_types.validate_post_rfc_request)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    request: Annotated[
+        req_types.PostRfcRequest, Depends(req_types.validate_post_rfc_request)
+    ],
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.PostRfcResponse:
     """
     `POST /rfc`: Upload a new RFC document.
@@ -293,7 +296,7 @@ async def post_rfc(
 @app.get("/rfc/{rfc_id}", response_model=res_types.GetRfcResponse)
 async def get_rfc_by_id(
     rfc_id: int,
-    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcResponse:
     """
     `GET /rfc/{rfc_id}`: Get the existing RFC document by ID.
@@ -308,7 +311,7 @@ async def get_rfc_by_id(
 async def quarantine_rfc(
     rfc_id: int,
     reason: Annotated[str, Depends(validate_quarantine_rfc_reason)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.DeleteRfcResponse:
     """
     `DELETE /rfc/{rfc_id}`: Delete an existing RFC (soft delete; add to quarantine).
@@ -331,10 +334,7 @@ async def get_rfc_revisions(
     """
     `GET /rfc/{rfc_id}/revs`: Get all revisions for the given RFC.
     """
-    return await api.get_rfc_revisions(
-        rfc_id=rfc_id,
-        current_user=current_user
-    )
+    return await api.get_rfc_revisions(rfc_id=rfc_id, current_user=current_user)
 
 
 @app.get("/rfc/{rfc_id}/rev/{rev_id}", response_model=res_types.GetRfcRevisionResponse)
@@ -347,9 +347,7 @@ async def get_rfc_revision(
     `GET /rfc/{rfc_id}/rev/{rev_id}`: Get a specific revision by ID for the given RFC.
     """
     return await api.get_rfc_revision(
-        rfc_id=rfc_id,
-        revision_id=rev_id,
-        current_user=current_user
+        rfc_id=rfc_id, revision_id=rev_id, current_user=current_user
     )
 
 
@@ -357,15 +355,16 @@ async def get_rfc_revision(
 async def post_rfc_revision(
     rfc_id: int,
     current_user: Annotated[User, Depends(get_current_active_user)],
-    request: Annotated[req_types.PostRfcRevisionRequest, Depends(req_types.validate_post_rfc_revision_request)]
+    request: Annotated[
+        req_types.PostRfcRevisionRequest,
+        Depends(req_types.validate_post_rfc_revision_request),
+    ],
 ) -> res_types.PostRfcRevisionResponse:
     """
     `POST /rfc/{rfc_id}/rev`: Update an existing RFC with a new revision.
     """
     return await api.post_rfc_revision(
-        rfc_id=rfc_id,
-        user=current_user,
-        request=request
+        rfc_id=rfc_id, user=current_user, request=request
     )
 
 
@@ -375,66 +374,67 @@ async def post_rfc_revision(
 @app.post("/rfc/{rfc_id}/comment", response_model=res_types.PostRfcCommentResponse)
 async def post_rfc_comment(
     rfc_id: int,
-    request: Annotated[req_types.PostRfcCommentRequest, Depends(req_types.validate_post_rfc_comment_request)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    request: Annotated[
+        req_types.PostRfcCommentRequest,
+        Depends(req_types.validate_post_rfc_comment_request),
+    ],
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.PostRfcCommentResponse:
     """
     `POST /rfc/comment`: Post a new comment on an existing RFC.
     """
-    return await api.post_rfc_comment(
-        rfc_id=rfc_id,
-        user=current_user,
-        request=request
-    )
+    return await api.post_rfc_comment(rfc_id=rfc_id, user=current_user, request=request)
 
 
 @app.get("/rfc/{rfc_id}/comments", response_model=res_types.GetRfcCommentsResponse)
 async def get_rfc_comments(
     rfc_id: int,
-    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcCommentsResponse:
     """
     `GET /rfc/{rfc_id}/comments`: Get all comments on an existing RFC.
     """
-    return await api.get_rfc_comments(
-        rfc_id=rfc_id,
-        current_user=current_user
-    )
+    return await api.get_rfc_comments(rfc_id=rfc_id, current_user=current_user)
 
 
-@app.get("/rfc/{rfc_id}/comments/quarantined", response_model=res_types.GetQuarantinedCommentsResponse)
+@app.get(
+    "/rfc/{rfc_id}/comments/quarantined",
+    response_model=res_types.GetQuarantinedCommentsResponse,
+)
 async def get_quarantined_comments(
-    rfc_id: int,
-    current_admin: Annotated[User, Depends(get_current_active_admin)]
+    rfc_id: int, current_admin: Annotated[User, Depends(get_current_active_admin)]
 ) -> res_types.GetQuarantinedCommentsResponse:
     """
     `GET /rfc/{rfc_id}/comments/quarantined`: Get a list of all quarantined comments on a given RFC.
     """
-    return await api.get_rfc_comments_quarantined(
-        rfc_id=rfc_id
-    )
+    return await api.get_rfc_comments_quarantined(rfc_id=rfc_id)
 
 
-@app.delete("/rfc/{rfc_id}/comments/quarantined/{quarantine_id}", response_model=res_types.DeleteQuarantinedCommentResponse)
+@app.delete(
+    "/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
+    response_model=res_types.DeleteQuarantinedCommentResponse,
+)
 async def delete_comment(
     rfc_id: int,
     quarantine_id: int,
-    current_admin: Annotated[User, Depends(get_current_active_admin)]
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.DeleteQuarantinedCommentResponse:
     """
     `DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`: Fully delete a quarantined comment.
     """
     return await api.delete_rfc_comment_quarantined(
-        rfc_id=rfc_id,
-        quarantine_id=quarantine_id
+        rfc_id=rfc_id, quarantine_id=quarantine_id
     )
 
 
-@app.post("/rfc/{rfc_id}/comments/quarantined/{quarantine_id}", response_model=res_types.PostQuarantinedCommentResponse)
+@app.post(
+    "/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
+    response_model=res_types.PostQuarantinedCommentResponse,
+)
 async def unquarantine_comment(
     rfc_id: int,
     quarantine_id: int,
-    current_admin: Annotated[User, Depends(get_current_active_admin)]
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.PostQuarantinedCommentResponse:
     """
     `POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`: Unquarantine and reupload a comment.
@@ -445,28 +445,31 @@ async def unquarantine_comment(
     )
 
 
-@app.get("/rfc/{rfc_id}/comment/{comment_id}", response_model=res_types.GetRfcCommentResponse)
+@app.get(
+    "/rfc/{rfc_id}/comment/{comment_id}", response_model=res_types.GetRfcCommentResponse
+)
 async def get_rfc_comment(
     rfc_id: int,
     comment_id: int,
-    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcCommentResponse:
     """
     `GET /rfc/{rfc_id}/comment/{comment_id}`: Get a specific comment on a specific RFC.
     """
     return await api.get_rfc_comment(
-        rfc_id=rfc_id,
-        comment_id=comment_id,
-        current_user=current_user
+        rfc_id=rfc_id, comment_id=comment_id, current_user=current_user
     )
 
 
-@app.delete("/rfc/{rfc_id}/comment/{comment_id}", response_model=res_types.DeleteRfcCommentResponse)
+@app.delete(
+    "/rfc/{rfc_id}/comment/{comment_id}",
+    response_model=res_types.DeleteRfcCommentResponse,
+)
 async def quarantine_comment(
     rfc_id: int,
     comment_id: int,
     reason: Annotated[str, Depends(validate_quarantine_comment_reason)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.DeleteRfcCommentResponse:
     """
     `DELETE /rfc/{rfc_id}/comment/{comment_id}`: Quarantine (soft-delete) an existing comment.
@@ -479,22 +482,16 @@ async def quarantine_comment(
     )
 
 
-def run_server(
-    args: Namespace
-) -> None:
+def run_server(args: Namespace) -> None:
     """
     Run the mdrfc server via the CLI.
     """
-    init_logger(
-        args.log_file,
-        args.log_level_file,
-        args.log_level_console
-    )
+    init_logger(args.log_file, args.log_level_file, args.log_level_console)
 
     uvicorn.run(
         "mdrfc.server:app",
         host=args.host,
         port=args.port,
         reload=args.reload,
-        log_config=None
+        log_config=None,
     )

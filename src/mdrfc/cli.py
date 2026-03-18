@@ -6,7 +6,7 @@ def main() -> None:
         prog="mdrfc",
         usage="mdrfc [-h] <command>",
         description="A server implementation for hosting Markdown-formatted RFCs",
-        epilog="Copyright (c) 2026 Addison Kline (GitHub: @addisonkline)"
+        epilog="Copyright (c) 2026 Addison Kline (GitHub: @addisonkline)",
     )
     subparsers = parser.add_subparsers(title="commands", dest="command")
 
@@ -16,18 +16,18 @@ def main() -> None:
         "setup",
         usage="mdrfc setup [option]...",
         description=setup_desc,
-        help=setup_desc
+        help=setup_desc,
     )
     setup_parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="print more detailed process information to the console"
+        help="print more detailed process information to the console",
     )
     setup_parser.add_argument(
         "--dev-defaults",
         action="store_true",
-        help="write missing local-development defaults to .env before validation"
+        help="write missing local-development defaults to .env before validation",
     )
 
     # spin up server
@@ -36,46 +36,46 @@ def main() -> None:
         "serve",
         usage="mdrfc serve [option]...",
         description=serve_desc,
-        help=serve_desc
+        help=serve_desc,
     )
     serve_parser.add_argument(
         "-H",
         "--host",
         default="127.0.0.1",
-        help="the host to serve on (default: '127.0.0.1')"
+        help="the host to serve on (default: '127.0.0.1')",
     )
     serve_parser.add_argument(
         "-p",
         "--port",
         default=8026,
         type=int,
-        help="the port to serve on (default: 8026)"
+        help="the port to serve on (default: 8026)",
     )
     serve_parser.add_argument(
         "-r",
         "--reload",
         action="store_true",
-        help="reload the server upon detected code changes"
+        help="reload the server upon detected code changes",
     )
     serve_parser.add_argument(
         "-lf",
         "--log-file",
         default="mdrfc.log",
-        help="the file path to write logs to (default: 'mdrfc.log')"
+        help="the file path to write logs to (default: 'mdrfc.log')",
     )
     serve_parser.add_argument(
         "-llf",
         "--log-level-file",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="the minimum log level to write to the log file (default: 'INFO')"
+        help="the minimum log level to write to the log file (default: 'INFO')",
     )
     serve_parser.add_argument(
         "-llc",
         "--log-level-console",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="the minimum log level to write to the console (default: 'INFO')"
+        help="the minimum log level to write to the console (default: 'INFO')",
     )
 
     # launch CLI client
@@ -86,21 +86,18 @@ def main() -> None:
         description=client_desc,
         help=client_desc,
     )
-    client_parser.add_argument(
-        "url",
-        help="the MDRFC server URL to connect to"
-    )
+    client_parser.add_argument("url", help="the MDRFC server URL to connect to")
     client_parser.add_argument(
         "-nl",
         "--no-login",
         action="store_true",
-        help="do not attempt to log in upon startup"
+        help="do not attempt to log in upon startup",
     )
     client_parser.add_argument(
         "-nc",
         "--no-config",
         action="store_true",
-        help="do not load defaults from mdrfc_client.config"
+        help="do not load defaults from mdrfc_client.config",
     )
 
     # get software version
@@ -115,9 +112,9 @@ def main() -> None:
         "-v",
         "--verbose",
         action="store_true",
-        help="include more detailed software information"
+        help="include more detailed software information",
     )
-    
+
     args = parser.parse_args()
 
     command = getattr(args, "command", None)

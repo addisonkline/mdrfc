@@ -4,25 +4,30 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, Field
 
 import mdrfc.backend.constants as consts
-from mdrfc.backend.users import (
-    validate_name_last,
-    validate_name_first
-)
+from mdrfc.backend.users import validate_name_last, validate_name_first
 
 
 def validate_comment_content(content: str) -> str:
     if len(content) < consts.LEN_COMMENT_CONTENT_MIN:
-        raise ValueError(f"content must be at least {consts.LEN_COMMENT_CONTENT_MIN} characters long")
+        raise ValueError(
+            f"content must be at least {consts.LEN_COMMENT_CONTENT_MIN} characters long"
+        )
     if len(content) > consts.LEN_COMMENT_CONTENT_MAX:
-        raise ValueError(f"content must be no greater than {consts.LEN_COMMENT_CONTENT_MAX} characters long")
+        raise ValueError(
+            f"content must be no greater than {consts.LEN_COMMENT_CONTENT_MAX} characters long"
+        )
     return content
 
 
 def validate_quarantine_comment_reason(reason: str) -> str:
     if len(reason) < consts.LEN_QUARANTINED_COMMENT_REASON_MIN:
-        raise ValueError(f"reason must be at least {consts.LEN_QUARANTINED_COMMENT_REASON_MIN} characters long")
+        raise ValueError(
+            f"reason must be at least {consts.LEN_QUARANTINED_COMMENT_REASON_MIN} characters long"
+        )
     if len(reason) > consts.LEN_QUARANTINED_COMMENT_REASON_MAX:
-        raise ValueError(f"reason must be no greater than {consts.LEN_QUARANTINED_COMMENT_REASON_MAX} characters long")
+        raise ValueError(
+            f"reason must be no greater than {consts.LEN_QUARANTINED_COMMENT_REASON_MAX} characters long"
+        )
     return reason
 
 
@@ -73,9 +78,7 @@ class CommentThread(BaseModel):
     replies: list["CommentThread"] = Field(default_factory=list)
 
 
-def build_comment_threads(
-    comments: list[RFCComment]
-) -> list[CommentThread]:
+def build_comment_threads(comments: list[RFCComment]) -> list[CommentThread]:
     """
     Create a structured list of nested comment threads from a list of flat DB rows.
     """
@@ -83,8 +86,7 @@ def build_comment_threads(
         return []
 
     comments_sorted = sorted(
-        comments,
-        key=lambda comment: (comment.created_at, comment.id)
+        comments, key=lambda comment: (comment.created_at, comment.id)
     )
 
     thread_nodes = {

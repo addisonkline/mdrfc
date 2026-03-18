@@ -16,16 +16,13 @@ from sqlalchemy import (
     ForeignKey,
     UUID,
     ARRAY,
-    JSON
+    JSON,
 )
-import asyncpg # type: ignore
+import asyncpg  # type: ignore
 import dotenv
 
 from mdrfc.backend import constants as consts
-from mdrfc.backend.users import (
-    User,
-    UserInDB
-)
+from mdrfc.backend.users import User, UserInDB
 from mdrfc.backend.document import (
     QuarantinedRFCSummary,
     RFCDocument,
@@ -33,7 +30,7 @@ from mdrfc.backend.document import (
     RFCDocumentSummary,
     RFCRevision,
     RFCRevisionInDB,
-    RFCRevisionSummary
+    RFCRevisionSummary,
 )
 from mdrfc.backend.comment import QuarantinedComment, RFCComment, RFCCommentInDB
 
@@ -42,7 +39,9 @@ from mdrfc.backend.comment import QuarantinedComment, RFCComment, RFCCommentInDB
 dotenv.load_dotenv()
 DSN = getenv("DATABASE_URL")
 if DSN is None:
-    raise RuntimeError("environment variable DATABASE_URL is required but was not found")
+    raise RuntimeError(
+        "environment variable DATABASE_URL is required but was not found"
+    )
 
 
 # sqlalchemy metadata
@@ -59,10 +58,14 @@ users = Table(
     Column("password_argon2", String(consts.LEN_PASSWORD_ARGON2), nullable=False),
     Column("is_verified", Boolean, nullable=False),
     Column("verified_at", DateTime, nullable=True),
-    Column("verification_token_hash", String(consts.LEN_VERIFICATION_TOKEN_HASH), nullable=True),
+    Column(
+        "verification_token_hash",
+        String(consts.LEN_VERIFICATION_TOKEN_HASH),
+        nullable=True,
+    ),
     Column("verification_token_expires_at", DateTime, nullable=True),
     Column("created_at", DateTime, nullable=False),
-    Column("is_admin", Boolean, nullable=True)
+    Column("is_admin", Boolean, nullable=True),
 )
 
 rfcs = Table(
@@ -81,19 +84,24 @@ rfcs = Table(
     Column("current_revision", UUID, ForeignKey("rfc_revisions.id"), nullable=False),
     Column("agent_contributions", JSON, nullable=False),
     Column("is_public", Boolean, nullable=True, default=False),
-    Column("is_quarantined", Boolean, nullable=True, default=False)
+    Column("is_quarantined", Boolean, nullable=True, default=False),
 )
 
 rfc_comments = Table(
     "rfc_comments",
     metadata_obj,
     Column("id", Integer, primary_key=True),
-    Column("parent_id", Integer, ForeignKey("rfc_comments.id", ondelete="CASCADE"), nullable=True),
+    Column(
+        "parent_id",
+        Integer,
+        ForeignKey("rfc_comments.id", ondelete="CASCADE"),
+        nullable=True,
+    ),
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("content", String(consts.LEN_COMMENT_CONTENT_MAX), nullable=False),
-    Column("is_quarantined", Boolean, nullable=True, default=False)
+    Column("is_quarantined", Boolean, nullable=True, default=False),
 )
 
 rfc_revisions = Table(
@@ -110,7 +118,7 @@ rfc_revisions = Table(
     Column("content", String(consts.LEN_RFC_CONTENT_MAX), nullable=False),
     Column("summary", String(consts.LEN_RFC_SUMMARY_MAX), nullable=False),
     Column("is_public", Boolean, nullable=True, default=False),
-    Column("message", String(consts.LEN_REVISION_MSG_MAX), nullable=False)
+    Column("message", String(consts.LEN_REVISION_MSG_MAX), nullable=False),
 )
 
 quarantined_rfcs = Table(
@@ -120,7 +128,7 @@ quarantined_rfcs = Table(
     Column("quarantined_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("quarantined_at", DateTime(timezone=True), nullable=False),
     Column("reason", String(consts.LEN_QUARANTINED_RFC_REASON_MAX), nullable=False),
-    Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False)
+    Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
 )
 
 quarantined_comments = Table(
@@ -130,11 +138,11 @@ quarantined_comments = Table(
     Column("quarantined_by", Integer, ForeignKey("users.id"), nullable=False),
     Column("quarantined_at", DateTime(timezone=True), nullable=False),
     Column("reason", String(consts.LEN_QUARANTINED_RFC_REASON_MAX), nullable=False),
-    Column("comment_id", Integer, ForeignKey("rfc_comments.id"), nullable=False)
+    Column("comment_id", Integer, ForeignKey("rfc_comments.id"), nullable=False),
 )
 
 
-# asyncpg connection pool for this module 
+# asyncpg connection pool for this module
 _pool: asyncpg.Pool = None
 
 
@@ -142,7 +150,10 @@ def _serialize_agent_contributions(
     agent_contributions: dict[uuid.UUID, list[str]],
 ) -> str:
     return json.dumps(
-        {str(revision_id): contributors for revision_id, contributors in agent_contributions.items()}
+        {
+            str(revision_id): contributors
+            for revision_id, contributors in agent_contributions.items()
+        }
     )
 
 
@@ -157,6 +168,7 @@ def _deserialize_agent_contributions(
         uuid.UUID(revision_id): contributors
         for revision_id, contributors in raw.items()
     }
+
 
 async def init_db():
     """
@@ -194,8 +206,8 @@ async def user_in_db(
                 "SELECT id FROM users WHERE LOWER(username) = LOWER($1)",
                 username,
             )
-            return (result is not None)
-        
+            return result is not None
+
 
 async def get_user_from_db(
     username: str,
@@ -213,7 +225,7 @@ async def get_user_from_db(
             if result is None:
                 return None
             return UserInDB(**result)
-        
+
 
 async def get_user_by_id(
     id: int,
@@ -231,11 +243,9 @@ async def get_user_by_id(
             if result is None:
                 return None
             return UserInDB(**result)
-        
 
-async def register_user_in_db(
-    user: UserInDB
-) -> int:
+
+async def register_user_in_db(user: UserInDB) -> int:
     """
     Attempt to register the provided user to the database.
     Returns the ID of the new user.
@@ -255,7 +265,9 @@ async def register_user_in_db(
                     user.email,
                 )
                 if existing_user is not None:
-                    raise HTTPException(status_code=409, detail="account could not be created")
+                    raise HTTPException(
+                        status_code=409, detail="account could not be created"
+                    )
 
                 result = await connection.fetchval(
                     "INSERT INTO users(username, email, name_last, name_first, password_argon2, is_verified, verified_at, verification_token_hash, verification_token_expires_at, created_at, is_admin) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
@@ -269,11 +281,13 @@ async def register_user_in_db(
                     user.verification_token_hash,
                     user.verification_token_expires_at,
                     user.created_at,
-                    False
+                    False,
                 )
                 return result
             except asyncpg.UniqueViolationError as e:
-                raise HTTPException(status_code=409, detail="account could not be created") from e
+                raise HTTPException(
+                    status_code=409, detail="account could not be created"
+                ) from e
 
 
 async def verify_user_by_token_in_db(
@@ -306,6 +320,7 @@ async def verify_user_by_token_in_db(
                 return None
             return UserInDB(**result)
 
+
 #
 # RFC functions
 #
@@ -318,9 +333,7 @@ async def get_rfcs_from_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            rfcs_in_db = await connection.fetch(
-                "SELECT * FROM rfcs"
-            )
+            rfcs_in_db = await connection.fetch("SELECT * FROM rfcs")
             if rfcs_in_db is None:
                 return None
             else:
@@ -363,8 +376,7 @@ async def get_rfcs_quarantined_from_db() -> list[QuarantinedRFCSummary]:
                 summaries: list[QuarantinedRFCSummary] = []
                 for rfc in quarantined_rfcs:
                     rfc_in_db = await get_rfc_from_db(
-                        rfc.get("rfc_id"),
-                        quarantine_ok=True
+                        rfc.get("rfc_id"), quarantine_ok=True
                     )
                     if rfc_in_db is None:
                         continue
@@ -381,11 +393,11 @@ async def get_rfcs_quarantined_from_db() -> list[QuarantinedRFCSummary]:
                         rfc_title=rfc_in_db.title,
                         rfc_slug=rfc_in_db.slug,
                         rfc_status=rfc_in_db.status,
-                        rfc_summary=rfc_in_db.summary
+                        rfc_summary=rfc_in_db.summary,
                     )
                     summaries.append(summary)
                 return summaries
-            
+
 
 async def delete_rfc_from_db(
     quarantine_id: int,
@@ -425,10 +437,7 @@ async def delete_rfc_from_db(
                 quarantine_id,
             )
             if deleted_rfc_id is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail="quarantined RFC not found"
-                )
+                raise HTTPException(status_code=404, detail="quarantined RFC not found")
 
 
 async def unquarantine_rfc_in_db(
@@ -445,15 +454,9 @@ async def unquarantine_rfc_in_db(
             WHERE quarantine_id = $1
             RETURNING rfc_id;
             """
-            rfc_id = await connection.fetchval(
-                query_quarantine,
-                quarantine_id
-            )
+            rfc_id = await connection.fetchval(query_quarantine, quarantine_id)
             if rfc_id is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail="quarantined RFC not found"
-                )
+                raise HTTPException(status_code=404, detail="quarantined RFC not found")
             query_rfc = """
             UPDATE rfcs
             SET is_quarantined = FALSE
@@ -465,9 +468,7 @@ async def unquarantine_rfc_in_db(
             )
 
 
-async def register_rfc_in_db(
-    document: RFCDocumentInDB
-) -> int:
+async def register_rfc_in_db(document: RFCDocumentInDB) -> int:
     """
     Attempt to register a new RFC document in the database.
     Returns the ID of the new RFC.
@@ -512,19 +513,15 @@ async def register_rfc_in_db(
                 _serialize_agent_contributions(document.agent_contributions),
                 document.public,
                 document.agent_contributions.get(document.current_revision, []),
-                "First revision"
+                "First revision",
             )
             if rfc_id is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail="got rfc_id = None"
-                )
+                raise HTTPException(status_code=500, detail="got rfc_id = None")
             return rfc_id
-        
+
 
 async def get_rfc_from_db(
-    rfc_id: int,
-    quarantine_ok: bool = False
+    rfc_id: int, quarantine_ok: bool = False
 ) -> RFCDocument | None:
     """
     Attempt to fetch the RFC document with the given ID from the database.
@@ -532,10 +529,7 @@ async def get_rfc_from_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            rfc = await connection.fetchrow(
-                "SELECT * FROM rfcs WHERE id = $1",
-                rfc_id
-            )
+            rfc = await connection.fetchrow("SELECT * FROM rfcs WHERE id = $1", rfc_id)
             if rfc is None:
                 return None
             if rfc.get("is_quarantined") and not quarantine_ok:
@@ -556,10 +550,12 @@ async def get_rfc_from_db(
                 content=rfc.get("content"),
                 revisions=rfc.get("revisions"),
                 current_revision=rfc.get("current_revision"),
-                agent_contributions=_deserialize_agent_contributions(rfc.get("agent_contributions")),
+                agent_contributions=_deserialize_agent_contributions(
+                    rfc.get("agent_contributions")
+                ),
                 public=rfc.get("is_public") or False,
             )
-        
+
 
 async def quarantine_rfc_in_db(
     rfc_id: int,
@@ -571,23 +567,14 @@ async def quarantine_rfc_in_db(
     """
     rfc = await get_rfc_from_db(rfc_id)
     if rfc is None:
-        raise HTTPException(
-            status_code=404,
-            detail="RFC not found"
-        )
-    
+        raise HTTPException(status_code=404, detail="RFC not found")
+
     if await check_rfc_is_quarantined(rfc_id):
-        raise HTTPException(
-            status_code=404,
-            detail="RFC not found"
-        )
-    
+        raise HTTPException(status_code=404, detail="RFC not found")
+
     if not await check_user_created_rfc(user, rfc_id):
         if not user.is_admin:
-            raise HTTPException(
-                status_code=401,
-                detail="cannot delete this RFC"
-            )
+            raise HTTPException(status_code=401, detail="cannot delete this RFC")
 
     global _pool
     async with _pool.acquire() as connection:
@@ -597,10 +584,7 @@ async def quarantine_rfc_in_db(
             SET is_quarantined = TRUE
             WHERE id = $1;
             """
-            await connection.execute(
-                query_rfcs,
-                rfc_id
-            )
+            await connection.execute(query_rfcs, rfc_id)
             query_quarantined = """
             INSERT INTO quarantined_rfcs (
                 quarantined_by, quarantined_at, reason, rfc_id
@@ -608,32 +592,25 @@ async def quarantine_rfc_in_db(
             VALUES($1, $2, $3, $4);
             """
             await connection.execute(
-                query_quarantined,
-                user.id,
-                datetime.now(timezone.utc),
-                reason,
-                rfc_id
+                query_quarantined, user.id, datetime.now(timezone.utc), reason, rfc_id
             )
 
 
 #
 # REVISION functions
 #
-async def get_revisions_from_db(
-    rfc_id: int
-) -> list[RFCRevisionSummary] | None:
+async def get_revisions_from_db(rfc_id: int) -> list[RFCRevisionSummary] | None:
     """
     Attempt to get a list of all revisions for the existing RFC from the database.
     """
     if await check_rfc_is_quarantined(rfc_id):
         return None
-    
+
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
             revisions_in_db = await connection.fetch(
-                "SELECT * FROM rfc_revisions WHERE rfc_id = $1",
-                rfc_id
+                "SELECT * FROM rfc_revisions WHERE rfc_id = $1", rfc_id
             )
             if revisions_in_db is None:
                 return None
@@ -654,7 +631,7 @@ async def get_revisions_from_db(
                 )
                 summaries.append(summary)
             return summaries
-        
+
 
 async def get_revision_from_db(
     rfc_id: int,
@@ -665,14 +642,14 @@ async def get_revision_from_db(
     """
     if await check_rfc_is_quarantined(rfc_id):
         return None
-    
+
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
             rev = await connection.fetchrow(
                 "SELECT * FROM rfc_revisions WHERE id = $1 AND rfc_id = $2",
                 revision_id,
-                rfc_id
+                rfc_id,
             )
             if rev is None:
                 return None
@@ -694,26 +671,23 @@ async def get_revision_from_db(
                 message=rev.get("message"),
                 public=rev.get("is_public") or False,
             )
-        
+
 
 async def register_revision_in_db(
     rfc_id: int,
     user: User,
     request: RFCRevisionInDB,
     new_revisions: list[uuid.UUID],
-    new_contributions: dict[uuid.UUID, list[str]]
+    new_contributions: dict[uuid.UUID, list[str]],
 ) -> RFCRevision | None:
     """
     Attempt to register a new revision for the specified, existing RFC document in the database.
     """
     if await check_rfc_is_quarantined(rfc_id):
         return None
-    
+
     if not await check_user_created_rfc(user, rfc_id):
-        raise HTTPException(
-            status_code=401,
-            detail="unauthorized to revise this RFC"
-        )
+        raise HTTPException(status_code=401, detail="unauthorized to revise this RFC")
 
     global _pool
     async with _pool.acquire() as connection:
@@ -758,7 +732,7 @@ async def register_revision_in_db(
                 request.public,
                 request.message,
                 new_revisions,
-                _serialize_agent_contributions(new_contributions)
+                _serialize_agent_contributions(new_contributions),
             )
             if rev is None:
                 return None
@@ -793,24 +767,19 @@ async def register_comment_in_db(
     Returns the ID of the new comment.
     """
     if await check_rfc_is_quarantined(comment.rfc_id):
-        raise HTTPException(
-            status_code=404,
-            detail="RFC not found"
-        )
+        raise HTTPException(status_code=404, detail="RFC not found")
 
     if await get_rfc_from_db(comment.rfc_id) is None:
         raise HTTPException(
-            status_code=400,
-            detail="can't comment on a nonexistent RFC"
+            status_code=400, detail="can't comment on a nonexistent RFC"
         )
-    
+
     if comment.parent_id is not None:
         if not await check_comment_is_on_rfc(comment.parent_id, comment.rfc_id):
             raise HTTPException(
-                status_code=400,
-                detail="can't reply to a comment on another RFC"
+                status_code=400, detail="can't reply to a comment on another RFC"
             )
-    
+
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
@@ -821,13 +790,15 @@ async def register_comment_in_db(
                     comment.created_by,
                     comment.created_at,
                     comment.content,
-                    comment.parent_id
+                    comment.parent_id,
                 )
             except asyncpg.ForeignKeyViolationError as e:
                 if e.constraint_name == "fk_rfc_comments_parent_id":
-                    raise HTTPException(status_code=400, detail="parent comment does not exist")
+                    raise HTTPException(
+                        status_code=400, detail="parent comment does not exist"
+                    )
                 raise
-        
+
 
 async def get_comment_from_db(
     rfc_id: int,
@@ -837,17 +808,19 @@ async def get_comment_from_db(
     """
     Attempt to fetch the comment with the given ID from the database.
     """
-    if await check_rfc_is_quarantined(
-        rfc_id=rfc_id,
-    ) and not quarantine_ok:
+    if (
+        await check_rfc_is_quarantined(
+            rfc_id=rfc_id,
+        )
+        and not quarantine_ok
+    ):
         return None
 
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
             result = await connection.fetchrow(
-                "SELECT * FROM rfc_comments WHERE id = $1",
-                comment_id
+                "SELECT * FROM rfc_comments WHERE id = $1", comment_id
             )
             if result is None:
                 return None
@@ -863,9 +836,9 @@ async def get_comment_from_db(
                 created_at=result.get("created_at"),
                 content=result.get("content"),
                 author_name_last=creator.name_last,
-                author_name_first=creator.name_first
+                author_name_first=creator.name_first,
             )
-        
+
 
 async def get_rfc_comments_from_db(
     rfc_id: int,
@@ -884,8 +857,7 @@ async def get_rfc_comments_from_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             result = await connection.fetch(
-                "SELECT * FROM rfc_comments WHERE rfc_id = $1",
-                rfc_id
+                "SELECT * FROM rfc_comments WHERE rfc_id = $1", rfc_id
             )
             if result is None:
                 return []
@@ -903,11 +875,11 @@ async def get_rfc_comments_from_db(
                     created_at=comment.get("created_at"),
                     content=comment.get("content"),
                     author_name_last=creator.name_last,
-                    author_name_first=creator.name_first
+                    author_name_first=creator.name_first,
                 )
                 comments.append(comment_obj)
             return comments
-        
+
 
 async def get_comments_quarantined_in_db(
     rfc_id: int,
@@ -943,11 +915,11 @@ async def get_comments_quarantined_in_db(
                     quarantined_by_name_first=quarantiner.name_first,
                     quarantined_at=comment.get("quarantined_at"),
                     reason=comment.get("reason"),
-                    comment=comment_from_db
+                    comment=comment_from_db,
                 )
                 summaries.append(summary)
             return summaries
-        
+
 
 async def delete_comment_from_db(
     rfc_id: int,
@@ -964,14 +936,10 @@ async def delete_comment_from_db(
             WHERE quarantine_id = $1
             RETURNING comment_id;
             """
-            comment_id = await connection.fetchval(
-                query_quarantine,
-                quarantine_id
-            )
+            comment_id = await connection.fetchval(query_quarantine, quarantine_id)
             if comment_id is None:
                 raise HTTPException(
-                    status_code=404,
-                    detail="quarantined comment not found"
+                    status_code=404, detail="quarantined comment not found"
                 )
             query_comment = """
             DELETE FROM rfc_comments
@@ -1005,8 +973,7 @@ async def unquarantine_comment_in_db(
             )
             if comment_id is None:
                 raise HTTPException(
-                    status_code=404,
-                    detail="quarantined comment not found"
+                    status_code=404, detail="quarantined comment not found"
                 )
             query_comment = """
             UPDATE rfc_comments
@@ -1031,23 +998,14 @@ async def quarantine_comment_in_db(
     """
     rfc = await get_rfc_from_db(rfc_id)
     if rfc is None:
-        raise HTTPException(
-            status_code=404,
-            detail="RFC not found"
-        )
-    
+        raise HTTPException(status_code=404, detail="RFC not found")
+
     if await check_comment_is_quarantined(rfc_id, comment_id):
-        raise HTTPException(
-            status_code=404,
-            detail="RFC not found"
-        )
-    
+        raise HTTPException(status_code=404, detail="RFC not found")
+
     if not await check_user_created_comment(user, rfc_id, comment_id):
         if not user.is_admin:
-            raise HTTPException(
-                status_code=401,
-                detail="cannot delete this comment"
-            )
+            raise HTTPException(status_code=401, detail="cannot delete this comment")
 
     global _pool
     async with _pool.acquire() as connection:
@@ -1057,11 +1015,7 @@ async def quarantine_comment_in_db(
             SET is_quarantined = TRUE
             WHERE id = $1 AND rfc_id = $2;
             """
-            await connection.execute(
-                query_comments,
-                comment_id,
-                rfc_id
-            )
+            await connection.execute(query_comments, comment_id, rfc_id)
             query_quarantined = """
             INSERT INTO quarantined_comments (
                 quarantined_by, quarantined_at, reason, comment_id
@@ -1073,12 +1027,12 @@ async def quarantine_comment_in_db(
                 user.id,
                 datetime.now(timezone.utc),
                 reason,
-                comment_id
+                comment_id,
             )
 
 
 #
-# Utility functions         
+# Utility functions
 #
 async def check_comment_is_on_rfc(
     comment_id: int,
@@ -1091,12 +1045,11 @@ async def check_comment_is_on_rfc(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             result = await connection.fetchval(
-                "SELECT rfc_id FROM rfc_comments WHERE id = $1",
-                comment_id
+                "SELECT rfc_id FROM rfc_comments WHERE id = $1", comment_id
             )
             if result is None:
                 return False
-            return (result == rfc_id)
+            return result == rfc_id
 
 
 async def check_user_created_rfc(
@@ -1110,13 +1063,12 @@ async def check_user_created_rfc(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             rfc_author = await connection.fetchval(
-                "SELECT created_by FROM rfcs WHERE id = $1",
-                rfc_id
+                "SELECT created_by FROM rfcs WHERE id = $1", rfc_id
             )
             if rfc_author != user.id:
                 return False
             return True
-        
+
 
 async def check_user_created_comment(
     user: User,
@@ -1149,8 +1101,7 @@ async def check_rfc_is_quarantined(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             is_quarantined = await connection.fetchval(
-                "SELECT is_quarantined FROM rfcs WHERE id = $1",
-                rfc_id
+                "SELECT is_quarantined FROM rfcs WHERE id = $1", rfc_id
             )
             if is_quarantined:
                 return True
@@ -1170,7 +1121,7 @@ async def check_comment_is_quarantined(
             is_quarantined = await connection.fetchval(
                 "SELECT is_quarantined FROM rfc_comments WHERE rfc_id = $1 AND id = $2",
                 rfc_id,
-                comment_id
+                comment_id,
             )
             if is_quarantined:
                 return True

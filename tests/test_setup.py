@@ -98,7 +98,9 @@ def test_run_setup_checks_db_and_runs_migrations(
         encoding="utf-8",
     )
     alembic_ini_path = tmp_path / "alembic.ini"
-    alembic_ini_path.write_text("[alembic]\nscript_location = alembic\n", encoding="utf-8")
+    alembic_ini_path.write_text(
+        "[alembic]\nscript_location = alembic\n", encoding="utf-8"
+    )
 
     calls: list[tuple[str, str]] = []
 
@@ -109,7 +111,9 @@ def test_run_setup_checks_db_and_runs_migrations(
         calls.append(("migrations", str(path)))
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(setup_runner, "_check_database_connectivity", fake_check_database_connectivity)
+    monkeypatch.setattr(
+        setup_runner, "_check_database_connectivity", fake_check_database_connectivity
+    )
     monkeypatch.setattr(setup_runner, "_apply_migrations", fake_apply_migrations)
 
     asyncio.run(

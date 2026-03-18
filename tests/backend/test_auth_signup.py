@@ -42,7 +42,9 @@ def test_post_signup_request_rejects_short_password() -> None:
     assert "password must be at least" in str(excinfo.value)
 
 
-def test_create_new_user_persists_unverified_account(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_create_new_user_persists_unverified_account(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     captured: dict[str, UserInDB] = {}
 
     async def fake_register_user_in_db(user: UserInDB) -> int:
@@ -72,7 +74,9 @@ def test_create_new_user_persists_unverified_account(monkeypatch: pytest.MonkeyP
     assert result.verification_token is not None
 
 
-def test_authenticate_user_blocks_unverified_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_authenticate_user_blocks_unverified_accounts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def fake_get_user_from_db(_: str) -> UserInDB:
         return UserInDB(
             id=1,
@@ -97,11 +101,17 @@ def test_authenticate_user_blocks_unverified_accounts(monkeypatch: pytest.Monkey
     assert excinfo.value.detail == "email address not verified"
 
 
-def test_verify_user_email_rejects_invalid_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_verify_user_by_token_in_db(*, verification_token_hash: str, verified_at):
+def test_verify_user_email_rejects_invalid_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_verify_user_by_token_in_db(
+        *, verification_token_hash: str, verified_at
+    ):
         return None
 
-    monkeypatch.setattr(auth, "verify_user_by_token_in_db", fake_verify_user_by_token_in_db)
+    monkeypatch.setattr(
+        auth, "verify_user_by_token_in_db", fake_verify_user_by_token_in_db
+    )
 
     with pytest.raises(HTTPException) as excinfo:
         asyncio.run(auth.verify_user_email("invalid-token"))
@@ -113,10 +123,22 @@ def test_verify_user_email_rejects_invalid_token(monkeypatch: pytest.MonkeyPatch
 def test_signup_rate_limiter_enforces_window() -> None:
     limiter = SlidingWindowRateLimiter()
 
-    assert asyncio.run(limiter.check_and_record("ip:127.0.0.1", limit=2, window_seconds=60)) is None
-    assert asyncio.run(limiter.check_and_record("ip:127.0.0.1", limit=2, window_seconds=60)) is None
+    assert (
+        asyncio.run(
+            limiter.check_and_record("ip:127.0.0.1", limit=2, window_seconds=60)
+        )
+        is None
+    )
+    assert (
+        asyncio.run(
+            limiter.check_and_record("ip:127.0.0.1", limit=2, window_seconds=60)
+        )
+        is None
+    )
 
-    retry_after = asyncio.run(limiter.check_and_record("ip:127.0.0.1", limit=2, window_seconds=60))
+    retry_after = asyncio.run(
+        limiter.check_and_record("ip:127.0.0.1", limit=2, window_seconds=60)
+    )
 
     assert retry_after is not None
     assert retry_after > 0
@@ -175,7 +197,9 @@ def test_send_verification_email_uses_smtp(monkeypatch: pytest.MonkeyPatch) -> N
     assert "https://mdrfc.example.com/verify-email?token=abc123" in message.as_string()
 
 
-def test_post_new_user_queues_verification_email(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_post_new_user_queues_verification_email(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     background_tasks = BackgroundTasks()
     server.signup_rate_limiter = SlidingWindowRateLimiter()
 
@@ -190,7 +214,9 @@ def test_post_new_user_queues_verification_email(monkeypatch: pytest.MonkeyPatch
         return None
 
     monkeypatch.setattr(server, "create_new_user", fake_create_new_user)
-    monkeypatch.setattr(server, "send_verification_email_task", fake_send_verification_email_task)
+    monkeypatch.setattr(
+        server, "send_verification_email_task", fake_send_verification_email_task
+    )
     monkeypatch.setattr(server, "DEBUG_RETURN_VERIFICATION_TOKEN", False)
 
     scope = {

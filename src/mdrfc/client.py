@@ -27,9 +27,9 @@ dotenv.load_dotenv()
 
 _config = MDRFCClientConfig()
 
-_url: str = None # type: ignore
+_url: str = None  # type: ignore
 _username: str = "{unknown}"
-_token: str = None # type: ignore
+_token: str = None  # type: ignore
 
 _console = Console()
 
@@ -60,10 +60,7 @@ ping_p = subparsers.add_parser(
     description=ping_desc,
 )
 ping_p.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="include more detailed server info"
+    "-v", "--verbose", action="store_true", help="include more detailed server info"
 )
 
 #
@@ -78,15 +75,9 @@ login_p = subparsers.add_parser(
     help=login_desc,
     description=login_desc,
 )
+login_p.add_argument("username", help="username for this MDRFC server")
 login_p.add_argument(
-    "username",
-    help="username for this MDRFC server"
-)
-login_p.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="include more detailed login info"
+    "-v", "--verbose", action="store_true", help="include more detailed login info"
 )
 
 refresh_desc = "(login required) Obtain a fresh auth token"
@@ -95,13 +86,10 @@ refresh_p = subparsers.add_parser(
     aliases=["r"],
     usage="refresh [option]...",
     help=refresh_desc,
-    description=refresh_desc
+    description=refresh_desc,
 )
 refresh_p.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="include more detailed response info"
+    "-v", "--verbose", action="store_true", help="include more detailed response info"
 )
 
 # log out of the server
@@ -124,10 +112,7 @@ whoami_p = subparsers.add_parser(
     description=whoami_desc,
 )
 whoami_p.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="include more detailed client info"
+    "-v", "--verbose", action="store_true", help="include more detailed client info"
 )
 
 #
@@ -146,7 +131,7 @@ rfc_list_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed metadata per RFC"
+    help="include more detailed metadata per RFC",
 )
 
 # get a specific RFC document by ID
@@ -158,16 +143,12 @@ rfc_get_p = subparsers.add_parser(
     help=rfc_get_desc,
     description=rfc_get_desc,
 )
-rfc_get_p.add_argument(
-    "id",
-    type=int,
-    help="the RFC ID to fetch"
-)
+rfc_get_p.add_argument("id", type=int, help="the RFC ID to fetch")
 rfc_get_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 # post a new RFC to the server
@@ -179,38 +160,21 @@ rfc_post_p = subparsers.add_parser(
     help=rfc_post_desc,
     description=rfc_post_desc,
 )
+rfc_post_p.add_argument("docpath", help="the path of the Markdown file to upload")
+rfc_post_p.add_argument("title", help="the title of the RFC to post")
+rfc_post_p.add_argument("slug", help="the slug string unique to this RFC")
+rfc_post_p.add_argument("summary", help="the summary of the RFC to post")
 rfc_post_p.add_argument(
-    "docpath",
-    help="the path of the Markdown file to upload"
+    "status", choices=["draft", "open"], help="the status of the RFC to post"
 )
 rfc_post_p.add_argument(
-    "title",
-    help="the title of the RFC to post"
-)
-rfc_post_p.add_argument(
-    "slug",
-    help="the slug string unique to this RFC"
-)
-rfc_post_p.add_argument(
-    "summary",
-    help="the summary of the RFC to post"
-)
-rfc_post_p.add_argument(
-    "status",
-    choices=["draft", "open"],
-    help="the status of the RFC to post"
-)
-rfc_post_p.add_argument(
-    "-a",
-    "--agent-contributors",
-    nargs="*",
-    help="optionally add agent contributor(s)"
+    "-a", "--agent-contributors", nargs="*", help="optionally add agent contributor(s)"
 )
 rfc_post_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 rfc_delete_desc = "(login required) Delete an existing RFC"
@@ -219,22 +183,15 @@ rfc_delete_p = subparsers.add_parser(
     aliases=["rfc-d"],
     usage="rfc-delete <rfc_id> <reason> [option]...",
     help=rfc_delete_desc,
-    description=rfc_delete_desc
+    description=rfc_delete_desc,
 )
-rfc_delete_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC to delete"
-)
-rfc_delete_p.add_argument(
-    "reason",
-    help="the reason for deletion"
-)
+rfc_delete_p.add_argument("rfc_id", type=int, help="the ID of the RFC to delete")
+rfc_delete_p.add_argument("reason", help="the reason for deletion")
 rfc_delete_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 rfc_quarantine_list_desc = "(admin required) List all quarantined RFCs"
@@ -243,13 +200,13 @@ rfc_quarantine_list_p = subparsers.add_parser(
     aliases=["rfc-ql"],
     usage="rfc-quarantine-list [option]...",
     help=rfc_quarantine_list_desc,
-    description=rfc_quarantine_list_desc
+    description=rfc_quarantine_list_desc,
 )
 rfc_quarantine_list_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 rfc_quarantine_delete_desc = "(admin required) Delete a specific quarantined RFC"
@@ -258,18 +215,16 @@ rfc_quarantine_delete_p = subparsers.add_parser(
     aliases=["rfc-qd"],
     usage="rfc-quarantine-delete <quarantine_id> [option]...",
     help=rfc_quarantine_delete_desc,
-    description=rfc_quarantine_delete_desc
+    description=rfc_quarantine_delete_desc,
 )
 rfc_quarantine_delete_p.add_argument(
-    "quarantine_id",
-    type=int,
-    help="the quarantine ID of the RFC"
+    "quarantine_id", type=int, help="the quarantine ID of the RFC"
 )
 rfc_quarantine_delete_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 rfc_quarantine_post_desc = "(admin required) Unquarantine and reupload an RFC"
@@ -278,18 +233,16 @@ rfc_quarantine_post_p = subparsers.add_parser(
     aliases=["rfc-qp"],
     usage="rfc-quarantine-post <quarantine_id> [option]...",
     help=rfc_quarantine_post_desc,
-    description=rfc_quarantine_post_desc
+    description=rfc_quarantine_post_desc,
 )
 rfc_quarantine_post_p.add_argument(
-    "quarantine_id",
-    type=int,
-    help="the quarantine ID of the RFC"
+    "quarantine_id", type=int, help="the quarantine ID of the RFC"
 )
 rfc_quarantine_post_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 #
@@ -304,16 +257,12 @@ comment_list_p = subparsers.add_parser(
     help=comment_list_desc,
     description=comment_list_desc,
 )
-comment_list_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the RFC ID to fetch comments on"
-)
+comment_list_p.add_argument("rfc_id", type=int, help="the RFC ID to fetch comments on")
 comment_list_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 # get a specific RFC comment
@@ -326,20 +275,14 @@ comment_get_p = subparsers.add_parser(
     description=comment_get_desc,
 )
 comment_get_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the RFC ID to fetch the comment on"
+    "rfc_id", type=int, help="the RFC ID to fetch the comment on"
 )
-comment_get_p.add_argument(
-    "comment_id",
-    type=int,
-    help="the comment ID to fetch"
-)
+comment_get_p.add_argument("comment_id", type=int, help="the comment ID to fetch")
 comment_get_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 # post a comment on an RFC
@@ -356,21 +299,15 @@ comment_post_p.add_argument(
     type=int,
     help="the RFC ID to post the comment on",
 )
-comment_post_p.add_argument(
-    "content",
-    help="the comment content"
-)
+comment_post_p.add_argument("content", help="the comment content")
 comment_post_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 comment_post_p.add_argument(
-    "-r",
-    "--reply-to",
-    type=int,
-    help="the comment ID to reply to"
+    "-r", "--reply-to", type=int, help="the comment ID to reply to"
 )
 
 comment_delete_desc = "(login required) Delete an existing comment"
@@ -379,50 +316,45 @@ comment_delete_p = subparsers.add_parser(
     aliases=["com-d"],
     usage="comment-delete <rfc_id> <comment_id> <reason> [option]...",
     help=comment_delete_desc,
-    description=comment_delete_desc
+    description=comment_delete_desc,
 )
 comment_delete_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC this comment is on"
+    "rfc_id", type=int, help="the ID of the RFC this comment is on"
 )
 comment_delete_p.add_argument(
-    "comment_id",
-    type=int,
-    help="the ID of the comment to delete"
+    "comment_id", type=int, help="the ID of the comment to delete"
 )
-comment_delete_p.add_argument(
-    "reason",
-    help="the reason for deletion"
-)
+comment_delete_p.add_argument("reason", help="the reason for deletion")
 comment_delete_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
-comment_quarantine_list_desc = "(admin required) List all quarantined comments on a given RFC"
+comment_quarantine_list_desc = (
+    "(admin required) List all quarantined comments on a given RFC"
+)
 comment_quarantine_list_p = subparsers.add_parser(
     "comment-quarantine-list",
     aliases=["com-ql"],
     usage="comment-quarantine-list <rfc_id> [option]...",
     help=comment_quarantine_list_desc,
-    description=comment_quarantine_list_desc
+    description=comment_quarantine_list_desc,
 )
 comment_quarantine_list_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC to check comments on"
+    "rfc_id", type=int, help="the ID of the RFC to check comments on"
 )
 comment_quarantine_list_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
-comment_quarantine_delete_desc = "(admin required) Delete a specific quarantined comment"
+comment_quarantine_delete_desc = (
+    "(admin required) Delete a specific quarantined comment"
+)
 comment_quarantine_delete_p = subparsers.add_parser(
     "comment-quarantine-delete",
     aliases=["com-qd"],
@@ -431,20 +363,16 @@ comment_quarantine_delete_p = subparsers.add_parser(
     description=comment_quarantine_delete_desc,
 )
 comment_quarantine_delete_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC this comment is on"
+    "rfc_id", type=int, help="the ID of the RFC this comment is on"
 )
 comment_quarantine_delete_p.add_argument(
-    "quarantine_id",
-    type=int,
-    help="the quarantine ID of this comment"
+    "quarantine_id", type=int, help="the quarantine ID of this comment"
 )
 comment_quarantine_delete_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 comment_quarantine_post_desc = "(admin required) Unquarantine and reupload a comment"
@@ -453,7 +381,7 @@ comment_quarantine_post_p = subparsers.add_parser(
     aliases=["com-qp"],
     usage="comment-quarantine-post <rfc_id> <quarantine_id> [option]...",
     help=comment_quarantine_post_desc,
-    description=comment_quarantine_post_desc
+    description=comment_quarantine_post_desc,
 )
 comment_quarantine_post_p.add_argument(
     "rfc_id",
@@ -461,15 +389,13 @@ comment_quarantine_post_p.add_argument(
     help="the ID of the RFC this comment is on",
 )
 comment_quarantine_post_p.add_argument(
-    "quarantine_id",
-    type=int,
-    help="the quarantine ID of this comment"
+    "quarantine_id", type=int, help="the quarantine ID of this comment"
 )
 comment_quarantine_post_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 #
@@ -481,18 +407,14 @@ revision_list_p = subparsers.add_parser(
     aliases=["rev-l"],
     usage="revision-list <rfc_id> [option]...",
     help=revision_list_desc,
-    description=revision_list_desc
+    description=revision_list_desc,
 )
-revision_list_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the RFC ID to get revisions for"
-)
+revision_list_p.add_argument("rfc_id", type=int, help="the RFC ID to get revisions for")
 revision_list_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 revision_get_desc = "Get a specific revision for an RFC"
@@ -501,23 +423,15 @@ revision_get_p = subparsers.add_parser(
     aliases=["rev-g"],
     usage="revision-get <rfc_id> <revision_id> [option]...",
     help=revision_get_desc,
-    description=revision_get_desc
+    description=revision_get_desc,
 )
-revision_get_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the RFC ID to get a revision for"
-)
-revision_get_p.add_argument(
-    "revision_id",
-    type=str,
-    help="the revision ID to get"
-)
+revision_get_p.add_argument("rfc_id", type=int, help="the RFC ID to get a revision for")
+revision_get_p.add_argument("revision_id", type=str, help="the revision ID to get")
 revision_get_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 revision_post_desc = "(login required) Create a new revision for a given RFC"
@@ -528,51 +442,25 @@ revision_post_p = subparsers.add_parser(
     help=revision_post_desc,
     description=revision_post_desc,
 )
+revision_post_p.add_argument("rfc_id", type=int, help="the ID of the RFC to revise")
+revision_post_p.add_argument("message", help="the message for this RFC revision")
+revision_post_p.add_argument("-t", "--title", help="update the RFC's title")
+revision_post_p.add_argument("--slug", help="update the RFC's slug")
 revision_post_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC to revise"
+    "-S", "--status", choices=["draft", "open"], help="update the RFC's status"
+)
+revision_post_p.add_argument("-s", "--summary", help="update the RFC's summary")
+revision_post_p.add_argument(
+    "-cf", "--content-file", help="update the RFC's content with the given filepath"
 )
 revision_post_p.add_argument(
-    "message",
-    help="the message for this RFC revision"
-)
-revision_post_p.add_argument(
-    "-t",
-    "--title",
-    help="update the RFC's title"
-)
-revision_post_p.add_argument(
-    "--slug",
-    help="update the RFC's slug"
-)
-revision_post_p.add_argument(
-    "-S",
-    "--status",
-    choices=["draft", "open"],
-    help="update the RFC's status"
-)
-revision_post_p.add_argument(
-    "-s",
-    "--summary",
-    help="update the RFC's summary"
-)
-revision_post_p.add_argument(
-    "-cf",
-    "--content-file",
-    help="update the RFC's content with the given filepath"
-)
-revision_post_p.add_argument(
-    "-a",
-    "--agent-contributors",
-    nargs="*",
-    help="optionally add agent contributor(s)"
+    "-a", "--agent-contributors", nargs="*", help="optionally add agent contributor(s)"
 )
 revision_post_p.add_argument(
     "-v",
     "--verbose",
     action="store_true",
-    help="include more detailed response metadata"
+    help="include more detailed response metadata",
 )
 
 #
@@ -585,21 +473,12 @@ alias_set_p = subparsers.add_parser(
     aliases=["as"],
     usage="alias-set <command> <alias> [option]...",
     help=alias_set_desc,
-    description=alias_set_desc
+    description=alias_set_desc,
 )
+alias_set_p.add_argument("command_name", help="the command to create an alias for")
+alias_set_p.add_argument("alias_name", help="the string alias to use")
 alias_set_p.add_argument(
-    "command_name",
-    help="the command to create an alias for"
-)
-alias_set_p.add_argument(
-    "alias_name",
-    help="the string alias to use"
-)
-alias_set_p.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="include more detailed process output"
+    "-v", "--verbose", action="store_true", help="include more detailed process output"
 )
 
 # get an existing alias
@@ -609,17 +488,10 @@ alias_get_p = subparsers.add_parser(
     aliases=["ag"],
     usage="alias-get <alias> [option]...",
     help=alias_get_desc,
-    description=alias_get_desc
+    description=alias_get_desc,
 )
-alias_get_p.add_argument(
-    "alias_name",
-    help="the string alias to view"
-)
-alias_get_p.add_argument(
-    "-v",
-    "--verbose",
-    help="include more detailed alias info"
-)
+alias_get_p.add_argument("alias_name", help="the string alias to view")
+alias_get_p.add_argument("-v", "--verbose", help="include more detailed alias info")
 
 # list all current aliases
 alias_list_desc = "List all current command aliases in the CLI"
@@ -628,14 +500,12 @@ alias_list_p = subparsers.add_parser(
     aliases=["al"],
     usage="alias-list [option]...",
     help=alias_list_desc,
-    description=alias_list_desc
+    description=alias_list_desc,
 )
 alias_list_p.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="include more detailed alias info"
+    "-v", "--verbose", action="store_true", help="include more detailed alias info"
 )
+
 
 # command handlers
 def _cmd_ping(args: Namespace) -> None:
@@ -644,22 +514,23 @@ def _cmd_ping(args: Namespace) -> None:
     """
     global _console
     global _url
-    response = httpx.get(
-        _url,
-        headers={"User-Agent": _get_user_agent()}
-    )
+    response = httpx.get(_url, headers={"User-Agent": _get_user_agent()})
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRootResponse.model_validate(response_json)
     except ValidationError as e:
-        _console.print("[bold red]error[/bold red] remote not recognized as an MDRFC server")
+        _console.print(
+            "[bold red]error[/bold red] remote not recognized as an MDRFC server"
+        )
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]name[/bold]: {response_obj.name}")
         _console.print(f"[bold]version[/bold]: {response_obj.version}")
@@ -677,9 +548,7 @@ def _cmd_login(args: Namespace) -> None:
     username = args.username
     _console = Console()
     password = Prompt.get_input(
-        _console,
-        prompt=f"password for {username}: ",
-        password=True
+        _console, prompt=f"password for {username}: ", password=True
     )
 
     if not password.strip():
@@ -692,7 +561,7 @@ def _cmd_login(args: Namespace) -> None:
         "password": password,
         "scope": "",
         "client_id": username,
-        "client_secret": password
+        "client_secret": password,
     }
 
     global _url
@@ -701,14 +570,16 @@ def _cmd_login(args: Namespace) -> None:
         data=body,
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": _get_user_agent()
-        }
+            "User-Agent": _get_user_agent(),
+        },
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = Token.model_validate(response_json)
@@ -737,7 +608,7 @@ def _cmd_refresh(args: Namespace) -> None:
     if _username is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     password = os.getenv("MDRFC_PASSWORD")
     if password is None:
         _console.print("[bold red]error[/bold red] no password found in env")
@@ -748,7 +619,7 @@ def _cmd_refresh(args: Namespace) -> None:
         "password": password,
         "scope": "",
         "client_id": _username,
-        "client_secret": password
+        "client_secret": password,
     }
 
     global _url
@@ -757,14 +628,16 @@ def _cmd_refresh(args: Namespace) -> None:
         data=body,
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": _get_user_agent()
-        }
+            "User-Agent": _get_user_agent(),
+        },
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = Token.model_validate(response_json)
@@ -788,16 +661,16 @@ def _cmd_logout(args: Namespace) -> None:
     if (_username == "{unknown}") or (_token is None):
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     _username = "{unknown}"
-    _token = None # type: ignore
+    _token = None  # type: ignore
     _console.print(f"successfully logged out of {_url}")
 
 
 def _cmd_whoami(args: Namespace) -> None:
     """
     Attempt to fetch client info from the server.
-    """ 
+    """
     global _token
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
@@ -806,16 +679,15 @@ def _cmd_whoami(args: Namespace) -> None:
     global _url
     response = httpx.get(
         url=f"{_url}/users/me",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = User.model_validate(response_json)
@@ -823,11 +695,13 @@ def _cmd_whoami(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]username[/bold]: {response_obj.username}")
         _console.print(f"[bold]email[/bold]: {response_obj.email}")
-        _console.print(f"[bold]name[/bold]: {response_obj.name_last}, {response_obj.name_first}")
+        _console.print(
+            f"[bold]name[/bold]: {response_obj.name_last}, {response_obj.name_first}"
+        )
         _console.print(f"[bold]created[/bold]: {response_obj.created_at}")
     else:
         _console.print(f"username: [green]{response_obj.username}[/green]")
@@ -840,22 +714,19 @@ def _cmd_rfc_list(args: Namespace) -> None:
     global _url
     global _token
 
-    headers = {
-        "User-Agent": _get_user_agent()
-    }
+    headers = {"User-Agent": _get_user_agent()}
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(
-        url=f"{_url}/rfcs",
-        headers=headers
-    )
+    response = httpx.get(url=f"{_url}/rfcs", headers=headers)
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcsResponse.model_validate(response_json)
@@ -863,7 +734,7 @@ def _cmd_rfc_list(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     rfcs = [doc for doc in response_obj.rfcs]
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
@@ -871,7 +742,9 @@ def _cmd_rfc_list(args: Namespace) -> None:
         for rfc in rfcs:
             _console.print(f"[bold]id[/bold]: {rfc.id}")
             _console.print(f"[bold]title[/bold]: {rfc.title}")
-            _console.print(f"[bold]author[/bold]: {rfc.author_name_last}, {rfc.author_name_first}")
+            _console.print(
+                f"[bold]author[/bold]: {rfc.author_name_last}, {rfc.author_name_first}"
+            )
             _console.print(f"[bold]slug[/bold]: {rfc.slug}")
             _console.print(f"[bold]summary[/bold]: {rfc.summary}")
             _console.print(f"[bold]status[/bold]: {rfc.status}")
@@ -881,7 +754,9 @@ def _cmd_rfc_list(args: Namespace) -> None:
     else:
         _console.print(f"found {len(rfcs)} documents")
         for rfc in rfcs:
-            _console.print(f"RFC {rfc.id}: {rfc.author_name_last}, {rfc.author_name_first}. '{rfc.title}'. Last updated: {rfc.updated_at}.")
+            _console.print(
+                f"RFC {rfc.id}: {rfc.author_name_last}, {rfc.author_name_first}. '{rfc.title}'. Last updated: {rfc.updated_at}."
+            )
 
 
 def _cmd_rfc_get(args: Namespace) -> None:
@@ -891,24 +766,21 @@ def _cmd_rfc_get(args: Namespace) -> None:
     global _url
     global _token
 
-    headers = {
-        "User-Agent": _get_user_agent()
-    }
+    headers = {"User-Agent": _get_user_agent()}
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(
-        url=f"{_url}/rfc/{args.id}",
-        headers=headers
-    )
+    response = httpx.get(url=f"{_url}/rfc/{args.id}", headers=headers)
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         if args.verbose:
             _console.print(f"{response.text}")
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcResponse.model_validate(response_json)
@@ -916,13 +788,15 @@ def _cmd_rfc_get(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
         _console.print("=" * 40)
     rfc = response_obj.rfc
     _console.print(f"[bold]title[/bold]: {rfc.title}")
-    _console.print(f"[bold]author[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
+    _console.print(
+        f"[bold]author[/bold]: {rfc.author_name_first} {rfc.author_name_last}"
+    )
     _console.print(f"[bold]slug[/bold]: {rfc.slug}")
     _console.print(f"[bold]status[/bold]: {rfc.status}")
     _console.print(f"[bold]summary[/bold]: {rfc.summary}")
@@ -944,13 +818,15 @@ def _cmd_rfc_post(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_content = ""
     try:
         with open(args.docpath) as file:
             rfc_content = file.read()
     except Exception:
-        _console.print(f"[bold red]error[/bold red] could not open file '{args.docpath}'")
+        _console.print(
+            f"[bold red]error[/bold red] could not open file '{args.docpath}'"
+        )
         return
 
     body = {
@@ -959,23 +835,22 @@ def _cmd_rfc_post(args: Namespace) -> None:
         "status": args.status,
         "summary": args.summary,
         "content": rfc_content,
-        "agent_contributors": args.agent_contributors or []
+        "agent_contributors": args.agent_contributors or [],
     }
-    
+
     global _url
     response = httpx.post(
         url=f"{_url}/rfc",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        },
-        json=body
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
+        json=body,
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.PostRfcResponse.model_validate(response_json)
@@ -983,7 +858,7 @@ def _cmd_rfc_post(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]id[/bold]: {response_obj.rfc_id}")
         _console.print(f"[bold]created at[/bold]: {response_obj.created_at}")
@@ -992,7 +867,7 @@ def _cmd_rfc_post(args: Namespace) -> None:
         _console.print(f"successfully posted new RFC with ID {response_obj.rfc_id}")
 
 
-def _cmd_rfc_delete(args: Namespace)  -> None:
+def _cmd_rfc_delete(args: Namespace) -> None:
     """
     Attempt to soft-delete (quarantine) an existing RFC.
     """
@@ -1000,28 +875,25 @@ def _cmd_rfc_delete(args: Namespace)  -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
     reason = args.reason
 
-    query_params = {
-        "reason": reason
-    }
+    query_params = {"reason": reason}
 
     global _url
     response = httpx.delete(
         url=f"{_url}/rfc/{rfc_id}",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        },
-        params=query_params
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
+        params=query_params,
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.DeleteRfcResponse.model_validate(response_json)
@@ -1046,28 +918,29 @@ def _cmd_rfc_quarantine_list(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     global _url
     response = httpx.get(
         url=f"{_url}/rfcs/quarantined",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
-        response_obj = res_types.GetQuarantinedRfcsResponse.model_validate(response_json)
+        response_obj = res_types.GetQuarantinedRfcsResponse.model_validate(
+            response_json
+        )
     except ValidationError as e:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
         _console.print("=" * 60)
@@ -1075,7 +948,9 @@ def _cmd_rfc_quarantine_list(args: Namespace) -> None:
     for rfc in response_obj.quarantined_rfcs:
         _console.print("=" * 60)
         _console.print(f"[bold]quarantine id[/bold]: {rfc.quarantine_id}")
-        _console.print(f"[bold]quarantined by[/bold]: {rfc.quarantined_by_name_first} {rfc.quarantined_by_name_last}")
+        _console.print(
+            f"[bold]quarantined by[/bold]: {rfc.quarantined_by_name_first} {rfc.quarantined_by_name_last}"
+        )
         _console.print(f"[bold]quarantined at[/bold]: {rfc.quarantined_at}")
         _console.print(f"[bold]reason[/bold]: {rfc.reason}")
         _console.print(f"[bold]RFC id[/bold]: {rfc.rfc_id}")
@@ -1093,30 +968,31 @@ def _cmd_rfc_quarantine_delete(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     quarantine_id = args.quarantine_id
 
     global _url
     response = httpx.get(
         url=f"{_url}/rfcs/quarantined/{quarantine_id}",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
-        response_obj = res_types.DeleteQuarantinedRfcResponse.model_validate(response_json)
+        response_obj = res_types.DeleteQuarantinedRfcResponse.model_validate(
+            response_json
+        )
     except ValidationError as e:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]message[/bold]: {response_obj.message}")
         _console.print(f"[bold]deleted at[/bold]: {response_obj.deleted_at}")
@@ -1133,33 +1009,36 @@ def _cmd_rfc_quarantine_post(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     quarantine_id = args.quarantine_id
 
     global _url
     response = httpx.post(
         url=f"{_url}/rfcs/quarantined/{quarantine_id}",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
-        response_obj = res_types.PostQuarantinedRfcResponse.model_validate(response_json)
+        response_obj = res_types.PostQuarantinedRfcResponse.model_validate(
+            response_json
+        )
     except ValidationError as e:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]message[/bold]: {response_obj.message}")
-        _console.print(f"[bold]unquarantined at[/bold]: {response_obj.unquarantined_at}")
+        _console.print(
+            f"[bold]unquarantined at[/bold]: {response_obj.unquarantined_at}"
+        )
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
         _console.print("successfully removed RFC from quarantine")
@@ -1173,22 +1052,19 @@ def _cmd_comment_list(args: Namespace) -> None:
     global _url
     global _token
 
-    headers = {
-        "User-Agent": _get_user_agent()
-    }
+    headers = {"User-Agent": _get_user_agent()}
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(
-        url=f"{_url}/rfc/{rfc_id}/comments",
-        headers=headers
-    )
+    response = httpx.get(url=f"{_url}/rfc/{rfc_id}/comments", headers=headers)
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcCommentsResponse.model_validate(response_json)
@@ -1196,7 +1072,7 @@ def _cmd_comment_list(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     comment_threads = [thread for thread in response_obj.comment_threads]
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
@@ -1215,22 +1091,21 @@ def _cmd_comment_get(args: Namespace) -> None:
     global _url
     global _token
 
-    headers = {
-        "User-Agent": _get_user_agent()
-    }
+    headers = {"User-Agent": _get_user_agent()}
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
     response = httpx.get(
-        url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}",
-        headers=headers
+        url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}", headers=headers
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcCommentResponse.model_validate(response_json)
@@ -1238,7 +1113,7 @@ def _cmd_comment_get(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     comment = response_obj.comment
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
@@ -1254,7 +1129,7 @@ def _cmd_comment_post(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
     content = args.content
     try:
@@ -1262,19 +1137,13 @@ def _cmd_comment_post(args: Namespace) -> None:
     except AttributeError:
         reply_to = None
 
-    body = {
-        "content": content,
-        "parent_comment_id": reply_to
-    }
+    body = {"content": content, "parent_comment_id": reply_to}
 
     global _url
     response = httpx.post(
         url=f"{_url}/rfc/{rfc_id}/comment",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        },
-        json=body
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
+        json=body,
     )
 
     response_json = response.json()
@@ -1284,13 +1153,15 @@ def _cmd_comment_post(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]id[/bold]: {response_obj.comment_id}")
         _console.print(f"[bold]created at[/bold]: {response_obj.created_at}")
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
-        _console.print(f"successfully posted new comment with ID {response_obj.comment_id}")
+        _console.print(
+            f"successfully posted new comment with ID {response_obj.comment_id}"
+        )
 
 
 def _cmd_comment_delete(args: Namespace) -> None:
@@ -1301,31 +1172,28 @@ def _cmd_comment_delete(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
     comment_id = args.comment_id
     reason = args.reason
 
-    query_params = {
-        "reason": reason
-    }
+    query_params = {"reason": reason}
 
     global _url
     response = httpx.delete(
         url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        },
-        params=query_params
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
+        params=query_params,
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         if args.verbose:
             _console.print(response.text)
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.DeleteRfcCommentResponse.model_validate(response_json)
@@ -1350,30 +1218,31 @@ def _cmd_comment_quarantine_list(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
-    
+
     global _url
     response = httpx.get(
         url=f"{_url}/rfc/{rfc_id}/comments/quarantined",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
-        response_obj = res_types.GetQuarantinedCommentsResponse.model_validate(response_json)
+        response_obj = res_types.GetQuarantinedCommentsResponse.model_validate(
+            response_json
+        )
     except ValidationError as e:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
         _console.print("=" * 60)
@@ -1381,11 +1250,15 @@ def _cmd_comment_quarantine_list(args: Namespace) -> None:
     for comment in response_obj.quarantined_comments:
         _console.print("=" * 60)
         _console.print(f"[bold]quarantine id[/bold]: {comment.quarantine_id}")
-        _console.print(f"[bold]quarantined by[/bold]: {comment.quarantined_by_name_first} {comment.quarantined_by_name_last}")
+        _console.print(
+            f"[bold]quarantined by[/bold]: {comment.quarantined_by_name_first} {comment.quarantined_by_name_last}"
+        )
         _console.print(f"[bold]quarantined at[/bold]: {comment.quarantined_at}")
         _console.print(f"[bold]reason[/bold]: {comment.reason}")
         _console.print(f"[bold]comment id[/bold]: {comment.comment.id}")
-        _console.print(f"[bold]comment author[/bold]: {comment.comment.author_name_first} {comment.comment.author_name_last}")
+        _console.print(
+            f"[bold]comment author[/bold]: {comment.comment.author_name_first} {comment.comment.author_name_last}"
+        )
         _console.print(f"[bold]comment content[/bold]: {comment.comment.content}")
 
 
@@ -1397,31 +1270,32 @@ def _cmd_comment_quarantine_delete(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
     quarantine_id = args.quarantine_id
 
     global _url
     response = httpx.delete(
         url=f"{_url}/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
-        response_obj = res_types.DeleteQuarantinedCommentResponse.model_validate(response_json)
+        response_obj = res_types.DeleteQuarantinedCommentResponse.model_validate(
+            response_json
+        )
     except ValidationError as e:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]message[/bold]: {response_obj.message}")
         _console.print(f"[bold]deleted at[/bold]: {response_obj.deleted_at}")
@@ -1438,34 +1312,37 @@ def _cmd_comment_quarantine_post(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
     quarantine_id = args.quarantine_id
 
     global _url
     response = httpx.post(
         url=f"{_url}/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
-        response_obj = res_types.PostQuarantinedCommentResponse.model_validate(response_json)
+        response_obj = res_types.PostQuarantinedCommentResponse.model_validate(
+            response_json
+        )
     except ValidationError as e:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]message[/bold]: {response_obj.message}")
-        _console.print(f"[bold]unquarantined at[/bold]: {response_obj.unquarantined_at}")
+        _console.print(
+            f"[bold]unquarantined at[/bold]: {response_obj.unquarantined_at}"
+        )
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
     else:
         _console.print("successfully removed comment from quarantine")
@@ -1479,22 +1356,19 @@ def _cmd_revision_list(args: Namespace) -> None:
     global _url
     global _token
 
-    headers = {
-        "User-Agent": _get_user_agent()
-    }
+    headers = {"User-Agent": _get_user_agent()}
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(
-        url=f"{_url}/rfc/{rfc_id}/revs",
-        headers=headers
-    )
+    response = httpx.get(url=f"{_url}/rfc/{rfc_id}/revs", headers=headers)
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcRevisionsResponse.model_validate(response_json)
@@ -1502,13 +1376,15 @@ def _cmd_revision_list(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
         _console.print("=" * 40)
     for summary in response_obj.revisions:
         _console.print(f"[bold]id[/bold]: {summary.id}")
-        _console.print(f"[bold]author[/bold]: {summary.author_name_first} {summary.author_name_last}")
+        _console.print(
+            f"[bold]author[/bold]: {summary.author_name_first} {summary.author_name_last}"
+        )
         _console.print(f"[bold]created at[/bold]: {summary.created_at}")
         _console.print(f"[bold]message[/bold]: {summary.message}")
         _console.print("=" * 40)
@@ -1524,22 +1400,19 @@ def _cmd_revision_get(args: Namespace) -> None:
     global _url
     global _token
 
-    headers = {
-        "User-Agent": _get_user_agent()
-    }
+    headers = {"User-Agent": _get_user_agent()}
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(
-        url=f"{_url}/rfc/{rfc_id}/rev/{revision_id}",
-        headers=headers
-    )
+    response = httpx.get(url=f"{_url}/rfc/{rfc_id}/rev/{revision_id}", headers=headers)
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcRevisionResponse.model_validate(response_json)
@@ -1547,13 +1420,15 @@ def _cmd_revision_get(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
         _console.print("=" * 40)
     rev = response_obj.revision
     _console.print(f"[bold]title[/bold]: {rev.title}")
-    _console.print(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
+    _console.print(
+        f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}"
+    )
     _console.print(f"[bold]slug[/bold]: {rev.slug}")
     _console.print(f"[bold]status[/bold]: {rev.status}")
     _console.print(f"[bold]summary[/bold]: {rev.summary}")
@@ -1572,7 +1447,7 @@ def _cmd_revision_post(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
     message = args.message
     try:
@@ -1611,23 +1486,22 @@ def _cmd_revision_post(args: Namespace) -> None:
             "content": content,
             "agent_contributors": agent_contributors,
         },
-        "message": message
+        "message": message,
     }
 
     global _url
     response = httpx.post(
         url=f"{_url}/rfc/{rfc_id}/rev",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        },
-        json=body
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
+        json=body,
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.PostRfcRevisionResponse.model_validate(response_json)
@@ -1635,11 +1509,13 @@ def _cmd_revision_post(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     rev = response_obj.revision
     if args.verbose:
         _console.print(f"[bold]id[/bold]: {rev.id}")
-        _console.print(f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}")
+        _console.print(
+            f"[bold]author[/bold]: {rev.author_name_first} {rev.author_name_last}"
+        )
         _console.print(f"[bold]created at[/bold]: {rev.created_at}")
         _console.print(f"[bold]message[/bold]: {rev.message}")
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
@@ -1659,15 +1535,17 @@ def _cmd_alias_set(args: Namespace) -> None:
     if command_name not in _commands:
         _console.print("[bold red]error[/bold red] not a valid command")
         return
-    
+
     global _aliases
     if alias_name in _aliases:
         _console.print("[bold red]error[/bold red] alias already exists")
         return
-    
+
     _aliases.update({alias_name: command_name})
 
-    _console.print(f"successfully set alias: [cyan]{alias_name}[/cyan] -> [cyan]{command_name}[/cyan]")
+    _console.print(
+        f"successfully set alias: [cyan]{alias_name}[/cyan] -> [cyan]{command_name}[/cyan]"
+    )
 
 
 def _cmd_alias_get(args: Namespace) -> None:
@@ -1755,9 +1633,7 @@ _commands: dict[str, Command] = {
     "al": _cmd_alias_list,
 }
 
-_aliases: dict[str, str] = {
-    item.alias: item.command for item in _config.aliases
-}
+_aliases: dict[str, str] = {item.alias: item.command for item in _config.aliases}
 
 
 def _print_comment(comment: CommentThread) -> None:
@@ -1785,7 +1661,9 @@ def _get_preamble() -> str:
     global _url
     global _username
     if _token is None:
-        preamble += "[bold yellow]warning[/bold yellow] you are not currently logged in\n"
+        preamble += (
+            "[bold yellow]warning[/bold yellow] you are not currently logged in\n"
+        )
         preamble += "[bold yellow]warning[/bold yellow] run [cyan]login <username>[/cyan] to authenticate\n"
     preamble += ("=" * 60) + "\n"
     preamble += f"[bold]MDRFC CLI Client [cyan]v{get_mdrfc_version()}[/cyan][/bold]\n"
@@ -1798,7 +1676,7 @@ def _get_preamble() -> str:
     preamble += "\n"
     preamble += "For help: [cyan]help[/cyan], [cyan]?[/cyan]\n"
     preamble += "To exit: [cyan]exit[/cyan], [cyan]quit[/cyan]\n"
-    preamble += ("=" * 60)
+    preamble += "=" * 60
 
     return preamble
 
@@ -1819,7 +1697,7 @@ def _get_prompt() -> str:
     prompt += f"@[bold green]{_url}[/bold green]"
     prompt += "[no_underline white]>[/no_underline white] "
 
-    return prompt 
+    return prompt
 
 
 def _run_repl() -> None:
@@ -1833,9 +1711,7 @@ def _run_repl() -> None:
     running = True
     while running:
         global _aliases
-        user_input = _console.input(
-            prompt=_get_prompt()
-        )
+        user_input = _console.input(prompt=_get_prompt())
 
         if user_input == "":
             continue
@@ -1849,9 +1725,9 @@ def _run_repl() -> None:
                 cmd = input_args[0]
                 if cmd in _aliases:
                     if len(input_args) > 1:
-                        input_args = [_aliases.get(cmd)] + input_args[1:] # type: ignore
+                        input_args = [_aliases.get(cmd)] + input_args[1:]  # type: ignore
                     else:
-                        input_args = [_aliases.get(cmd)] # type: ignore
+                        input_args = [_aliases.get(cmd)]  # type: ignore
                 args = parser.parse_args(input_args)
                 handler = _commands.get(args.command)
                 if handler:
@@ -1886,16 +1762,18 @@ def _login_on_startup() -> None:
     password = os.getenv("MDRFC_PASSWORD")
 
     if (username is None) or (password is None):
-        _console.print("[bold red]error[/bold red] env vars `MDRFC_USERNAME` and `MDRFC_PASSWORD` are required to log in")
+        _console.print(
+            "[bold red]error[/bold red] env vars `MDRFC_USERNAME` and `MDRFC_PASSWORD` are required to log in"
+        )
         return
-    
+
     body = {
         "grant_type": "password",
         "username": username,
         "password": password,
         "scope": "",
         "client_id": username,
-        "client_secret": password
+        "client_secret": password,
     }
 
     global _url
@@ -1904,14 +1782,16 @@ def _login_on_startup() -> None:
         data=body,
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": _get_user_agent()
-        }
+            "User-Agent": _get_user_agent(),
+        },
     )
 
     if response.status_code != 200:
-        _console.print(f"[bold red]error[/bold red] login request failed with status code {response.status_code}")
+        _console.print(
+            f"[bold red]error[/bold red] login request failed with status code {response.status_code}"
+        )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = Token.model_validate(response_json)
@@ -1941,14 +1821,14 @@ def _init_client_config() -> None:
             _config = MDRFCClientConfig.model_validate(obj)
             _aliases = {item.alias: item.command for item in _config.aliases}
         except ValidationError as e:
-            _console.print(f"[bold red]error[/bold red] client config validation failed: {e}")
+            _console.print(
+                f"[bold red]error[/bold red] client config validation failed: {e}"
+            )
             _console.print("exiting")
             exit(1)
 
 
-def run_client(
-    args: Namespace
-) -> None:
+def run_client(args: Namespace) -> None:
     """
     Run the MDRFC CLI client.
     """

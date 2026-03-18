@@ -59,7 +59,9 @@ def test_validate_post_signup_request_wraps_validation_errors() -> None:
     assert "request validation failed" in str(excinfo.value.detail)
 
 
-def test_post_verify_email_request_strips_token_whitespace_and_forbids_extra_fields() -> None:
+def test_post_verify_email_request_strips_token_whitespace_and_forbids_extra_fields() -> (
+    None
+):
     payload = PostVerifyEmailRequest.model_validate({"token": "  " + ("a" * 32) + "  "})
 
     assert payload.token.get_secret_value() == "a" * 32
@@ -75,7 +77,11 @@ def test_post_verify_email_request_strips_token_whitespace_and_forbids_extra_fie
 
 def test_validate_verification_token_rejects_short_values() -> None:
     with pytest.raises(HTTPException) as excinfo:
-        validate_verification_token(PostVerifyEmailRequest.model_validate({"token": "a" * 32}).token.__class__("short"))
+        validate_verification_token(
+            PostVerifyEmailRequest.model_validate({"token": "a" * 32}).token.__class__(
+                "short"
+            )
+        )
 
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "verification token is invalid"

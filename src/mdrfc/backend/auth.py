@@ -18,10 +18,7 @@ from mdrfc.backend.db import (
     verify_user_by_token_in_db,
 )
 import mdrfc.backend.constants as consts
-from mdrfc.backend.users import (
-    User,
-    UserInDB
-)
+from mdrfc.backend.users import User, UserInDB
 
 
 dotenv.load_dotenv()
@@ -31,7 +28,9 @@ ALGORITHM = getenv("JWT_ALGORITHM")
 if SECRET_KEY is None:
     raise RuntimeError("environment variable SECRET_KEY is required but was not found")
 if ALGORITHM is None:
-    raise RuntimeError("environment variable JWT_ALGORITHM is required but was not found")
+    raise RuntimeError(
+        "environment variable JWT_ALGORITHM is required but was not found"
+    )
 
 EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES = int(
     getenv(
@@ -39,7 +38,9 @@ EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES = int(
         str(consts.MINUTES_EMAIL_VERIFICATION_TOKEN_EXPIRE),
     )
 )
-DEBUG_RETURN_VERIFICATION_TOKEN = getenv("AUTH_DEBUG_RETURN_VERIFICATION_TOKEN", "false").lower() == "true"
+DEBUG_RETURN_VERIFICATION_TOKEN = (
+    getenv("AUTH_DEBUG_RETURN_VERIFICATION_TOKEN", "false").lower() == "true"
+)
 
 
 class Token(BaseModel):
@@ -92,9 +93,7 @@ def verify_password(
     return password_hash.verify(password_plain, password_hashed)
 
 
-def get_password_hash(
-    password_plain: str
-) -> str:
+def get_password_hash(password_plain: str) -> str:
     return password_hash.hash(password_plain)
 
 
@@ -113,7 +112,7 @@ async def authenticate_user(
             status_code=403,
             detail="email address not verified",
         )
-    
+
     return user
 
 
@@ -133,30 +132,28 @@ def create_access_token(
     return encoded_jwt
 
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)]
-) -> UserInDB:
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> UserInDB:
     credentials_exception = HTTPException(
         status_code=401,
         detail="could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"}
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # type: ignore
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])  # type: ignore
         username = payload.get("sub")
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username)
     except InvalidTokenError:
         raise credentials_exception
-    
+
     if token_data.username is None:
         raise credentials_exception
     user = await get_user_from_db(username=token_data.username)
     if user is None:
         raise credentials_exception
-    
+
     return user
 
 
@@ -170,10 +167,7 @@ async def get_current_active_admin(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
     if not current_user.is_admin:
-        raise HTTPException(
-            status_code=401,
-            detail="unauthorized"
-        )
+        raise HTTPException(status_code=401, detail="unauthorized")
     return current_user
 
 
@@ -186,21 +180,19 @@ async def get_current_user_if_one(
 
 
 async def get_current_active_user_if_one(
-    current_user: Annotated[User | None, Depends(get_current_user_if_one)]
+    current_user: Annotated[User | None, Depends(get_current_user_if_one)],
 ) -> User | None:
     return current_user
 
 
 async def create_new_user(
-    username: str,
-    email: str,
-    name_last: str,
-    name_first: str,
-    password: str
+    username: str, email: str, name_last: str, name_first: str, password: str
 ) -> SignupResult:
     timestamp = _utcnow()
     verification_token = generate_verification_token()
-    verification_expires_at = timestamp + timedelta(minutes=EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES)
+    verification_expires_at = timestamp + timedelta(
+        minutes=EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES
+    )
 
     user_in_db = UserInDB(
         id=-1,
@@ -213,7 +205,7 @@ async def create_new_user(
         verified_at=None,
         verification_token_hash=hash_verification_token(verification_token),
         verification_token_expires_at=verification_expires_at,
-        created_at=timestamp
+        created_at=timestamp,
     )
 
     await register_user_in_db(user_in_db)

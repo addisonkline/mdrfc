@@ -24,9 +24,27 @@ def _comment(
 def test_build_comment_threads_builds_nested_tree() -> None:
     base = datetime(2026, 3, 5, 10, 0, 0)
     comments = [
-        _comment(id=3, rfc_id=1, parent_id=2, created_at=base + timedelta(seconds=3), content="grandchild"),
-        _comment(id=2, rfc_id=1, parent_id=1, created_at=base + timedelta(seconds=2), content="child"),
-        _comment(id=1, rfc_id=1, parent_id=None, created_at=base + timedelta(seconds=1), content="root"),
+        _comment(
+            id=3,
+            rfc_id=1,
+            parent_id=2,
+            created_at=base + timedelta(seconds=3),
+            content="grandchild",
+        ),
+        _comment(
+            id=2,
+            rfc_id=1,
+            parent_id=1,
+            created_at=base + timedelta(seconds=2),
+            content="child",
+        ),
+        _comment(
+            id=1,
+            rfc_id=1,
+            parent_id=None,
+            created_at=base + timedelta(seconds=1),
+            content="root",
+        ),
     ]
 
     threads = build_comment_threads(comments)
@@ -42,10 +60,34 @@ def test_build_comment_threads_builds_nested_tree() -> None:
 def test_build_comment_threads_sorts_roots_and_replies_by_created_at_then_id() -> None:
     base = datetime(2026, 3, 5, 10, 0, 0)
     comments = [
-        _comment(id=7, rfc_id=1, parent_id=5, created_at=base + timedelta(seconds=2), content="reply-later"),
-        _comment(id=4, rfc_id=1, parent_id=None, created_at=base + timedelta(seconds=2), content="root-b"),
-        _comment(id=5, rfc_id=1, parent_id=None, created_at=base + timedelta(seconds=1), content="root-a"),
-        _comment(id=6, rfc_id=1, parent_id=5, created_at=base + timedelta(seconds=2), content="reply-earlier-id"),
+        _comment(
+            id=7,
+            rfc_id=1,
+            parent_id=5,
+            created_at=base + timedelta(seconds=2),
+            content="reply-later",
+        ),
+        _comment(
+            id=4,
+            rfc_id=1,
+            parent_id=None,
+            created_at=base + timedelta(seconds=2),
+            content="root-b",
+        ),
+        _comment(
+            id=5,
+            rfc_id=1,
+            parent_id=None,
+            created_at=base + timedelta(seconds=1),
+            content="root-a",
+        ),
+        _comment(
+            id=6,
+            rfc_id=1,
+            parent_id=5,
+            created_at=base + timedelta(seconds=2),
+            content="reply-earlier-id",
+        ),
     ]
 
     threads = build_comment_threads(comments)
@@ -58,7 +100,13 @@ def test_build_comment_threads_promotes_orphaned_replies_to_roots() -> None:
     base = datetime(2026, 3, 5, 10, 0, 0)
     comments = [
         _comment(id=1, rfc_id=1, parent_id=999, created_at=base, content="orphan"),
-        _comment(id=2, rfc_id=1, parent_id=None, created_at=base + timedelta(seconds=1), content="normal-root"),
+        _comment(
+            id=2,
+            rfc_id=1,
+            parent_id=None,
+            created_at=base + timedelta(seconds=1),
+            content="normal-root",
+        ),
     ]
 
     threads = build_comment_threads(comments)
@@ -70,7 +118,13 @@ def test_find_comment_thread_finds_nested_reply() -> None:
     base = datetime(2026, 3, 5, 10, 0, 0)
     comments = [
         _comment(id=1, rfc_id=1, parent_id=None, created_at=base, content="root"),
-        _comment(id=2, rfc_id=1, parent_id=1, created_at=base + timedelta(seconds=1), content="child"),
+        _comment(
+            id=2,
+            rfc_id=1,
+            parent_id=1,
+            created_at=base + timedelta(seconds=1),
+            content="child",
+        ),
     ]
     threads = build_comment_threads(comments)
 

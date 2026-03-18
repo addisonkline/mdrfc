@@ -44,7 +44,12 @@ from mdrfc.backend import auth
 from mdrfc.backend import db
 from mdrfc.backend import email as email_backend
 from mdrfc.backend.comment import RFCComment
-from mdrfc.backend.document import RFCDocument, RFCDocumentSummary, RFCRevision, RFCRevisionSummary
+from mdrfc.backend.document import (
+    RFCDocument,
+    RFCDocumentSummary,
+    RFCRevision,
+    RFCRevisionSummary,
+)
 from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
 from mdrfc.backend.users import User, UserInDB
 
@@ -110,11 +115,17 @@ def auth_overrides() -> Callable[..., None]:
         server.app.dependency_overrides.clear()
 
         if current_user is not _MISSING:
-            server.app.dependency_overrides[server.get_current_active_user] = lambda: current_user
+            server.app.dependency_overrides[server.get_current_active_user] = lambda: (
+                current_user
+            )
         if optional_user is not _MISSING:
-            server.app.dependency_overrides[server.get_current_active_user_if_one] = lambda: optional_user
+            server.app.dependency_overrides[server.get_current_active_user_if_one] = (
+                lambda: optional_user
+            )
         if admin_user is not _MISSING:
-            server.app.dependency_overrides[server.get_current_active_admin] = lambda: admin_user
+            server.app.dependency_overrides[server.get_current_active_admin] = lambda: (
+                admin_user
+            )
 
     yield _apply
     server.app.dependency_overrides.clear()
@@ -143,7 +154,9 @@ def isolated_postgres_db(
     with admin_engine.connect() as connection:
         connection.exec_driver_sql(f'CREATE DATABASE "{database_name}"')
 
-    test_url = base_url.set(database=database_name).render_as_string(hide_password=False)
+    test_url = base_url.set(database=database_name).render_as_string(
+        hide_password=False
+    )
     test_engine = create_engine(test_url)
     db.metadata_obj.create_all(test_engine)
     test_engine.dispose()
@@ -324,7 +337,9 @@ def rfc_document_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocument
         updated = updated_at or created
         revision_ids = revisions or [uuid4()]
         current = current_revision or revision_ids[-1]
-        contributions = agent_contributions or {revision_id: [] for revision_id in revision_ids}
+        contributions = agent_contributions or {
+            revision_id: [] for revision_id in revision_ids
+        }
 
         return RFCDocument(
             id=id,
@@ -347,7 +362,9 @@ def rfc_document_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocument
 
 
 @pytest.fixture
-def revision_summary_factory(fixed_timestamp: datetime) -> Callable[..., RFCRevisionSummary]:
+def revision_summary_factory(
+    fixed_timestamp: datetime,
+) -> Callable[..., RFCRevisionSummary]:
     def _make_revision_summary(
         *,
         id: UUID | None = None,

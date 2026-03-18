@@ -17,7 +17,9 @@ def test_login_returns_bearer_token(
         return user_factory(username="alice")
 
     monkeypatch.setattr(server, "authenticate_user", fake_authenticate_user)
-    monkeypatch.setattr(server, "create_access_token", lambda data, expires_delta: "jwt-token")
+    monkeypatch.setattr(
+        server, "create_access_token", lambda data, expires_delta: "jwt-token"
+    )
 
     response = client.post(
         "/login",

@@ -23,4 +23,3 @@ def print_version(args: Namespace) -> None:
         print("  GitHub: @addisonkline")
         print("  Website: https://www.addisonkline.net")
         print("  Email: addison at addisonkline dot net")
-        

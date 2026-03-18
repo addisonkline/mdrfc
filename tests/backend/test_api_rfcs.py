@@ -114,7 +114,9 @@ def test_post_rfc_revision_merges_partial_updates(
     async def fake_get_rfc_from_db(_: int):
         return existing_rfc
 
-    async def fake_register_revision_in_db(*, rfc_id, user, request, new_revisions, new_contributions):
+    async def fake_register_revision_in_db(
+        *, rfc_id, user, request, new_revisions, new_contributions
+    ):
         captured["rfc_id"] = rfc_id
         captured["user"] = user
         captured["request"] = request
@@ -162,3 +164,51 @@ def test_post_rfc_revision_merges_partial_updates(
     assert new_contributions[existing_revision_id] == ["codex@openai"]
     assert new_contributions[new_revisions[-1]] == []
     assert response.revision.title == "Updated RFC title"
+
+
+def test_post_rfc_revision_can_explicitly_make_rfc_private(
+    monkeypatch: pytest.MonkeyPatch,
+    rfc_document_factory,
+    revision_factory,
+    user_factory,
+) -> None:
+    captured: dict[str, object] = {}
+    existing_rfc = rfc_document_factory(public=True)
+
+    async def fake_get_rfc_from_db(_: int):
+        return existing_rfc
+
+    async def fake_register_revision_in_db(
+        *, rfc_id, user, request, new_revisions, new_contributions
+    ):
+        captured["request"] = request
+        return revision_factory(
+            id=request.id,
+            rfc_id=rfc_id,
+            title=request.title,
+            slug=request.slug,
+            status=request.status,
+            content=request.content,
+            summary=request.summary,
+            message=request.message,
+            public=request.public,
+            agent_contributors=request.agent_contributors,
+        )
+
+    monkeypatch.setattr(api, "get_rfc_from_db", fake_get_rfc_from_db)
+    monkeypatch.setattr(api, "register_revision_in_db", fake_register_revision_in_db)
+
+    response = asyncio.run(
+        api.post_rfc_revision(
+            rfc_id=existing_rfc.id,
+            user=user_factory(id=9),
+            request=PostRfcRevisionRequest(
+                update=RFCRevisionRequest(public=False),
+                message="Make the RFC private",
+            ),
+        )
+    )
+
+    request = captured["request"]
+    assert request.public is False
+    assert response.revision.public is False

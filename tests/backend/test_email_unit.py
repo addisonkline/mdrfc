@@ -55,7 +55,9 @@ def test_send_verification_email_task_logs_and_swallows_errors(
         captured["message"] = message
         captured["to_email"] = to_email
 
-    monkeypatch.setattr(email_backend, "send_verification_email", fake_send_verification_email)
+    monkeypatch.setattr(
+        email_backend, "send_verification_email", fake_send_verification_email
+    )
     monkeypatch.setattr(email_backend.logger, "exception", fake_logger_exception)
 
     email_backend.send_verification_email_task(

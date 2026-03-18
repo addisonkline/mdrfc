@@ -10,7 +10,9 @@ def _naive(dt):
     return dt.replace(tzinfo=None)
 
 
-def _register_verified_user(run_db, user_in_db_factory, user_factory, *, fixed_timestamp):
+def _register_verified_user(
+    run_db, user_in_db_factory, user_factory, *, fixed_timestamp
+):
     timestamp = _naive(fixed_timestamp)
     user_in_db = user_in_db_factory(
         is_verified=True,
