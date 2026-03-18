@@ -1,12 +1,18 @@
 # ruff: noqa: E402
 
+import asyncio
 import importlib
 import os
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
+import asyncpg
 import pytest
+from dotenv import dotenv_values
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 
 
 BACKEND_TEST_ENV = {
@@ -35,6 +41,7 @@ for key in ("REQUIRED_EMAIL_SUFFIX", "RESEND_API_KEY", "SMTP_USE_SSL"):
 
 from mdrfc import server
 from mdrfc.backend import auth
+from mdrfc.backend import db
 from mdrfc.backend import email as email_backend
 from mdrfc.backend.comment import RFCComment
 from mdrfc.backend.document import RFCDocument, RFCDocumentSummary, RFCRevision, RFCRevisionSummary
@@ -43,6 +50,7 @@ from mdrfc.backend.users import User, UserInDB
 
 
 FIXED_TIMESTAMP = datetime(2026, 3, 9, 12, 0, 0, tzinfo=timezone.utc)
+_MISSING = object()
 
 
 @pytest.fixture(autouse=True)
@@ -74,6 +82,110 @@ def reload_backend_modules() -> Callable[[], tuple[object, object, object]]:
 @pytest.fixture
 def fixed_timestamp() -> datetime:
     return FIXED_TIMESTAMP
+
+
+@pytest.fixture
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    async def fake_init_db() -> None:
+        return None
+
+    async def fake_close_db() -> None:
+        return None
+
+    monkeypatch.setattr(server, "init_db", fake_init_db)
+    monkeypatch.setattr(server, "close_db", fake_close_db)
+
+    with TestClient(server.app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def auth_overrides() -> Callable[..., None]:
+    def _apply(
+        *,
+        current_user: User | None | object = _MISSING,
+        optional_user: User | None | object = _MISSING,
+        admin_user: User | None | object = _MISSING,
+    ) -> None:
+        server.app.dependency_overrides.clear()
+
+        if current_user is not _MISSING:
+            server.app.dependency_overrides[server.get_current_active_user] = lambda: current_user
+        if optional_user is not _MISSING:
+            server.app.dependency_overrides[server.get_current_active_user_if_one] = lambda: optional_user
+        if admin_user is not _MISSING:
+            server.app.dependency_overrides[server.get_current_active_admin] = lambda: admin_user
+
+    yield _apply
+    server.app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def real_database_url() -> str:
+    value = dotenv_values(".env").get("DATABASE_URL")
+    if not value:
+        pytest.skip("DATABASE_URL is not configured in .env")
+    return str(value)
+
+
+@pytest.fixture
+def isolated_postgres_db(
+    monkeypatch: pytest.MonkeyPatch,
+    real_database_url: str,
+) -> dict[str, object]:
+    database_name = f"test_backend_{uuid4().hex}"
+    base_url = make_url(real_database_url)
+    admin_engine = create_engine(
+        base_url.render_as_string(hide_password=False),
+        isolation_level="AUTOCOMMIT",
+    )
+
+    with admin_engine.connect() as connection:
+        connection.exec_driver_sql(f'CREATE DATABASE "{database_name}"')
+
+    test_url = base_url.set(database=database_name).render_as_string(hide_password=False)
+    test_engine = create_engine(test_url)
+    db.metadata_obj.create_all(test_engine)
+    test_engine.dispose()
+
+    loop = asyncio.new_event_loop()
+    pool = loop.run_until_complete(
+        asyncpg.create_pool(
+            dsn=test_url,
+            min_size=1,
+            max_size=3,
+            loop=loop,
+        )
+    )
+    previous_pool = db._pool
+    monkeypatch.setattr(db, "_pool", pool)
+
+    def run(coro):
+        return loop.run_until_complete(coro)
+
+    try:
+        yield {
+            "database_name": database_name,
+            "pool": pool,
+            "run": run,
+        }
+    finally:
+        loop.run_until_complete(pool.close())
+        monkeypatch.setattr(db, "_pool", previous_pool)
+        loop.close()
+        with admin_engine.connect() as connection:
+            connection.exec_driver_sql(
+                "SELECT pg_terminate_backend(pid) "
+                f"FROM pg_stat_activity WHERE datname = '{database_name}' "
+                "AND pid <> pg_backend_pid()"
+            )
+            connection.exec_driver_sql(f'DROP DATABASE IF EXISTS "{database_name}"')
+        admin_engine.dispose()
+
+
+@pytest.fixture
+def run_db(isolated_postgres_db: dict[str, object]) -> Callable:
+    return isolated_postgres_db["run"]  # type: ignore[return-value]
 
 
 @pytest.fixture

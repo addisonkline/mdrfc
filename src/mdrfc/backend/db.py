@@ -33,7 +33,6 @@ from mdrfc.backend.document import (
     RFCDocumentSummary,
     RFCRevision,
     RFCRevisionInDB,
-    RFCRevisionRequest,
     RFCRevisionSummary
 )
 from mdrfc.backend.comment import QuarantinedComment, RFCComment, RFCCommentInDB
@@ -397,28 +396,39 @@ async def delete_rfc_from_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            query_quarantine = """
-            DELETE FROM quarantined_rfcs 
-            WHERE quarantined_id = $1
-            RETURNING rfc_id;
+            query = """
+            WITH deleted_quarantine AS (
+                DELETE FROM quarantined_rfcs
+                WHERE quarantine_id = $1
+                RETURNING rfc_id
+            ), deleted_quarantined_comments AS (
+                DELETE FROM quarantined_comments
+                WHERE comment_id IN (
+                    SELECT id FROM rfc_comments
+                    WHERE rfc_id = (SELECT rfc_id FROM deleted_quarantine)
+                )
+            ), deleted_comments AS (
+                DELETE FROM rfc_comments
+                WHERE rfc_id = (SELECT rfc_id FROM deleted_quarantine)
+            ), deleted_revisions AS (
+                DELETE FROM rfc_revisions
+                WHERE rfc_id = (SELECT rfc_id FROM deleted_quarantine)
+            ), deleted_rfc AS (
+                DELETE FROM rfcs
+                WHERE id = (SELECT rfc_id FROM deleted_quarantine)
+                RETURNING id
+            )
+            SELECT id FROM deleted_rfc;
             """
-            rfc_id = await connection.fetchval(
-                query_quarantine,
+            deleted_rfc_id = await connection.fetchval(
+                query,
                 quarantine_id,
             )
-            if rfc_id is None:
+            if deleted_rfc_id is None:
                 raise HTTPException(
                     status_code=404,
                     detail="quarantined RFC not found"
                 )
-            query_rfc = """
-            DELETE FROM rfcs
-            WHERE id = $1;
-            """
-            await connection.execute(
-                query_rfc,
-                rfc_id
-            )
 
 
 async def unquarantine_rfc_in_db(
@@ -451,7 +461,7 @@ async def unquarantine_rfc_in_db(
             """
             await connection.execute(
                 query_rfc,
-                quarantine_id,
+                rfc_id,
             )
 
 
@@ -470,18 +480,18 @@ async def register_rfc_in_db(
                 INSERT INTO rfcs (
                     created_by, created_at, updated_at,
                     title, slug, status, content, summary,
-                    revisions, current_revision, agent_contributions
+                    revisions, current_revision, agent_contributions, is_public
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id
             ), revision_insert AS (
                 INSERT INTO rfc_revisions (
                     id, rfc_id, created_by, agent_contributors, created_at,
-                    title, slug, status, content, summary, message
+                    title, slug, status, content, summary, is_public, message
                 )
                 SELECT
-                    $10, id, $1, $12, $2,
-                    $4, $5, $6, $7, $8, $13
+                    $10, id, $1, $13, $2,
+                    $4, $5, $6, $7, $8, $12, $14
                 FROM rfc_insert
                 RETURNING rfc_id
             )
@@ -500,6 +510,7 @@ async def register_rfc_in_db(
                 document.revisions,
                 document.current_revision,
                 _serialize_agent_contributions(document.agent_contributions),
+                document.public,
                 document.agent_contributions.get(document.current_revision, []),
                 "First revision"
             )
@@ -638,7 +649,8 @@ async def get_revisions_from_db(
                     author_name_last=user.name_last,
                     author_name_first=user.name_first,
                     agent_contributors=rev.get("agent_contributors"),
-                    message=rev.get("message")
+                    message=rev.get("message"),
+                    public=rev.get("is_public") or False,
                 )
                 summaries.append(summary)
             return summaries
@@ -679,7 +691,8 @@ async def get_revision_from_db(
                 status=rev.get("status"),
                 content=rev.get("content"),
                 summary=rev.get("summary"),
-                message=rev.get("message")
+                message=rev.get("message"),
+                public=rev.get("is_public") or False,
             )
         
 
@@ -709,9 +722,9 @@ async def register_revision_in_db(
             WITH revision_insert AS (
                 INSERT INTO rfc_revisions (
                     id, rfc_id, created_at, created_by, agent_contributors,
-                    title, slug, status, content, summary, message
+                    title, slug, status, content, summary, is_public, message
                 )
-                VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING *
             ), rfc_update AS (
                 UPDATE rfcs
@@ -721,9 +734,10 @@ async def register_revision_in_db(
                     status = $8,
                     content = $9,
                     summary = $10,
-                    revisions = $12,
+                    is_public = $11,
+                    revisions = $13,
                     current_revision = $1,
-                    agent_contributions = $13
+                    agent_contributions = $14
                 WHERE id = $2
                 RETURNING id
             )
@@ -741,6 +755,7 @@ async def register_revision_in_db(
                 request.status,
                 request.content,
                 request.summary,
+                request.public,
                 request.message,
                 new_revisions,
                 _serialize_agent_contributions(new_contributions)
@@ -762,7 +777,8 @@ async def register_revision_in_db(
                 status=rev.get("status"),
                 content=rev.get("content"),
                 summary=rev.get("summary"),
-                message=rev.get("message")
+                message=rev.get("message"),
+                public=rev.get("is_public") or False,
             )
 
 
