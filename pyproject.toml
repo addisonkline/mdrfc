@@ -1,9 +1,14 @@
 [project]
 name = "mdrfc"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "A server for hosting Markdown-formatted RFCs"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Addison Kline", email = "addison@charon-labs.com"}
+]
 dependencies = [
     "alembic[tz]>=1.18.4",
     "asyncpg>=0.31.0",
@@ -20,6 +25,9 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.46",
     "uvicorn>=0.41.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/addisonkline/mdrfc"
 
 [project.scripts]
 mdrfc = "mdrfc.cli:main"
