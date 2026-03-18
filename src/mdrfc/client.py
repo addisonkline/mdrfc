@@ -63,6 +63,9 @@ ping_p.add_argument(
     help="include more detailed server info"
 )
 
+#
+# AUTH commands
+#
 # log into the server
 login_desc = "Log into the remote server"
 login_p = subparsers.add_parser(
@@ -81,6 +84,21 @@ login_p.add_argument(
     "--verbose",
     action="store_true",
     help="include more detailed login info"
+)
+
+refresh_desc = "(login required) Obtain a fresh auth token"
+refresh_p = subparsers.add_parser(
+    "refresh",
+    aliases=["r"],
+    usage="refresh [option]...",
+    help=refresh_desc,
+    description=refresh_desc
+)
+refresh_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response info"
 )
 
 # log out of the server
@@ -638,6 +656,57 @@ def _cmd_login(args: Namespace) -> None:
     global _token
     _username = username
     _token = response_obj.access_token
+    if args.verbose:
+        _console.print(f"[bold]token[/bold]: {response_obj.access_token}")
+        _console.print(f"[bold]type[/bold]: {response_obj.token_type}")
+    else:
+        _console.print(f"successfully logged in as [green]{_username}[/green]")
+
+
+def _cmd_refresh(args: Namespace) -> None:
+    """
+    Obtain a new token if already logged in.
+    """
+    global _console
+    global _username
+    if _username is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+    
+    password = os.getenv("MDRFC_PASSWORD")
+    if password is None:
+        _console.print("[bold red]error[/bold red] no password found in env")
+
+    body = {
+        "grant_type": "password",
+        "username": _username,
+        "password": password,
+        "scope": "",
+        "client_id": _username,
+        "client_secret": password
+    }
+
+    global _url
+    response = httpx.post(
+        url=f"{_url}/login",
+        data=body,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]")
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = Token.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
     if args.verbose:
         _console.print(f"[bold]token[/bold]: {response_obj.access_token}")
         _console.print(f"[bold]type[/bold]: {response_obj.token_type}")
@@ -1587,6 +1656,8 @@ def _run_repl() -> None:
         "p": _cmd_ping,
         "login": _cmd_login,
         "l": _cmd_login,
+        "refresh": _cmd_refresh,
+        "r": _cmd_refresh,
         "logout": _cmd_logout,
         "lo": _cmd_logout,
         "whoami": _cmd_whoami,
