@@ -1,24 +1,9 @@
 import asyncio
 from datetime import datetime
-import os
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException, Request
 from pydantic import ValidationError
-
-
-os.environ.setdefault("SECRET_KEY", "test-secret")
-os.environ.setdefault("JWT_ALGORITHM", "HS256")
-os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
-os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-os.environ.setdefault("AUTH_DEBUG_RETURN_VERIFICATION_TOKEN", "true")
-os.environ.setdefault("APP_BASE_URL", "https://mdrfc.example.com")
-os.environ.setdefault("EMAIL_FROM", "noreply@mdrfc.example.com")
-os.environ.setdefault("SMTP_HOST", "smtp.example.com")
-os.environ.setdefault("SMTP_PORT", "587")
-os.environ.setdefault("SMTP_USERNAME", "smtp-user")
-os.environ.setdefault("SMTP_PASSWORD", "smtp-password")
-os.environ.setdefault("SMTP_STARTTLS", "true")
 
 from mdrfc.backend import auth
 from mdrfc.backend import email as email_backend
@@ -206,6 +191,7 @@ def test_post_new_user_queues_verification_email(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(server, "create_new_user", fake_create_new_user)
     monkeypatch.setattr(server, "send_verification_email_task", fake_send_verification_email_task)
+    monkeypatch.setattr(server, "DEBUG_RETURN_VERIFICATION_TOKEN", False)
 
     scope = {
         "type": "http",
@@ -227,7 +213,45 @@ def test_post_new_user_queues_verification_email(monkeypatch: pytest.MonkeyPatch
     response = asyncio.run(server.post_new_user(background_tasks, request, payload))
 
     assert response.metadata["verification_required"] is True
-    assert response.metadata["verification_token"] == "raw-token"
+    assert response.metadata["verification_token"] is None
     assert len(background_tasks.tasks) == 1
     assert background_tasks.tasks[0].func is fake_send_verification_email_task
     assert background_tasks.tasks[0].kwargs["verification_token"] == "raw-token"
+
+
+def test_post_new_user_returns_verification_token_in_debug_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    background_tasks = BackgroundTasks()
+
+    async def fake_create_new_user(**kwargs):
+        return auth.SignupResult(
+            created_at=datetime(2026, 3, 9, 12, 0, 0),
+            verification_expires_at=datetime(2026, 3, 9, 13, 0, 0),
+            verification_token="raw-token",
+        )
+
+    monkeypatch.setattr(server, "create_new_user", fake_create_new_user)
+    monkeypatch.setattr(server, "DEBUG_RETURN_VERIFICATION_TOKEN", True)
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/signup",
+        "headers": [],
+        "client": ("127.0.0.1", 12345),
+        "app": server.app,
+    }
+    request = Request(scope)
+    payload = PostSignupRequest(
+        username="Alice",
+        email="alice@example.com",
+        name_first="Alice",
+        name_last="Smith",
+        password="StrongPassword1",
+    )
+
+    response = asyncio.run(server.post_new_user(background_tasks, request, payload))
+
+    assert response.metadata["verification_token"] == "raw-token"
+    assert background_tasks.tasks == []
