@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, Namespace
+from collections.abc import Callable
 import json
 import os
 from urllib.parse import urlsplit
@@ -570,6 +571,68 @@ revision_post_p.add_argument(
     "--verbose",
     action="store_true",
     help="include more detailed response metadata"
+)
+
+#
+# ALIAS commands
+#
+# set a new alias
+alias_set_desc = "Set a new command alias in the CLI"
+alias_set_p = subparsers.add_parser(
+    "alias-set",
+    aliases=["as"],
+    usage="alias-set <command> <alias> [option]...",
+    help=alias_set_desc,
+    description=alias_set_desc
+)
+alias_set_p.add_argument(
+    "command_name",
+    help="the command to create an alias for"
+)
+alias_set_p.add_argument(
+    "alias_name",
+    help="the string alias to use"
+)
+alias_set_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed process output"
+)
+
+# get an existing alias
+alias_get_desc = "View an existing command alias in the CLI"
+alias_get_p = subparsers.add_parser(
+    "alias-get",
+    aliases=["ag"],
+    usage="alias-get <alias> [option]...",
+    help=alias_get_desc,
+    description=alias_get_desc
+)
+alias_get_p.add_argument(
+    "alias_name",
+    help="the string alias to view"
+)
+alias_get_p.add_argument(
+    "-v",
+    "--verbose",
+    help="include more detailed alias info"
+)
+
+# list all current aliases
+alias_list_desc = "List all current command aliases in the CLI"
+alias_list_p = subparsers.add_parser(
+    "alias-list",
+    aliases=["al"],
+    usage="alias-list [option]...",
+    help=alias_list_desc,
+    description=alias_list_desc
+)
+alias_list_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed alias info"
 )
 
 # command handlers
@@ -1582,6 +1645,117 @@ def _cmd_revision_post(args: Namespace) -> None:
         _console.print(f"successfully posted new RFC revision with ID {rev.id}")
 
 
+def _cmd_alias_set(args: Namespace) -> None:
+    """
+    Set a new command alias in this CLI.
+    """
+    command_name = args.command_name
+    alias_name = args.alias_name
+
+    global _console
+    global _commands
+    if command_name not in _commands:
+        _console.print("[bold red]error[/bold red] not a valid command")
+        return
+    
+    global _aliases
+    if alias_name in _aliases:
+        _console.print("[bold red]error[/bold red] alias already exists")
+        return
+    
+    _aliases.update({alias_name: command_name})
+
+    _console.print(f"successfully set alias: [cyan]{alias_name}[/cyan] -> [cyan]{command_name}[/cyan]")
+
+
+def _cmd_alias_get(args: Namespace) -> None:
+    """
+    Get an existing alias in this CLI.
+    """
+    alias_name = args.alias_name
+
+    global _console
+    global _aliases
+
+    cmd = _aliases.get(alias_name)
+    if cmd is None:
+        _console.print("[bold red]error[/bold red] alias not set")
+        return
+    else:
+        _console.print(f"alias [cyan]{alias_name}[/cyan] -> [cyan]{cmd}[/cyan]")
+
+
+def _cmd_alias_list(args: Namespace) -> None:
+    """
+    List all current aliases in this CLI.
+    """
+    global _console
+    global _aliases
+
+    _console.print(f"found {len(_aliases)} aliases")
+    for alias in _aliases:
+        cmd = _aliases.get(alias)
+        _console.print(f"[cyan]{alias}[/cyan] -> [cyan]{cmd}[/cyan]")
+
+
+Command = Callable[[Namespace], None]
+
+_commands: dict[str, Command] = {
+    "ping": _cmd_ping,
+    "p": _cmd_ping,
+    "login": _cmd_login,
+    "l": _cmd_login,
+    "refresh": _cmd_refresh,
+    "r": _cmd_refresh,
+    "logout": _cmd_logout,
+    "lo": _cmd_logout,
+    "whoami": _cmd_whoami,
+    "me": _cmd_whoami,
+    "rfc-list": _cmd_rfc_list,
+    "rfc-l": _cmd_rfc_list,
+    "rfc-get": _cmd_rfc_get,
+    "rfc-g": _cmd_rfc_get,
+    "rfc-post": _cmd_rfc_post,
+    "rfc-p": _cmd_rfc_post,
+    "rfc-delete": _cmd_rfc_delete,
+    "rfc-d": _cmd_rfc_delete,
+    "rfc-quarantine-list": _cmd_rfc_quarantine_list,
+    "rfc-ql": _cmd_rfc_quarantine_list,
+    "rfc-quarantine-delete": _cmd_rfc_quarantine_delete,
+    "rfc-qd": _cmd_rfc_quarantine_delete,
+    "rfc-quarantine-post": _cmd_rfc_quarantine_post,
+    "rfc-qp": _cmd_rfc_quarantine_post,
+    "comment-list": _cmd_comment_list,
+    "com-l": _cmd_comment_list,
+    "comment-get": _cmd_comment_get,
+    "com-g": _cmd_comment_get,
+    "comment-post": _cmd_comment_post,
+    "com-p": _cmd_comment_post,
+    "comment-delete": _cmd_comment_delete,
+    "com-d": _cmd_comment_delete,
+    "comment-quarantine-list": _cmd_comment_quarantine_list,
+    "com-ql": _cmd_comment_quarantine_list,
+    "comment-quarantine-delete": _cmd_comment_quarantine_delete,
+    "com-qd": _cmd_comment_quarantine_delete,
+    "comment-quarantine-post": _cmd_comment_quarantine_post,
+    "com-qp": _cmd_comment_quarantine_post,
+    "revision-list": _cmd_revision_list,
+    "rev-l": _cmd_revision_list,
+    "revision-get": _cmd_revision_get,
+    "rev-g": _cmd_revision_get,
+    "revision-post": _cmd_revision_post,
+    "rev-p": _cmd_revision_post,
+    "alias-set": _cmd_alias_set,
+    "as": _cmd_alias_set,
+    "alias-get": _cmd_alias_get,
+    "ag": _cmd_alias_get,
+    "alias-list": _cmd_alias_list,
+    "al": _cmd_alias_list,
+}
+
+_aliases: dict[str, str] = {}
+
+
 def _print_comment(comment: CommentThread) -> None:
     """
     Pretty print a comment and its replies.
@@ -1649,57 +1823,12 @@ def _run_repl() -> None:
     Enter the client REPL.
     """
     global _console
+    global _commands
     _console.print(_get_preamble())
-
-    commands = {
-        "ping": _cmd_ping,
-        "p": _cmd_ping,
-        "login": _cmd_login,
-        "l": _cmd_login,
-        "refresh": _cmd_refresh,
-        "r": _cmd_refresh,
-        "logout": _cmd_logout,
-        "lo": _cmd_logout,
-        "whoami": _cmd_whoami,
-        "me": _cmd_whoami,
-        "rfc-list": _cmd_rfc_list,
-        "rfc-l": _cmd_rfc_list,
-        "rfc-get": _cmd_rfc_get,
-        "rfc-g": _cmd_rfc_get,
-        "rfc-post": _cmd_rfc_post,
-        "rfc-p": _cmd_rfc_post,
-        "rfc-delete": _cmd_rfc_delete,
-        "rfc-d": _cmd_rfc_delete,
-        "rfc-quarantine-list": _cmd_rfc_quarantine_list,
-        "rfc-ql": _cmd_rfc_quarantine_list,
-        "rfc-quarantine-delete": _cmd_rfc_quarantine_delete,
-        "rfc-qd": _cmd_rfc_quarantine_delete,
-        "rfc-quarantine-post": _cmd_rfc_quarantine_post,
-        "rfc-qp": _cmd_rfc_quarantine_post,
-        "comment-list": _cmd_comment_list,
-        "com-l": _cmd_comment_list,
-        "comment-get": _cmd_comment_get,
-        "com-g": _cmd_comment_get,
-        "comment-post": _cmd_comment_post,
-        "com-p": _cmd_comment_post,
-        "comment-delete": _cmd_comment_delete,
-        "com-d": _cmd_comment_delete,
-        "comment-quarantine-list": _cmd_comment_quarantine_list,
-        "com-ql": _cmd_comment_quarantine_list,
-        "comment-quarantine-delete": _cmd_comment_quarantine_delete,
-        "com-qd": _cmd_comment_quarantine_delete,
-        "comment-quarantine-post": _cmd_comment_quarantine_post,
-        "com-qp": _cmd_comment_quarantine_post,
-        "revision-list": _cmd_revision_list,
-        "rev-l": _cmd_revision_list,
-        "revision-get": _cmd_revision_get,
-        "rev-g": _cmd_revision_get,
-        "revision-post": _cmd_revision_post,
-        "rev-p": _cmd_revision_post,
-    }
 
     running = True
     while running:
+        global _aliases
         user_input = _console.input(
             prompt=_get_prompt()
         )
@@ -1712,8 +1841,15 @@ def _run_repl() -> None:
             parser.print_help()
         else:
             try:
-                args = parser.parse_args(shlex.split(user_input))
-                handler = commands.get(args.command)
+                input_args = shlex.split(user_input)
+                cmd = input_args[0]
+                if cmd in _aliases:
+                    if len(input_args) > 1:
+                        input_args = [_aliases.get(cmd)] + input_args[1:] # type: ignore
+                    else:
+                        input_args = [_aliases.get(cmd)] # type: ignore
+                args = parser.parse_args(input_args)
+                handler = _commands.get(args.command)
                 if handler:
                     handler(args)
                 else:
