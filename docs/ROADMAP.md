@@ -6,18 +6,9 @@ Current repository state:
 - CLI client is implemented
 - React frontend exists in `frontend/`
 - email verification, revisions, threaded comments, and quarantine routes all exist in code
-- `mdrfc setup` still only prints `TODO`
+- `mdrfc setup` validates backend env vars, checks database connectivity, and applies migrations
 
 ## High Priority
-
-### Finish `mdrfc setup`
-
-There is already a top-level CLI command for setup, but it is not wired up yet. It should eventually handle the current manual bootstrap steps:
-
-- validating `.env`
-- checking database connectivity
-- applying Alembic migrations
-- optionally creating local dev defaults
 
 ### Clean up the migration chain
 

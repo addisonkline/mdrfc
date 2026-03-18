@@ -1,10 +1,5 @@
 import argparse
 
-from mdrfc.client import run_client
-from mdrfc.server import run_server
-from mdrfc.version import print_version
-from mdrfc.setup.run_setup import run_setup_sync
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -13,7 +8,7 @@ def main() -> None:
         description="A server implementation for hosting Markdown-formatted RFCs",
         epilog="Copyright (c) 2026 Addison Kline (GitHub: @addisonkline)"
     )
-    subparsers = parser.add_subparsers(title="commands")
+    subparsers = parser.add_subparsers(title="commands", dest="command")
 
     # set up this environment
     setup_desc = "initialize this environment for MDRFC"
@@ -29,7 +24,11 @@ def main() -> None:
         action="store_true",
         help="print more detailed process information to the console"
     )
-    setup_parser.set_defaults(func=run_setup_sync)
+    setup_parser.add_argument(
+        "--dev-defaults",
+        action="store_true",
+        help="write missing local-development defaults to .env before validation"
+    )
 
     # spin up server
     serve_desc = "run an MDRFC server"
@@ -78,7 +77,6 @@ def main() -> None:
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="the minimum log level to write to the console (default: 'INFO')"
     )
-    serve_parser.set_defaults(func=run_server)
 
     # launch CLI client
     client_desc = "connect to a remote server with a CLI client"
@@ -104,7 +102,6 @@ def main() -> None:
         action="store_true",
         help="do not load defaults from mdrfc_client.config"
     )
-    client_parser.set_defaults(func=run_client)
 
     # get software version
     version_desc = "get the software version and exit"
@@ -120,14 +117,34 @@ def main() -> None:
         action="store_true",
         help="include more detailed software information"
     )
-    version_parser.set_defaults(func=print_version)
     
     args = parser.parse_args()
 
-    try:
-        args.func(args)
-        exit(0)
-    except AttributeError:
+    command = getattr(args, "command", None)
+    if command is None:
         parser.print_usage()
         print("try `mdrfc --help` for help")
         exit(1)
+
+    if command == "setup":
+        from mdrfc.setup.run_setup import run_setup_sync
+
+        run_setup_sync(args)
+    elif command == "serve":
+        from mdrfc.server import run_server
+
+        run_server(args)
+    elif command == "client":
+        from mdrfc.client import run_client
+
+        run_client(args)
+    elif command == "version":
+        from mdrfc.version import print_version
+
+        print_version(args)
+    else:
+        parser.print_usage()
+        print("try `mdrfc --help` for help")
+        exit(1)
+
+    exit(0)

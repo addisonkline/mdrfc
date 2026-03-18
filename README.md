@@ -32,16 +32,24 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true
 ```
 
+You can also seed the local-development defaults first:
+
+```bash
+uv run mdrfc setup --dev-defaults
+```
+
+That writes missing local values for `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, and `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN`. You still need to provide `DATABASE_URL`.
+
 Generate a secret key with:
 
 ```bash
 openssl rand -hex 32
 ```
 
-3. Apply the database migrations:
+3. Run setup:
 
 ```bash
-uv run alembic upgrade head
+uv run mdrfc setup
 ```
 
 4. Start the backend:
@@ -95,7 +103,6 @@ You can also set:
 
 ## Notes
 
-- `mdrfc setup` exists in the CLI but is still a placeholder.
 - The Python server does not serve the frontend bundle directly; the frontend is a separate app in [`frontend/`](frontend/).
 
 ## Documentation

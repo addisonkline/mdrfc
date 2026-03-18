@@ -44,10 +44,18 @@ Optional email and policy settings:
 
 ## Database and Startup
 
-Apply the migrations:
+Run setup:
 
 ```bash
-uv run alembic upgrade head
+uv run mdrfc setup
+```
+
+The setup command validates the backend environment, checks database connectivity, and applies Alembic migrations to `head`.
+
+If you want it to write the missing local-development defaults first, use:
+
+```bash
+uv run mdrfc setup --dev-defaults
 ```
 
 Start the API:

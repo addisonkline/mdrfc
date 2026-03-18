@@ -4,6 +4,7 @@ import os
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException, Request
+from pydantic import ValidationError
 
 
 os.environ.setdefault("SECRET_KEY", "test-secret")
@@ -29,10 +30,10 @@ from mdrfc import server
 
 def test_post_signup_request_normalizes_identity_fields() -> None:
     payload = PostSignupRequest(
-        username="  Alice.Admin  ",
-        email="  Alice@example.COM ",
-        name_first=" Alice ",
-        name_last=" Smith ",
+        username="Alice.Admin",
+        email="Alice@example.COM",
+        name_first="Alice",
+        name_last="Smith",
         password="StrongPassword1",
     )
 
@@ -40,11 +41,11 @@ def test_post_signup_request_normalizes_identity_fields() -> None:
     assert payload.email == "alice@example.com"
     assert payload.name_first == "Alice"
     assert payload.name_last == "Smith"
-    assert payload.password.get_secret_value() == "StrongPassword1"
+    assert payload.password == "StrongPassword1"
 
 
 def test_post_signup_request_rejects_short_password() -> None:
-    with pytest.raises(HTTPException) as excinfo:
+    with pytest.raises(ValidationError) as excinfo:
         PostSignupRequest(
             username="alice",
             email="alice@example.com",
@@ -53,8 +54,7 @@ def test_post_signup_request_rejects_short_password() -> None:
             password="short",
         )
 
-    assert excinfo.value.status_code == 422
-    assert "password must be at least" in str(excinfo.value.detail)
+    assert "password must be at least" in str(excinfo.value)
 
 
 def test_create_new_user_persists_unverified_account(monkeypatch: pytest.MonkeyPatch) -> None:

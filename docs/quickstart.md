@@ -39,13 +39,19 @@ openssl rand -hex 32
 
 For local development, `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true` is the simplest option because it skips SMTP delivery and returns the verification token directly from `POST /signup`.
 
-## 4. Run the Database Migrations
+If you want the CLI to seed the local-development defaults first, run:
 
 ```bash
-uv run alembic upgrade head
+uv run mdrfc setup --dev-defaults
 ```
 
-`mdrfc setup` is not ready yet, so Alembic is the current setup path.
+That fills in missing values for `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, and `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN`. You still need to set `DATABASE_URL`.
+
+## 4. Run Setup
+
+```bash
+uv run mdrfc setup
+```
 
 ## 5. Start the Backend
 
