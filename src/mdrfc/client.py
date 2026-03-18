@@ -15,6 +15,7 @@ from rich.text import Text
 from rich.style import Style
 
 from mdrfc.backend.comment import CommentThread
+from mdrfc.config import MDRFCClientConfig
 import mdrfc.responses as res_types
 from mdrfc.backend.auth import Token, User
 from mdrfc.utils.version import get_mdrfc_version
@@ -24,6 +25,7 @@ import shlex
 
 dotenv.load_dotenv()
 
+_config = MDRFCClientConfig()
 
 _url: str = None # type: ignore
 _username: str = "{unknown}"
@@ -1753,7 +1755,9 @@ _commands: dict[str, Command] = {
     "al": _cmd_alias_list,
 }
 
-_aliases: dict[str, str] = {}
+_aliases: dict[str, str] = {
+    item.alias: item.command for item in _config.aliases
+}
 
 
 def _print_comment(comment: CommentThread) -> None:
@@ -1865,9 +1869,12 @@ def _validate_url(url: str) -> None:
     """
     Exit if the provided URL is not valid.
     """
+    global _console
+
     split = urlsplit(url)
     if split.netloc == "":
-        print("error: invalid URL")
+        _console.print("[bold red]error[/bold red] invalid URL")
+        _console.print("exiting")
         exit(1)
 
 
@@ -1919,6 +1926,26 @@ def _login_on_startup() -> None:
     _token = response_obj.access_token
 
 
+def _init_client_config() -> None:
+    """
+    Initialize the config from `mdrfc_client.config` if desired.
+    """
+    global _console
+    global _config
+    global _aliases
+
+    with open("mdrfc_client.config") as cfg_file:
+        contents = cfg_file.read()
+        obj = json.loads(contents)
+        try:
+            _config = MDRFCClientConfig.model_validate(obj)
+            _aliases = {item.alias: item.command for item in _config.aliases}
+        except ValidationError as e:
+            _console.print(f"[bold red]error[/bold red] client config validation failed: {e}")
+            _console.print("exiting")
+            exit(1)
+
+
 def run_client(
     args: Namespace
 ) -> None:
@@ -1934,6 +1961,8 @@ def run_client(
 
     print(f"connecting to {url}...")
 
+    if not args.no_config:
+        _init_client_config()
     if not args.no_login:
         _login_on_startup()
     _run_repl()

@@ -98,6 +98,12 @@ def main() -> None:
         action="store_true",
         help="do not attempt to log in upon startup"
     )
+    client_parser.add_argument(
+        "-nc",
+        "--no-config",
+        action="store_true",
+        help="do not load defaults from mdrfc_client.config"
+    )
     client_parser.set_defaults(func=run_client)
 
     # get software version
