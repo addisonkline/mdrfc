@@ -11,12 +11,13 @@
     - [RFC Comments](#rfc-comments)
     - [RFC Revisions](#rfc-revisions)
     - [Users](#users)
+  - [Client Interfacing](#client-interfacing)
   - [Acknowledgements](#acknowledgements)
   - [References](#references)
 
 ## Version
 
-0.1.0 (March 12, 2026)
+0.2.0 (March 18, 2026)
 
 ## Abstract
 
@@ -103,6 +104,10 @@ An MDRFC user is an authorized client for a given server with permission to post
   "created_at": datetime
 }
 ```
+
+## Client Interfacing
+
+
 
 ## Acknowledgements
 

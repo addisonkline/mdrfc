@@ -645,6 +645,8 @@ def _cmd_refresh(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
+    
+    _token = response_obj.access_token
     if args.verbose:
         _console.print(f"[bold]token[/bold]: {response_obj.access_token}")
         _console.print(f"[bold]type[/bold]: {response_obj.token_type}")
