@@ -1,4 +1,6 @@
-# `DELETE /rfc/{rfc_id}/comment/{comment_id}`
+# `DELETE /rfcs/{rfc_id}/comments/{comment_id}`
+
+Deprecated alias: `DELETE /rfc/{rfc_id}/comment/{comment_id}`.
 
 Quarantines a comment. This is a soft delete, not a permanent delete.
 

@@ -83,7 +83,7 @@ def test_delete_rfc_route_passes_reason_query_to_api(
     monkeypatch.setattr(server.api, "delete_rfc", fake_delete_rfc)
 
     response = client.delete(
-        "/rfc/11",
+        "/rfcs/11",
         params={"reason": "RFC violates moderation policy."},
     )
 
@@ -95,7 +95,7 @@ def test_delete_rfc_route_passes_reason_query_to_api(
 
 
 def test_get_quarantined_comments_requires_authentication(client) -> None:
-    response = client.get("/rfc/11/comments/quarantined")
+    response = client.get("/rfcs/11/comments/quarantined")
 
     assert response.status_code == 401
 
@@ -118,7 +118,7 @@ def test_get_quarantined_comments_calls_api_for_admin(
         server.api, "get_rfc_comments_quarantined", fake_get_rfc_comments_quarantined
     )
 
-    response = client.get("/rfc/11/comments/quarantined")
+    response = client.get("/rfcs/11/comments/quarantined")
 
     assert response.status_code == 200
     assert response.json()["metadata"] == {"admin": True}
@@ -145,7 +145,7 @@ def test_delete_quarantined_comment_calls_api_for_admin(
         fake_delete_rfc_comment_quarantined,
     )
 
-    response = client.delete("/rfc/11/comments/quarantined/4")
+    response = client.delete("/rfcs/11/comments/quarantined/4")
 
     assert response.status_code == 200
     assert response.json()["metadata"] == {"deleted": True}
@@ -170,7 +170,7 @@ def test_unquarantine_comment_calls_api_for_admin(
         server.api, "post_rfc_comment_quarantined", fake_post_rfc_comment_quarantined
     )
 
-    response = client.post("/rfc/11/comments/quarantined/4")
+    response = client.post("/rfcs/11/comments/quarantined/4")
 
     assert response.status_code == 200
     assert response.json()["metadata"] == {"restored": True}
@@ -192,7 +192,7 @@ def test_get_rfc_comments_returns_api_payload(
 
     monkeypatch.setattr(server.api, "get_rfc_comments", fake_get_rfc_comments)
 
-    response = client.get("/rfc/11/comments")
+    response = client.get("/rfcs/11/comments")
 
     assert response.status_code == 200
     assert response.json()["comment_threads"][0]["id"] == 4
@@ -224,7 +224,7 @@ def test_delete_comment_route_passes_reason_query_to_api(
     monkeypatch.setattr(server.api, "delete_rfc_comment", fake_delete_rfc_comment)
 
     response = client.delete(
-        "/rfc/11/comment/4",
+        "/rfcs/11/comments/4",
         params={"reason": "Comment violates moderation policy."},
     )
 

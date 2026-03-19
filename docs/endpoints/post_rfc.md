@@ -1,4 +1,6 @@
-# `POST /rfc`
+# `POST /rfcs`
+
+Deprecated alias: `POST /rfc`.
 
 Creates a new RFC document.
 

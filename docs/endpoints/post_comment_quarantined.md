@@ -1,4 +1,6 @@
-# `POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`
+# `POST /rfcs/{rfc_id}/comments/quarantined/{quarantine_id}`
+
+Deprecated alias: `POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`.
 
 Restores a quarantined comment.
 

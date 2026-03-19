@@ -113,7 +113,7 @@ async def post_rfc(
     user: User, request: req_types.PostRfcRequest
 ) -> res_types.PostRfcResponse:
     """
-    Handle a request to the endpoint `POST /rfc`.
+    Handle a request to the endpoint `POST /rfcs`.
     """
     timestamp = datetime.now(timezone.utc)
 
@@ -146,7 +146,7 @@ async def get_rfc(
     current_user: User | None,
 ) -> res_types.GetRfcResponse:
     """
-    Handle a request to the endpoint `GET /rfc/{rfc_id}`.
+    Handle a request to the endpoint `GET /rfcs/{rfc_id}`.
     """
     document = await get_rfc_from_db(rfc_id)
 
@@ -184,7 +184,7 @@ async def get_rfc_revisions(
     current_user: User | None,
 ) -> res_types.GetRfcRevisionsResponse:
     """
-    Handle a request to the endpoint `GET /rfc/{rfc_id}/revs`.
+    Handle a request to the endpoint `GET /rfcs/{rfc_id}/revs`.
     """
     rfc = await get_rfc_from_db(rfc_id)
     if rfc is None:
@@ -209,7 +209,7 @@ async def get_rfc_revision(
     rfc_id: int, revision_id: str, current_user: User | None
 ) -> res_types.GetRfcRevisionResponse:
     """
-    Handle a request to the endpoint `GET /rfc/{rfc_id}/rev/{revision_id}`.
+    Handle a request to the endpoint `GET /rfcs/{rfc_id}/revs/{revision_id}`.
     """
     revision = await get_revision_from_db(
         rfc_id=rfc_id,
@@ -229,7 +229,7 @@ async def post_rfc_revision(
     rfc_id: int, user: User, request: req_types.PostRfcRevisionRequest
 ) -> res_types.PostRfcRevisionResponse:
     """
-    Handle a request to the endpoint `POST /rfc/{rfc_id}/rev`.
+    Handle a request to the endpoint `POST /rfcs/{rfc_id}/revs`.
     """
     timestamp = datetime.now(timezone.utc)
     rev_id = uuid.uuid4()
@@ -288,7 +288,7 @@ async def post_rfc_comment(
     rfc_id: int, user: User, request: req_types.PostRfcCommentRequest
 ) -> res_types.PostRfcCommentResponse:
     """
-    Handle a request to the endpoint `POST /rfc/comment`.
+    Handle a request to the endpoint `POST /rfcs/{rfc_id}/comments`.
     """
     timestamp = datetime.now(timezone.utc)
 
@@ -313,7 +313,7 @@ async def get_rfc_comments(
     current_user: User | None,
 ) -> res_types.GetRfcCommentsResponse:
     """
-    Handle a request to the endpoint `GET /rfc/{rfc_id}/comments`.
+    Handle a request to the endpoint `GET /rfcs/{rfc_id}/comments`.
     """
     rfc = await get_rfc_from_db(rfc_id)
     if rfc is None:
@@ -379,7 +379,7 @@ async def get_rfc_comment(
     current_user: User | None,
 ) -> res_types.GetRfcCommentResponse:
     """
-    Handle a request to the endpoint `GET /rfc/{rfc_id}/comment/{comment_id}`.
+    Handle a request to the endpoint `GET /rfcs/{rfc_id}/comments/{comment_id}`.
     """
     rfc = await get_rfc_from_db(rfc_id)
     if rfc is None:
@@ -410,7 +410,7 @@ async def delete_rfc_comment(
     user: User,
 ) -> res_types.DeleteRfcCommentResponse:
     """
-    Handle a request to the endpoint `DELETE /rfc/{rfc_id}/comment/{comment_id}`.
+    Handle a request to the endpoint `DELETE /rfcs/{rfc_id}/comments/{comment_id}`.
     """
     await quarantine_comment_in_db(
         rfc_id=rfc_id, comment_id=comment_id, reason=reason, user=user

@@ -1,4 +1,6 @@
-# `GET /rfc/{rfc_id}/comment/{comment_id}`
+# `GET /rfcs/{rfc_id}/comments/{comment_id}`
+
+Deprecated alias: `GET /rfc/{rfc_id}/comment/{comment_id}`.
 
 Returns a single comment thread node. The response includes that comment and any nested replies below it.
 

@@ -7,7 +7,7 @@ import logging
 import time
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Depends, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 import uvicorn
 
@@ -85,6 +85,48 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 signup_rate_limiter = SlidingWindowRateLimiter()
+
+DEPRECATED_ROUTE_REPLACEMENTS = {
+    "/rfc": "/rfcs",
+    "/rfc/{rfc_id}/rev/current": "/rfcs/{rfc_id}",
+    "/rfc/{rfc_id}": "/rfcs/{rfc_id}",
+    "/rfc/{rfc_id}/revs": "/rfcs/{rfc_id}/revs",
+    "/rfc/{rfc_id}/rev/{rev_id}": "/rfcs/{rfc_id}/revs/{rev_id}",
+    "/rfc/{rfc_id}/rev": "/rfcs/{rfc_id}/revs",
+    "/rfc/{rfc_id}/comment": "/rfcs/{rfc_id}/comments",
+    "/rfc/{rfc_id}/comments": "/rfcs/{rfc_id}/comments",
+    "/rfc/{rfc_id}/comments/quarantined": "/rfcs/{rfc_id}/comments/quarantined",
+    "/rfc/{rfc_id}/comments/quarantined/{quarantine_id}": "/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
+    "/rfc/{rfc_id}/comment/{comment_id}": "/rfcs/{rfc_id}/comments/{comment_id}",
+}
+
+
+def _format_route_path(path_template: str, path_params: dict[str, object]) -> str:
+    path = path_template
+    for key, value in path_params.items():
+        path = path.replace(f"{{{key}}}", str(value))
+    return path
+
+
+def _add_deprecation_headers(request: Request, response: Response) -> None:
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", None)
+    if route_path is None:
+        return
+
+    replacement_template = DEPRECATED_ROUTE_REPLACEMENTS.get(route_path)
+    if replacement_template is None:
+        return
+
+    replacement_path = _format_route_path(replacement_template, request.path_params)
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = f'<{replacement_path}>; rel="alternate"'
+    logger.warning(
+        "deprecated endpoint requested: %s %s -> %s",
+        request.method,
+        request.url.path,
+        replacement_path,
+    )
 
 
 @app.get("/", response_model=res_types.GetRootResponse)
@@ -271,51 +313,69 @@ async def unquarantine_rfc(
     current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.PostQuarantinedRfcResponse:
     """
-    `POST /rfc/{rfc_id}/unquarantine`: Republish a quarantined RFC.
+    `POST /rfcs/quarantined/{quarantine_id}`: Republish a quarantined RFC.
     """
     return await api.post_rfc_quarantined(quarantine_id=quarantine_id)
 
 
-@app.post("/rfc", response_model=res_types.PostRfcResponse)
+@app.post("/rfc", response_model=res_types.PostRfcResponse, deprecated=True)
+@app.post("/rfcs", response_model=res_types.PostRfcResponse)
 async def post_rfc(
+    http_request: Request,
+    response: Response,
     request: Annotated[
         req_types.PostRfcRequest, Depends(req_types.validate_post_rfc_request)
     ],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.PostRfcResponse:
     """
-    `POST /rfc`: Upload a new RFC document.
+    `POST /rfcs`: Upload a new RFC document.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.post_rfc(
         user=current_user,
         request=request,
     )
 
 
-@app.get("/rfc/{rfc_id}/rev/current", response_model=res_types.GetRfcResponse)
-@app.get("/rfc/{rfc_id}", response_model=res_types.GetRfcResponse)
+@app.get(
+    "/rfc/{rfc_id}/rev/current",
+    response_model=res_types.GetRfcResponse,
+    deprecated=True,
+)
+@app.get("/rfc/{rfc_id}", response_model=res_types.GetRfcResponse, deprecated=True)
+@app.get("/rfcs/{rfc_id}")
 async def get_rfc_by_id(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcResponse:
     """
-    `GET /rfc/{rfc_id}`: Get the existing RFC document by ID.
+    `GET /rfcs/{rfc_id}`: Get the existing RFC document by ID.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.get_rfc(
         rfc_id=rfc_id,
         current_user=current_user,
     )
 
 
-@app.delete("/rfc/{rfc_id}", response_model=res_types.DeleteRfcResponse)
+@app.delete(
+    "/rfc/{rfc_id}", response_model=res_types.DeleteRfcResponse, deprecated=True
+)
+@app.delete("/rfcs/{rfc_id}", response_model=res_types.DeleteRfcResponse)
 async def quarantine_rfc(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     reason: Annotated[str, Depends(validate_quarantine_rfc_reason)],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.DeleteRfcResponse:
     """
-    `DELETE /rfc/{rfc_id}`: Delete an existing RFC (soft delete; add to quarantine).
+    `DELETE /rfcs/{rfc_id}`: Delete an existing RFC (soft delete; add to quarantine).
     """
+    _add_deprecation_headers(http_request, response)
     return await api.delete_rfc(
         rfc_id=rfc_id,
         reason=reason,
@@ -326,33 +386,58 @@ async def quarantine_rfc(
 #
 # REVISION endpoints
 #
-@app.get("/rfc/{rfc_id}/revs", response_model=res_types.GetRfcRevisionsResponse)
+@app.get(
+    "/rfc/{rfc_id}/revs",
+    response_model=res_types.GetRfcRevisionsResponse,
+    deprecated=True,
+)
+@app.get("/rfcs/{rfc_id}/revs", response_model=res_types.GetRfcRevisionsResponse)
 async def get_rfc_revisions(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcRevisionsResponse:
     """
-    `GET /rfc/{rfc_id}/revs`: Get all revisions for the given RFC.
+    `GET /rfcs/{rfc_id}/revs`: Get all revisions for the given RFC.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.get_rfc_revisions(rfc_id=rfc_id, current_user=current_user)
 
 
-@app.get("/rfc/{rfc_id}/rev/{rev_id}", response_model=res_types.GetRfcRevisionResponse)
+@app.get(
+    "/rfc/{rfc_id}/rev/{rev_id}",
+    response_model=res_types.GetRfcRevisionResponse,
+    deprecated=True,
+)
+@app.get(
+    "/rfcs/{rfc_id}/revs/{rev_id}", response_model=res_types.GetRfcRevisionResponse
+)
 async def get_rfc_revision(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     rev_id: str,
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcRevisionResponse:
     """
-    `GET /rfc/{rfc_id}/rev/{rev_id}`: Get a specific revision by ID for the given RFC.
+    `GET /rfcs/{rfc_id}/revs/{rev_id}`: Get a specific revision by ID for the given RFC.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.get_rfc_revision(
         rfc_id=rfc_id, revision_id=rev_id, current_user=current_user
     )
 
 
-@app.post("/rfc/{rfc_id}/rev", response_model=res_types.PostRfcRevisionResponse)
+@app.post(
+    "/rfc/{rfc_id}/rev",
+    response_model=res_types.PostRfcRevisionResponse,
+    deprecated=True,
+)
+@app.post("/rfcs/{rfc_id}/revs", response_model=res_types.PostRfcRevisionResponse)
 async def post_rfc_revision(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     current_user: Annotated[User, Depends(get_current_active_user)],
     request: Annotated[
@@ -361,8 +446,9 @@ async def post_rfc_revision(
     ],
 ) -> res_types.PostRfcRevisionResponse:
     """
-    `POST /rfc/{rfc_id}/rev`: Update an existing RFC with a new revision.
+    `POST /rfcs/{rfc_id}/revs`: Update an existing RFC with a new revision.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.post_rfc_revision(
         rfc_id=rfc_id, user=current_user, request=request
     )
@@ -371,8 +457,15 @@ async def post_rfc_revision(
 #
 # COMMENT endpoints
 #
-@app.post("/rfc/{rfc_id}/comment", response_model=res_types.PostRfcCommentResponse)
+@app.post(
+    "/rfc/{rfc_id}/comment",
+    response_model=res_types.PostRfcCommentResponse,
+    deprecated=True,
+)
+@app.post("/rfcs/{rfc_id}/comments", response_model=res_types.PostRfcCommentResponse)
 async def post_rfc_comment(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     request: Annotated[
         req_types.PostRfcCommentRequest,
@@ -381,47 +474,73 @@ async def post_rfc_comment(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.PostRfcCommentResponse:
     """
-    `POST /rfc/comment`: Post a new comment on an existing RFC.
+    `POST /rfcs/{rfc_id}/comments`: Post a new comment on an existing RFC.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.post_rfc_comment(rfc_id=rfc_id, user=current_user, request=request)
 
 
-@app.get("/rfc/{rfc_id}/comments", response_model=res_types.GetRfcCommentsResponse)
+@app.get(
+    "/rfc/{rfc_id}/comments",
+    response_model=res_types.GetRfcCommentsResponse,
+    deprecated=True,
+)
+@app.get("/rfcs/{rfc_id}/comments", response_model=res_types.GetRfcCommentsResponse)
 async def get_rfc_comments(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcCommentsResponse:
     """
-    `GET /rfc/{rfc_id}/comments`: Get all comments on an existing RFC.
+    `GET /rfcs/{rfc_id}/comments`: Get all comments on an existing RFC.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.get_rfc_comments(rfc_id=rfc_id, current_user=current_user)
 
 
 @app.get(
     "/rfc/{rfc_id}/comments/quarantined",
     response_model=res_types.GetQuarantinedCommentsResponse,
+    deprecated=True,
+)
+@app.get(
+    "/rfcs/{rfc_id}/comments/quarantined",
+    response_model=res_types.GetQuarantinedCommentsResponse,
 )
 async def get_quarantined_comments(
-    rfc_id: int, current_admin: Annotated[User, Depends(get_current_active_admin)]
+    http_request: Request,
+    response: Response,
+    rfc_id: int,
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.GetQuarantinedCommentsResponse:
     """
-    `GET /rfc/{rfc_id}/comments/quarantined`: Get a list of all quarantined comments on a given RFC.
+    `GET /rfcs/{rfc_id}/comments/quarantined`: Get a list of all quarantined comments on a given RFC.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.get_rfc_comments_quarantined(rfc_id=rfc_id)
 
 
 @app.delete(
     "/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
     response_model=res_types.DeleteQuarantinedCommentResponse,
+    deprecated=True,
+)
+@app.delete(
+    "/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
+    response_model=res_types.DeleteQuarantinedCommentResponse,
 )
 async def delete_comment(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     quarantine_id: int,
     current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.DeleteQuarantinedCommentResponse:
     """
-    `DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`: Fully delete a quarantined comment.
+    `DELETE /rfcs/{rfc_id}/comments/quarantined/{quarantine_id}`: Fully delete a quarantined comment.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.delete_rfc_comment_quarantined(
         rfc_id=rfc_id, quarantine_id=quarantine_id
     )
@@ -430,15 +549,23 @@ async def delete_comment(
 @app.post(
     "/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
     response_model=res_types.PostQuarantinedCommentResponse,
+    deprecated=True,
+)
+@app.post(
+    "/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
+    response_model=res_types.PostQuarantinedCommentResponse,
 )
 async def unquarantine_comment(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     quarantine_id: int,
     current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.PostQuarantinedCommentResponse:
     """
-    `POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`: Unquarantine and reupload a comment.
+    `POST /rfcs/{rfc_id}/comments/quarantined/{quarantine_id}`: Unquarantine and reupload a comment.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.post_rfc_comment_quarantined(
         rfc_id=rfc_id,
         quarantine_id=quarantine_id,
@@ -446,16 +573,25 @@ async def unquarantine_comment(
 
 
 @app.get(
-    "/rfc/{rfc_id}/comment/{comment_id}", response_model=res_types.GetRfcCommentResponse
+    "/rfc/{rfc_id}/comment/{comment_id}",
+    response_model=res_types.GetRfcCommentResponse,
+    deprecated=True,
+)
+@app.get(
+    "/rfcs/{rfc_id}/comments/{comment_id}",
+    response_model=res_types.GetRfcCommentResponse,
 )
 async def get_rfc_comment(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     comment_id: int,
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcCommentResponse:
     """
-    `GET /rfc/{rfc_id}/comment/{comment_id}`: Get a specific comment on a specific RFC.
+    `GET /rfcs/{rfc_id}/comments/{comment_id}`: Get a specific comment on a specific RFC.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.get_rfc_comment(
         rfc_id=rfc_id, comment_id=comment_id, current_user=current_user
     )
@@ -464,16 +600,24 @@ async def get_rfc_comment(
 @app.delete(
     "/rfc/{rfc_id}/comment/{comment_id}",
     response_model=res_types.DeleteRfcCommentResponse,
+    deprecated=True,
+)
+@app.delete(
+    "/rfcs/{rfc_id}/comments/{comment_id}",
+    response_model=res_types.DeleteRfcCommentResponse,
 )
 async def quarantine_comment(
+    http_request: Request,
+    response: Response,
     rfc_id: int,
     comment_id: int,
     reason: Annotated[str, Depends(validate_quarantine_comment_reason)],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> res_types.DeleteRfcCommentResponse:
     """
-    `DELETE /rfc/{rfc_id}/comment/{comment_id}`: Quarantine (soft-delete) an existing comment.
+    `DELETE /rfcs/{rfc_id}/comments/{comment_id}`: Quarantine (soft-delete) an existing comment.
     """
+    _add_deprecation_headers(http_request, response)
     return await api.delete_rfc_comment(
         rfc_id=rfc_id,
         comment_id=comment_id,

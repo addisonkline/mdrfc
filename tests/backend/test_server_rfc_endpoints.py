@@ -52,7 +52,7 @@ def test_get_quarantined_rfcs_returns_admin_payload(
 
 def test_post_rfc_requires_authentication(client) -> None:
     response = client.post(
-        "/rfc",
+        "/rfcs",
         json={
             "title": "Testing RFC",
             "slug": "testing-rfc",
@@ -88,7 +88,7 @@ def test_post_rfc_passes_validated_request_to_api(
     monkeypatch.setattr(server.api, "post_rfc", fake_post_rfc)
 
     response = client.post(
-        "/rfc",
+        "/rfcs",
         json={
             "title": "Testing RFC",
             "slug": "testing-rfc",
@@ -112,7 +112,7 @@ def test_post_rfc_rejects_invalid_payload(client, auth_overrides, user_factory) 
     auth_overrides(current_user=user_factory())
 
     response = client.post(
-        "/rfc",
+        "/rfcs",
         json={
             "title": "short",
             "slug": "bad",
@@ -142,11 +142,55 @@ def test_get_rfc_returns_api_payload(
 
     monkeypatch.setattr(server.api, "get_rfc", fake_get_rfc)
 
-    response = client.get("/rfc/11")
+    response = client.get("/rfcs/11")
 
     assert response.status_code == 200
     assert response.json()["rfc"]["id"] == 11
     assert response.json()["metadata"] == {"loaded": True}
+
+
+def test_legacy_get_rfc_sets_deprecation_headers(
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+    rfc_document_factory,
+) -> None:
+    async def fake_get_rfc(*, rfc_id, current_user):
+        assert rfc_id == 11
+        assert current_user is None
+        return res_types.GetRfcResponse(
+            rfc=rfc_document_factory(id=11, public=True),
+            metadata={"loaded": True},
+        )
+
+    monkeypatch.setattr(server.api, "get_rfc", fake_get_rfc)
+
+    response = client.get("/rfc/11")
+
+    assert response.status_code == 200
+    assert response.headers["deprecation"] == "true"
+    assert response.headers["link"] == '</rfcs/11>; rel="alternate"'
+
+
+def test_canonical_get_rfc_omits_deprecation_headers(
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+    rfc_document_factory,
+) -> None:
+    async def fake_get_rfc(*, rfc_id, current_user):
+        assert rfc_id == 11
+        assert current_user is None
+        return res_types.GetRfcResponse(
+            rfc=rfc_document_factory(id=11, public=True),
+            metadata={"loaded": True},
+        )
+
+    monkeypatch.setattr(server.api, "get_rfc", fake_get_rfc)
+
+    response = client.get("/rfcs/11")
+
+    assert response.status_code == 200
+    assert "deprecation" not in response.headers
+    assert "link" not in response.headers
 
 
 def test_post_rfc_revision_passes_nested_update_to_api(
@@ -175,7 +219,7 @@ def test_post_rfc_revision_passes_nested_update_to_api(
     monkeypatch.setattr(server.api, "post_rfc_revision", fake_post_rfc_revision)
 
     response = client.post(
-        "/rfc/9/rev",
+        "/rfcs/9/revs",
         json={
             "update": {
                 "title": "Updated RFC",
@@ -216,7 +260,7 @@ def test_post_rfc_comment_passes_validated_request_to_api(
     monkeypatch.setattr(server.api, "post_rfc_comment", fake_post_rfc_comment)
 
     response = client.post(
-        "/rfc/9/comment",
+        "/rfcs/9/comments",
         json={
             "parent_comment_id": None,
             "content": "This is a valid test comment.",
@@ -246,8 +290,84 @@ def test_get_rfc_comment_returns_api_payload(
 
     monkeypatch.setattr(server.api, "get_rfc_comment", fake_get_rfc_comment)
 
-    response = client.get("/rfc/11/comment/4")
+    response = client.get("/rfcs/11/comments/4")
 
     assert response.status_code == 200
     assert response.json()["comment"]["id"] == 4
     assert response.json()["metadata"] == {"loaded": True}
+
+
+def test_legacy_get_comment_sets_deprecation_headers(
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+    comment_factory,
+) -> None:
+    comment_thread = build_comment_threads([comment_factory(id=4, rfc_id=11)])[0]
+
+    async def fake_get_rfc_comment(*, rfc_id, comment_id, current_user):
+        assert (rfc_id, comment_id, current_user) == (11, 4, None)
+        return res_types.GetRfcCommentResponse(
+            comment=comment_thread,
+            metadata={"loaded": True},
+        )
+
+    monkeypatch.setattr(server.api, "get_rfc_comment", fake_get_rfc_comment)
+
+    response = client.get("/rfc/11/comment/4")
+
+    assert response.status_code == 200
+    assert response.headers["deprecation"] == "true"
+    assert response.headers["link"] == '</rfcs/11/comments/4>; rel="alternate"'
+
+
+@pytest.mark.parametrize(
+    ("path", "method"),
+    [
+        ("/rfc", "post"),
+        ("/rfc/{rfc_id}/rev/current", "get"),
+        ("/rfc/{rfc_id}", "get"),
+        ("/rfc/{rfc_id}", "delete"),
+        ("/rfc/{rfc_id}/revs", "get"),
+        ("/rfc/{rfc_id}/rev/{rev_id}", "get"),
+        ("/rfc/{rfc_id}/rev", "post"),
+        ("/rfc/{rfc_id}/comment", "post"),
+        ("/rfc/{rfc_id}/comments", "get"),
+        ("/rfc/{rfc_id}/comments/quarantined", "get"),
+        ("/rfc/{rfc_id}/comments/quarantined/{quarantine_id}", "delete"),
+        ("/rfc/{rfc_id}/comments/quarantined/{quarantine_id}", "post"),
+        ("/rfc/{rfc_id}/comment/{comment_id}", "get"),
+        ("/rfc/{rfc_id}/comment/{comment_id}", "delete"),
+    ],
+)
+def test_legacy_routes_are_marked_deprecated_in_openapi(path: str, method: str) -> None:
+    server.app.openapi_schema = None
+    schema = server.app.openapi()
+
+    assert schema["paths"][path][method]["deprecated"] is True
+
+
+@pytest.mark.parametrize(
+    ("path", "method"),
+    [
+        ("/rfcs", "post"),
+        ("/rfcs/{rfc_id}", "get"),
+        ("/rfcs/{rfc_id}", "delete"),
+        ("/rfcs/{rfc_id}/revs", "get"),
+        ("/rfcs/{rfc_id}/revs/{rev_id}", "get"),
+        ("/rfcs/{rfc_id}/revs", "post"),
+        ("/rfcs/{rfc_id}/comments", "post"),
+        ("/rfcs/{rfc_id}/comments", "get"),
+        ("/rfcs/{rfc_id}/comments/quarantined", "get"),
+        ("/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}", "delete"),
+        ("/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}", "post"),
+        ("/rfcs/{rfc_id}/comments/{comment_id}", "get"),
+        ("/rfcs/{rfc_id}/comments/{comment_id}", "delete"),
+    ],
+)
+def test_canonical_routes_are_not_marked_deprecated_in_openapi(
+    path: str, method: str
+) -> None:
+    server.app.openapi_schema = None
+    schema = server.app.openapi()
+
+    assert schema["paths"][path][method].get("deprecated") is not True

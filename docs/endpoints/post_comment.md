@@ -1,4 +1,6 @@
-# `POST /rfc/{rfc_id}/comment`
+# `POST /rfcs/{rfc_id}/comments`
+
+Deprecated alias: `POST /rfc/{rfc_id}/comment`.
 
 Creates a new comment on an RFC.
 

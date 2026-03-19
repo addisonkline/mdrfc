@@ -94,7 +94,7 @@ class PostQuarantinedRfcResponse(BaseModel):
 
 class PostRfcResponse(BaseModel):
     """
-    HTTP response object for `POST /rfc`.
+    HTTP response object for `POST /rfcs`.
     """
 
     rfc_id: int
@@ -104,7 +104,7 @@ class PostRfcResponse(BaseModel):
 
 class GetRfcResponse(BaseModel):
     """
-    HTTP response object for `GET /rfc/{rfc_id}`.
+    HTTP response object for `GET /rfcs/{rfc_id}`.
     """
 
     rfc: RFCDocument
@@ -113,7 +113,7 @@ class GetRfcResponse(BaseModel):
 
 class DeleteRfcResponse(BaseModel):
     """
-    HTTP response object for `DELETE /rfc/{rfc_id}`.
+    HTTP response object for `DELETE /rfcs/{rfc_id}`.
     """
 
     message: str
@@ -126,7 +126,7 @@ class DeleteRfcResponse(BaseModel):
 #
 class GetRfcRevisionsResponse(BaseModel):
     """
-    HTTP response object for `GET /rfc/{rfc_id}/revs`.
+    HTTP response object for `GET /rfcs/{rfc_id}/revs`.
     """
 
     revisions: list[RFCRevisionSummary]
@@ -135,7 +135,7 @@ class GetRfcRevisionsResponse(BaseModel):
 
 class GetRfcRevisionResponse(BaseModel):
     """
-    HTTP response object for `GET /rfc/{rfc_id}/rev/{rev_id}`.
+    HTTP response object for `GET /rfcs/{rfc_id}/revs/{rev_id}`.
     """
 
     revision: RFCRevision
@@ -144,7 +144,7 @@ class GetRfcRevisionResponse(BaseModel):
 
 class PostRfcRevisionResponse(BaseModel):
     """
-    HTTP response object for `POST /rfc/{rfc_id}/rev`.
+    HTTP response object for `POST /rfcs/{rfc_id}/revs`.
     """
 
     revision: RFCRevision
@@ -156,7 +156,7 @@ class PostRfcRevisionResponse(BaseModel):
 #
 class PostRfcCommentResponse(BaseModel):
     """
-    HTTP response object for `POST /rfc/comment`.
+    HTTP response object for `POST /rfcs/{rfc_id}/comments`.
     """
 
     comment_id: int
@@ -166,7 +166,7 @@ class PostRfcCommentResponse(BaseModel):
 
 class GetRfcCommentsResponse(BaseModel):
     """
-    HTTP response object for `GET /rfc/{rfc_id}/comments`.
+    HTTP response object for `GET /rfcs/{rfc_id}/comments`.
     """
 
     comment_threads: list[CommentThread]
@@ -175,7 +175,7 @@ class GetRfcCommentsResponse(BaseModel):
 
 class GetQuarantinedCommentsResponse(BaseModel):
     """
-    HTTP response object for `GET /rfc/{rfc_id}/comments/quarantined`.
+    HTTP response object for `GET /rfcs/{rfc_id}/comments/quarantined`.
     """
 
     quarantined_comments: list[QuarantinedComment]
@@ -184,7 +184,7 @@ class GetQuarantinedCommentsResponse(BaseModel):
 
 class DeleteQuarantinedCommentResponse(BaseModel):
     """
-    HTTP response object for `DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`.
+    HTTP response object for `DELETE /rfcs/{rfc_id}/comments/quarantined/{quarantine_id}`.
     """
 
     message: str
@@ -194,7 +194,7 @@ class DeleteQuarantinedCommentResponse(BaseModel):
 
 class PostQuarantinedCommentResponse(BaseModel):
     """
-    HTTP response object for `POST /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`.
+    HTTP response object for `POST /rfcs/{rfc_id}/comments/quarantined/{quarantine_id}`.
     """
 
     message: str
@@ -204,7 +204,7 @@ class PostQuarantinedCommentResponse(BaseModel):
 
 class GetRfcCommentResponse(BaseModel):
     """
-    HTTP response object for `GET /rfc/{rfc_id}/comment/{comment_id}`.
+    HTTP response object for `GET /rfcs/{rfc_id}/comments/{comment_id}`.
     """
 
     comment: CommentThread
@@ -213,7 +213,7 @@ class GetRfcCommentResponse(BaseModel):
 
 class DeleteRfcCommentResponse(BaseModel):
     """
-    HTTP response object for `DELETE /rfc/{rfc_id}/comment/{comment_id}`
+    HTTP response object for `DELETE /rfcs/{rfc_id}/comments/{comment_id}`
     """
 
     message: str

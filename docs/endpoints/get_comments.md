@@ -1,4 +1,6 @@
-# `GET /rfc/{rfc_id}/comments`
+# `GET /rfcs/{rfc_id}/comments`
+
+Deprecated alias: `GET /rfc/{rfc_id}/comments`.
 
 Returns the comment threads for one RFC.
 

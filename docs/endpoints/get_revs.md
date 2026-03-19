@@ -1,4 +1,6 @@
-# `GET /rfc/{rfc_id}/revs`
+# `GET /rfcs/{rfc_id}/revs`
+
+Deprecated alias: `GET /rfc/{rfc_id}/revs`.
 
 Returns revision summaries for one RFC.
 

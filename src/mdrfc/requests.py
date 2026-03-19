@@ -106,7 +106,7 @@ async def validate_post_rfc_request(request: Request) -> PostRfcRequest:
 
 class DeleteRfcRequest(BaseModel):
     """
-    HTTP request object for `DELETE /rfc/{rfc_id}`.
+    HTTP request object for `DELETE /rfcs/{rfc_id}`.
     """
 
     reason: Annotated[str, AfterValidator(validate_quarantine_rfc_reason)]
@@ -125,7 +125,7 @@ async def validate_delete_rfc_request(request: Request) -> DeleteRfcRequest:
 #
 class PostRfcRevisionRequest(BaseModel):
     """
-    HTTP request object for `POST /rfc/{rfc_id}/rev`.
+    HTTP request object for `POST /rfcs/{rfc_id}/revs`.
     """
 
     update: RFCRevisionRequest
@@ -147,7 +147,7 @@ async def validate_post_rfc_revision_request(
 #
 class PostRfcCommentRequest(BaseModel):
     """
-    HTTP request object for `POST /rfc/comment`.
+    HTTP request object for `POST /rfcs/{rfc_id}/comments`.
     """
 
     parent_comment_id: int | None

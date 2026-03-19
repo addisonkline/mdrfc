@@ -26,7 +26,7 @@ The backend has quarantine review, restore, and permanent-delete endpoints, but 
 
 ### Pagination and filtering
 
-`GET /rfcs` and `GET /rfc/{id}/comments` currently return full lists. Add pagination and server-side filtering before the dataset gets large.
+`GET /rfcs` and `GET /rfcs/{id}/comments` currently return full lists. Add pagination and server-side filtering before the dataset gets large.
 
 ### Search
 

@@ -1,8 +1,8 @@
-# `GET /rfc/{rfc_id}`
+# `GET /rfcs/{rfc_id}`
+
+Deprecated aliases: `GET /rfc/{rfc_id}`, `GET /rfc/{rfc_id}/rev/current`.
 
 Returns a full RFC document.
-
-`GET /rfc/{rfc_id}/rev/current` is an alias for the same handler and response shape.
 
 ## Auth
 

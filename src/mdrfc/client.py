@@ -645,7 +645,7 @@ def _cmd_refresh(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     _token = response_obj.access_token
     if args.verbose:
         _console.print(f"[bold]token[/bold]: {response_obj.access_token}")
@@ -773,7 +773,7 @@ def _cmd_rfc_get(args: Namespace) -> None:
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(url=f"{_url}/rfc/{args.id}", headers=headers)
+    response = httpx.get(url=f"{_url}/rfcs/{args.id}", headers=headers)
 
     if response.status_code != 200:
         _console.print(
@@ -842,7 +842,7 @@ def _cmd_rfc_post(args: Namespace) -> None:
 
     global _url
     response = httpx.post(
-        url=f"{_url}/rfc",
+        url=f"{_url}/rfcs",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
         json=body,
     )
@@ -885,7 +885,7 @@ def _cmd_rfc_delete(args: Namespace) -> None:
 
     global _url
     response = httpx.delete(
-        url=f"{_url}/rfc/{rfc_id}",
+        url=f"{_url}/rfcs/{rfc_id}",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
         params=query_params,
     )
@@ -1059,7 +1059,7 @@ def _cmd_comment_list(args: Namespace) -> None:
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(url=f"{_url}/rfc/{rfc_id}/comments", headers=headers)
+    response = httpx.get(url=f"{_url}/rfcs/{rfc_id}/comments", headers=headers)
 
     if response.status_code != 200:
         _console.print(
@@ -1099,7 +1099,7 @@ def _cmd_comment_get(args: Namespace) -> None:
         headers["Authorization"] = f"Bearer {_token}"
 
     response = httpx.get(
-        url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}", headers=headers
+        url=f"{_url}/rfcs/{rfc_id}/comments/{comment_id}", headers=headers
     )
 
     if response.status_code != 200:
@@ -1143,7 +1143,7 @@ def _cmd_comment_post(args: Namespace) -> None:
 
     global _url
     response = httpx.post(
-        url=f"{_url}/rfc/{rfc_id}/comment",
+        url=f"{_url}/rfcs/{rfc_id}/comments",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
         json=body,
     )
@@ -1183,7 +1183,7 @@ def _cmd_comment_delete(args: Namespace) -> None:
 
     global _url
     response = httpx.delete(
-        url=f"{_url}/rfc/{rfc_id}/comment/{comment_id}",
+        url=f"{_url}/rfcs/{rfc_id}/comments/{comment_id}",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
         params=query_params,
     )
@@ -1225,7 +1225,7 @@ def _cmd_comment_quarantine_list(args: Namespace) -> None:
 
     global _url
     response = httpx.get(
-        url=f"{_url}/rfc/{rfc_id}/comments/quarantined",
+        url=f"{_url}/rfcs/{rfc_id}/comments/quarantined",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
@@ -1278,7 +1278,7 @@ def _cmd_comment_quarantine_delete(args: Namespace) -> None:
 
     global _url
     response = httpx.delete(
-        url=f"{_url}/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
+        url=f"{_url}/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
@@ -1320,7 +1320,7 @@ def _cmd_comment_quarantine_post(args: Namespace) -> None:
 
     global _url
     response = httpx.post(
-        url=f"{_url}/rfc/{rfc_id}/comments/quarantined/{quarantine_id}",
+        url=f"{_url}/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
@@ -1363,7 +1363,7 @@ def _cmd_revision_list(args: Namespace) -> None:
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(url=f"{_url}/rfc/{rfc_id}/revs", headers=headers)
+    response = httpx.get(url=f"{_url}/rfcs/{rfc_id}/revs", headers=headers)
 
     if response.status_code != 200:
         _console.print(
@@ -1407,7 +1407,9 @@ def _cmd_revision_get(args: Namespace) -> None:
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(url=f"{_url}/rfc/{rfc_id}/rev/{revision_id}", headers=headers)
+    response = httpx.get(
+        url=f"{_url}/rfcs/{rfc_id}/revs/{revision_id}", headers=headers
+    )
 
     if response.status_code != 200:
         _console.print(
@@ -1493,7 +1495,7 @@ def _cmd_revision_post(args: Namespace) -> None:
 
     global _url
     response = httpx.post(
-        url=f"{_url}/rfc/{rfc_id}/rev",
+        url=f"{_url}/rfcs/{rfc_id}/revs",
         headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
         json=body,
     )

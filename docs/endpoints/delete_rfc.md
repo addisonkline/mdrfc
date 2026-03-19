@@ -1,4 +1,6 @@
-# `DELETE /rfc/{rfc_id}`
+# `DELETE /rfcs/{rfc_id}`
+
+Deprecated alias: `DELETE /rfc/{rfc_id}`.
 
 Quarantines an RFC. This is a soft delete, not a permanent delete.
 

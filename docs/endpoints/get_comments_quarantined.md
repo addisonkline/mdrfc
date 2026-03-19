@@ -1,4 +1,6 @@
-# `GET /rfc/{rfc_id}/comments/quarantined`
+# `GET /rfcs/{rfc_id}/comments/quarantined`
+
+Deprecated alias: `GET /rfc/{rfc_id}/comments/quarantined`.
 
 Returns the admin view of quarantined comments for one RFC.
 

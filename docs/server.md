@@ -106,13 +106,14 @@ If the account has not been verified yet, login returns `403`.
 
 RFC and comment deletes are soft deletes:
 
-- `DELETE /rfc/{rfc_id}` moves an RFC into quarantine.
-- `DELETE /rfc/{rfc_id}/comment/{comment_id}` moves a comment into quarantine.
+- `DELETE /rfcs/{rfc_id}` moves an RFC into quarantine.
+- `DELETE /rfcs/{rfc_id}/comments/{comment_id}` moves a comment into quarantine.
+- The older singular aliases remain available in this version but are deprecated.
 
 Admin-only follow-up endpoints live under:
 
 - `/rfcs/quarantined`
-- `/rfc/{rfc_id}/comments/quarantined`
+- `/rfcs/{rfc_id}/comments/quarantined`
 
 These routes let an admin list quarantined items, restore them, or delete them permanently.
 

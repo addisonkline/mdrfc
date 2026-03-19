@@ -7,16 +7,18 @@ import type {
 } from '../types';
 
 export async function getComments(rfcId: number): Promise<GetRfcCommentsResponse> {
-  return apiFetch<GetRfcCommentsResponse>(`/rfc/${rfcId}/comments`);
+  return apiFetch<GetRfcCommentsResponse>(`/rfcs/${rfcId}/comments`);
 }
 
 export async function getComment(rfcId: number, commentId: number): Promise<GetRfcCommentResponse> {
-  return apiFetch<GetRfcCommentResponse>(`/rfc/${rfcId}/comment/${commentId}`);
+  return apiFetch<GetRfcCommentResponse>(`/rfcs/${rfcId}/comments/${commentId}`);
 }
 
 export async function postComment(data: PostCommentData): Promise<PostRfcCommentResponse> {
-  return apiFetch<PostRfcCommentResponse>('/rfc/comment', {
+  const { rfc_id, ...body } = data;
+
+  return apiFetch<PostRfcCommentResponse>(`/rfcs/${rfc_id}/comments`, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(body),
   });
 }

@@ -1,4 +1,6 @@
-# `DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`
+# `DELETE /rfcs/{rfc_id}/comments/quarantined/{quarantine_id}`
+
+Deprecated alias: `DELETE /rfc/{rfc_id}/comments/quarantined/{quarantine_id}`.
 
 Permanently deletes a quarantined comment.
 

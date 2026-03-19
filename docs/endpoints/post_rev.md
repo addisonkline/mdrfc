@@ -1,4 +1,6 @@
-# `POST /rfc/{rfc_id}/rev`
+# `POST /rfcs/{rfc_id}/revs`
+
+Deprecated alias: `POST /rfc/{rfc_id}/rev`.
 
 Creates a new revision for an existing RFC.
 
