@@ -7,12 +7,15 @@ Current repository state:
 - React frontend exists in `frontend/`
 - email verification, revisions, threaded comments, and quarantine routes all exist in code
 - `mdrfc setup` validates backend env vars, checks database connectivity, and applies migrations
+- backend tests now exercise the real Alembic upgrade path against isolated Postgres databases
 
-## High Priority
+## Recently Completed
 
 ### Clean up the migration chain
 
-The migration history still needs a fresh-database pass to make sure a brand-new Postgres instance can move cleanly from base schema to head.
+The base Alembic revision is now frozen to the original schema instead of importing live application metadata. Fresh Postgres databases can move cleanly from base schema to head, and that path is covered by automated tests.
+
+## High Priority
 
 ### Persist signup rate limiting
 
@@ -39,6 +42,10 @@ The repository has both a Vite dev proxy and an `nginx.conf`, but production fro
 ### Better local verification UX
 
 In debug-token mode the backend returns the raw verification token, but the React signup flow still assumes email delivery. Local development would be smoother with a dedicated dev-only verification screen or debug banner.
+
+### Migration authoring guardrails
+
+The fresh-database path is now covered, but future schema changes should continue to avoid importing runtime DB code or using `metadata.create_all()` inside Alembic revisions. A short contributor guide or checklist would make that expectation explicit.
 
 ## Nice to Have
 
