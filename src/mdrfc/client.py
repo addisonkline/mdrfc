@@ -646,6 +646,7 @@ def _cmd_refresh(args: Namespace) -> None:
         _console.print(e)
         return
 
+    global _token
     _token = response_obj.access_token
     if args.verbose:
         _console.print(f"[bold]token[/bold]: {response_obj.access_token}")
