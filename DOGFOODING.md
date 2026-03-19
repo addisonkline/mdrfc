@@ -11,7 +11,15 @@
     - [RFC Comments](#rfc-comments)
     - [RFC Revisions](#rfc-revisions)
     - [Users](#users)
+  - [RFC Lifecycle](#rfc-lifecycle)
+    - [Posting an RFC](#posting-an-rfc)
+    - [Feedback](#feedback)
+    - [Revising an RFC](#revising-an-rfc)
+    - [Admin Review](#admin-review)
   - [Client Interfacing](#client-interfacing)
+    - [Server Administrators](#server-administrators)
+    - [Human Users](#human-users)
+    - [Agentic Assistants](#agentic-assistants)
   - [Acknowledgements](#acknowledgements)
   - [References](#references)
 
@@ -101,13 +109,71 @@ An MDRFC user is an authorized client for a given server with permission to post
   "email": str, # user's email address
   "name_last": str,
   "name_first": str,
-  "created_at": datetime
+  "created_at": datetime,
+  "is_admin": bool,
 }
 ```
 
+## RFC Lifecycle
+
+The general lifecycle for a given RFC is the following:
+1. A user posts a new RFC with status `draft` or `open`
+2. Other users provide feedback on the RFC through comments
+3. The original user revises the RFC using the received feedback
+4. Repeat steps 2 and 3 *x* times
+5. After review, A server administrator updates the RFC status to `accepted` or `rejected`
+
+### Posting an RFC
+
+Any authenticated user MAY upload a new RFC document to the server. The client's request MUST include the following body parameters:
+- `title` (string): The title for this RFC.
+- `slug` (string): The slug-style string for this RFC.
+- `status` (`draft`|`open`): The initial status of this RFC.
+- `content` (string): The raw Markdown content of the RFC document.
+- `summary` (string): A short description of this RFC.
+
+Slugs MUST be unique to a single RFC; titles SHOULD be unique (though this is not enforced).
+
+### Feedback
+
+After a new RFC is posted, any authenticated user MAY post a comment. Said comment MAY be a reply to another existing comment on the same RFC. Any given user MAY comment on their own RFC.
+
+Feedback provided in comments SHOULD be helpful and productive, and said feedback SHOULD inform future revision(s) to the original RFC.
+
+### Revising an RFC
+
+An authenticated user MAY revise an existing RFC that they previously posted. Revisions MAY be used to update an RFC's `title`, `slug`, `status`, `content`, or `summary`. All revisions MUST include a `message` (string) describing the actions performed in this revision.
+
+Non-admin users MAY NOT update an RFC's status to `accepted` or `rejected`.
+
+### Admin Review
+
+Once an author believes their RFC is ready for final review, they SHOULD request a formal final review from a server administrator. The reviewing admin MUST change the RFC's status to either `accepted` or `rejected`, depending on whether is deemed acceptable. 
+
+Once an RFC's status is `accepted` or `rejected`, it MAY NOT be revised; any follow-up content SHOULD be submitted in a new RFC.
+
 ## Client Interfacing
 
+MDRFC expects three discrete types of client end-users: 
+1. Server administrators
+2. Human users
+3. Agentic assistants
 
+### Server Administrators
+
+Server administrators are clients of an MDRFC server with explicit permissions beyond those of the standard user. Admins SHOULD have the final say in updating an RFC's status to `accepted` or `rejected`. Admins SHOULD have access to soft-deleted RFC documents and comments, either to restore or permanently delete them.
+
+### Human Users
+
+Human users are the primary intended target of MDRFC. They SHOULD obtain credentials from an MDRFC server in the form of a bearer token. This bearer token MUST encode the user's username and MAY encode other associated information. To post a new RFC, comment, or revision, users SHOULD be required to include this token in their request.
+
+Unauthenticated human users MAY access RFC documents set to `public`, but MAY NOT post new RFCs, comments, or revisions.
+
+### Agentic Assistants
+
+MDRFC allows for agentic contributions on individual RFC documents and revisions. Human users MAY list contributing agents by name in any given revision.
+
+Non-human AI users MUST NOT impersonate human users; the [User](#users) schema is intended for humans and includes fields such as email, first name, and last name.
 
 ## Acknowledgements
 
