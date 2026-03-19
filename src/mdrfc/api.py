@@ -31,7 +31,7 @@ from mdrfc.backend.db import (
     unquarantine_comment_in_db,
     unquarantine_rfc_in_db,
 )
-from mdrfc.backend.document import RFCDocumentInDB, RFCReadme, RFCRevisionInDB
+from mdrfc.backend.document import RFCDocumentInDB, RFCReadme, RFCReadmeRevisionInDB, RFCRevisionInDB
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
@@ -106,6 +106,80 @@ async def patch_rfcs_readme(
         rfcs_readme.public = new_public
 
     return rfcs_readme
+
+
+async def get_rfcs_readme_revs(
+    user: User | None,
+) -> res_types.GetRfcsReadmeRevsResponse:
+    """
+    Handle a request to the endpoint `GET /rfcs/README/revs`.
+    """
+    revs, readme_public = await get_rfcs_readme_revs_from_db()
+
+    if (user is None) and (not readme_public):
+        raise HTTPException(
+            status_code=401,
+            detail="unauthorized"
+        )
+
+    return res_types.GetRfcsReadmeRevsResponse(
+        message="success",
+        revisions=revs,
+        metadata={}
+    )
+
+
+async def get_rfcs_readme_rev(
+    user: User | None,
+    revision_id: str,
+) -> res_types.GetRfcsReadmeRevResponse:
+    """
+    Handle a request to the endpoint `GET /rfcs/README/rev`.
+    """
+    rev, readme_public = await get_rfcs_readme_rev_from_db(
+        revision_id=revision_id
+    )
+
+    if (user is None) and (not readme_public):
+        raise HTTPException(
+            status_code=401,
+            detail="unauthorized"
+        )
+
+    return res_types.GetRfcsReadmeRevResponse(
+        message="success",
+        revision=rev,
+        metadata={}
+    )
+
+
+async def post_rfcs_readme_rev(
+    admin: User,
+    payload: req_types.PostRfcsReadmeRevRequest,
+) -> res_types.PostRfcsReadmeRevResponse:
+    """
+    Handle a request to the endpoint `POST /rfcs/README/revs`.
+    """
+    rfcs_readme_in_db = await get_rfcs_readme_in_db()
+
+    rfcs_readme_rev_in_db = RFCReadmeRevisionInDB(
+        revision_id=uuid.uuid4(),
+        created_at=datetime.now(timezone.utc),
+        created_by=admin.id,
+        reason=payload.reason,
+        content=payload.content or rfcs_readme_in_db.content,
+        public=payload.public or rfcs_readme_in_db.public,
+    )
+
+    rev = await register_rfcs_readme_rev_in_db(
+        payload=rfcs_readme_rev_in_db
+    )
+
+    return res_types.GetRfcsReadmeRevResponse(
+        message="success",
+        revision=rev,
+        metadata={}
+    )
 
 
 async def get_rfcs(

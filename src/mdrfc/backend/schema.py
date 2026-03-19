@@ -110,3 +110,14 @@ quarantined_comments = Table(
     Column("reason", String(consts.LEN_QUARANTINED_RFC_REASON_MAX), nullable=False),
     Column("comment_id", Integer, ForeignKey("rfc_comments.id"), nullable=False),
 )
+
+readme_revisions = Table(
+    "readme_revisions",
+    metadata_obj,
+    Column("id", UUID, primary_key=True),
+    Column("created_by", Integer, ForeignKey("users.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("content", String(consts.LEN_README_PATCH_CONTENT_MAX), nullable=False),
+    Column("is_public", Boolean, nullable=True, default=False),
+    Column("reason", String(consts.LEN_README_PATCH_REASON_MAX), nullable=False),
+)

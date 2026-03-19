@@ -232,8 +232,38 @@ class RFCReadme(BaseModel):
     content: str
     created_at: datetime
     updated_at: datetime
+    current_revision: UUID
+    revisions: list[UUID]
     public: bool = False
 
+
+class RFCReadmeRevisionSummary(BaseModel):
+    revision_id: UUID
+    created_at: datetime
+    created_by_name_last: str
+    created_by_name_first: str
+    reason: str
+    public: bool
+
+
+class RFCReadmeRevision(BaseModel):
+    revision_id: UUID
+    created_at: datetime
+    created_by_name_last: str
+    created_by_name_first: str
+    reason: str
+    content: str
+    public: bool
+
+
+class RFCReadmeRevisionInDB(BaseModel):
+    revision_id: UUID
+    created_at: datetime
+    created_by: int
+    reason: str
+    content: str
+    public: bool
+    
 
 #
 # REVISION types

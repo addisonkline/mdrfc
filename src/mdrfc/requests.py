@@ -100,6 +100,24 @@ async def validate_patch_rfcs_readme_request(request: Request) -> PatchRfcsReadm
         raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
 
 
+class PostRfcsReadmeRevRequest(BaseModel):
+    """
+    HTTP request object for `POST /rfcs/README/revs`.
+    """
+
+    reason: Annotated[str, AfterValidator(validate_patch_readme_reason)]
+    content: Annotated[str, AfterValidator(validate_patch_readme_content)] | None = None
+    public: bool | None = None
+
+
+async def validate_post_rfcs_readme_rev_request(request: Request) -> PatchRfcsReadmeRequest:
+    try:
+        request_json = await request.json()
+        return PatchRfcsReadmeRequest.model_validate(request_json)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
+
+
 class PostRfcRequest(BaseModel):
     """
     HTTP request object for `POST /rfcs`.

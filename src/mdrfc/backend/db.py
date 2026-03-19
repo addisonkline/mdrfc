@@ -16,6 +16,9 @@ from mdrfc.backend.document import (
     RFCDocument,
     RFCDocumentInDB,
     RFCDocumentSummary,
+    RFCReadmeRevision,
+    RFCReadmeRevisionInDB,
+    RFCReadmeRevisionSummary,
     RFCRevision,
     RFCRevisionInDB,
     RFCRevisionSummary,
@@ -216,6 +219,104 @@ async def verify_user_by_token_in_db(
 #
 # RFC functions
 #
+async def get_rfcs_readme_revs_in_db() -> list[RFCReadmeRevisionSummary]:
+    """
+    Get all revisions on the RFC README file from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            revs_in_db = await connection.fetch(
+                "SELECT * FROM readme_revisions"
+            )
+            if revs_in_db is None:
+                return []
+            else:
+                summaries: list[RFCReadmeRevisionSummary] = []
+                for rev in revs_in_db:
+                    user = await get_user_by_id(rev.get("created_by"))
+                    if user is None:
+                        continue
+                    summary = RFCReadmeRevisionSummary(
+                        revision_id=rev.get("revision_id"),
+                        created_by_name_last=user.name_last,
+                        created_by_name_first=user.name_first,
+                        created_at=rev.get("created_at"),
+                        reason=rev.get("reason"),
+                        public=rev.get("is_public")
+                    )
+                    summaries.append(summary)
+                return summaries 
+
+
+
+async def get_rfcs_readme_rev_in_db(
+    revision_id: uuid.UUID,
+) -> RFCReadmeRevision | None:
+    """
+    Get a specific revision on the RFC README file from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            rev_in_db = await connection.fetchrow(
+                "SELECT * FROM readme_revisions WHERE revision_id = $1",
+                revision_id
+            )
+            if rev_in_db is None:
+                return None
+            else:
+                creator = await get_user_by_id(rev_in_db.get("created_by"))
+                if creator is None:
+                    return None
+                rev = RFCReadmeRevision(
+                    revision_id=rev_in_db.get("revision_id"),
+                    created_at=rev_in_db.get("created_at"),
+                    created_by_name_last=creator.name_last,
+                    created_by_name_first=creator.name_first,
+                    reason=rev_in_db.get("reason"),
+                    content=rev_in_db.get("content"),
+                    public=rev_in_db.get("public")
+                )
+                return rev
+            
+
+async def register_rfcs_readme_rev_in_db(
+    admin: User,
+    revision: RFCReadmeRevisionInDB
+) -> RFCReadmeRevision:
+    """
+    Post a new revision for the RFC README file.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query = """
+            INSERT INTO readme_revisions (
+                revision_id, created_at, created_by, reason, content, public
+            )
+            VALUES ($1, $2, $3, $4, $5, $6);
+            """
+            await connection.execute(
+                query,
+                revision.revision_id,
+                revision.created_at,
+                revision.created_by,
+                revision.reason,
+                revision.content,
+                revision.public
+            )
+            return RFCReadmeRevision(
+                revision_id=revision.revision_id,
+                created_at=revision.created_at,
+                created_by_name_last=admin.name_last,
+                created_by_name_first=admin.name_first,
+                reason=revision.reason,
+                content=revision.content,
+                public=revision.public
+            )
+
+
 async def get_rfcs_from_db(
     quarantine_ok: bool = False,
 ) -> list[RFCDocumentSummary] | None:

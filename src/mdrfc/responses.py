@@ -10,6 +10,8 @@ from mdrfc.backend.document import (
     RFCDocument,
     RFCDocumentSummary,
     RFCReadme,
+    RFCReadmeRevision,
+    RFCReadmeRevisionSummary,
     RFCRevision,
     RFCRevisionSummary,
 )
@@ -83,6 +85,36 @@ class PatchRfcsReadmeResponse(BaseModel):
 
     message: str
     readme: RFCReadme
+    metadata: dict[str, Any]
+
+
+class GetRfcsReadmeRevsResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfcs/README/revs`.
+    """
+
+    message: str
+    revisions: list[RFCReadmeRevisionSummary]
+    metadata: dict[str, Any]
+
+
+class GetRfcsReadmeRevResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfcs/README/rev/{revision_id}`.
+    """
+
+    message: str
+    revision: RFCReadmeRevision
+    metadata: dict[str, Any]
+
+
+class PostRfcsReadmeRevResponse(BaseModel):
+    """
+    HTTP response object for `GET /rfcs/README/rev/{revision_id}`.
+    """
+
+    message: str
+    revision: RFCReadmeRevision
     metadata: dict[str, Any]
 
 

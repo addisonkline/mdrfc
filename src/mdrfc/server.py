@@ -362,6 +362,49 @@ async def patch_rfcs_readme(
         metadata={}
     )
 
+@app.get(
+    "/rfcs/README/revs",
+    response_model=res_types.GetRfcsReadmeRevsResponse,
+    tags=["rfcs", "rev"]
+)
+async def get_rfcs_readme_revs(
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
+) -> res_types.GetRfcsReadmeRevsResponse:
+    """
+    `GET /rfcs/README/revs`: Get all revisions on the RFC README file.
+    """
+    raise NotImplementedError
+
+
+@app.get(
+    "/rfcs/README/revs/{revision_id}",
+    response_model=res_types.GetRfcsReadmeRevResponse,
+    tags=["rfcs", "rev"]
+)
+async def get_rfcs_readme_rev(
+    revision_id: int,
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
+) -> res_types.GetRfcsReadmeRevResponse:
+    """
+    `GET /rfcs/README/revs/{revision_id}`: Get a specific revision on the RFC README file.
+    """
+    raise NotImplementedError
+
+
+@app.post(
+    "/rfcs/README/revs",
+    response_model=res_types.PostRfcsReadmeRevResponse,
+    tags=["rfcs", "rev", "admin"]
+)
+async def post_rfcs_readme_rev(
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
+    payload: Annotated[req_types.PostRfcsReadmeRevRequest, Depends(req_types.validate_post_rfcs_readme_rev_request)],
+) -> res_types.PostRfcsReadmeRevResponse:
+    """
+    `POST /rfcs/README/revs`: Post a new revision on the RFC README file.
+    """
+    raise NotImplementedError
+
 
 @app.get(
     "/rfcs",
