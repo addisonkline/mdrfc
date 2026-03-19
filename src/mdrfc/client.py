@@ -6,7 +6,6 @@ from urllib.parse import urlsplit
 
 import dotenv
 import httpx
-from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import ValidationError
 from rich.console import Console
 from rich.markdown import Markdown
@@ -50,6 +49,9 @@ parser = ArgumentParser(
 )
 subparsers = parser.add_subparsers(title="commands", dest="command")
 
+#
+# BASIC commands
+#
 # ping the server
 ping_desc = "Ping the remote server"
 ping_p = subparsers.add_parser(
@@ -61,6 +63,15 @@ ping_p = subparsers.add_parser(
 )
 ping_p.add_argument(
     "-v", "--verbose", action="store_true", help="include more detailed server info"
+)
+
+llms_txt_desc = "Get the server's llms.txt document"
+llms_txt_p = subparsers.add_parser(
+    "llms-txt",
+    aliases=["llm"],
+    usage="llms-txt [option]...",
+    help=llms_txt_desc,
+    description=llms_txt_desc
 )
 
 #
@@ -118,6 +129,15 @@ whoami_p.add_argument(
 #
 # RFC commands
 #
+rfc_readme_desc = "Get the README for this MDRFC server"
+rfc_readme_p = subparsers.add_parser(
+    "rfc-readme",
+    aliases=["rfc-R"],
+    usage="rfc-readme [option]...",
+    help=rfc_readme_desc,
+    description=rfc_readme_desc
+)
+
 # get the list of RFC documents
 rfc_list_desc = "List the current RFC documents"
 rfc_list_p = subparsers.add_parser(
@@ -541,6 +561,27 @@ def _cmd_ping(args: Namespace) -> None:
         print("pong")
 
 
+def _cmd_llms_txt(args: Namespace) -> None:
+    """
+    Get the server's `llms.txt`.
+    """
+    global _console
+    global _url
+    response = httpx.get(
+        f"{_url}/llms.txt",
+        headers={"User-Agent": _get_user_agent()}
+    )
+
+    if response.status_code != 200:
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
+        return
+    
+    markdown = Markdown(response.content.decode())
+    _console.print(markdown)
+
+
 def _cmd_login(args: Namespace) -> None:
     """
     Attempt to log into the server.
@@ -708,6 +749,30 @@ def _cmd_whoami(args: Namespace) -> None:
         _console.print(f"[bold]created[/bold]: {response_obj.created_at}")
     else:
         _console.print(f"username: [green]{response_obj.username}[/green]")
+
+
+def _cmd_rfc_readme(args: Namespace) -> None:
+    """
+    Get the server's RFC README file.
+    """
+    global _url
+    global _token
+
+    headers = {"User-Agent": _get_user_agent()}
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
+    response = httpx.get(url=f"{_url}/rfcs/README", headers=headers)
+
+    if response.status_code != 200:
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
+        return
+    
+    markdown = Markdown(response.content.decode())
+    _console.print(markdown)
 
 
 def _cmd_rfc_list(args: Namespace) -> None:
@@ -1586,8 +1651,12 @@ def _cmd_alias_list(args: Namespace) -> None:
 Command = Callable[[Namespace], None]
 
 _commands: dict[str, Command] = {
+    # basic
     "ping": _cmd_ping,
     "p": _cmd_ping,
+    "llms-txt": _cmd_llms_txt,
+    "llm": _cmd_llms_txt,
+    # auth
     "login": _cmd_login,
     "l": _cmd_login,
     "refresh": _cmd_refresh,
@@ -1596,6 +1665,9 @@ _commands: dict[str, Command] = {
     "lo": _cmd_logout,
     "whoami": _cmd_whoami,
     "me": _cmd_whoami,
+    # rfcs
+    "rfc-readme": _cmd_rfc_readme,
+    "rfc-R": _cmd_rfc_readme,
     "rfc-list": _cmd_rfc_list,
     "rfc-l": _cmd_rfc_list,
     "rfc-get": _cmd_rfc_get,
@@ -1610,6 +1682,7 @@ _commands: dict[str, Command] = {
     "rfc-qd": _cmd_rfc_quarantine_delete,
     "rfc-quarantine-post": _cmd_rfc_quarantine_post,
     "rfc-qp": _cmd_rfc_quarantine_post,
+    # comments
     "comment-list": _cmd_comment_list,
     "com-l": _cmd_comment_list,
     "comment-get": _cmd_comment_get,
@@ -1624,12 +1697,14 @@ _commands: dict[str, Command] = {
     "com-qd": _cmd_comment_quarantine_delete,
     "comment-quarantine-post": _cmd_comment_quarantine_post,
     "com-qp": _cmd_comment_quarantine_post,
+    # revisions
     "revision-list": _cmd_revision_list,
     "rev-l": _cmd_revision_list,
     "revision-get": _cmd_revision_get,
     "rev-g": _cmd_revision_get,
     "revision-post": _cmd_revision_post,
     "rev-p": _cmd_revision_post,
+    # aliases
     "alias-set": _cmd_alias_set,
     "as": _cmd_alias_set,
     "alias-get": _cmd_alias_get,

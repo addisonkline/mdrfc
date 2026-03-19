@@ -64,7 +64,15 @@ By default the server listens on `http://127.0.0.1:8026`.
 Useful URLs:
 
 - API root: `http://127.0.0.1:8026/`
+- LLM discovery document: `http://127.0.0.1:8026/llms.txt`
+- RFC README document: `http://127.0.0.1:8026/rfcs/README`
 - FastAPI docs: `http://127.0.0.1:8026/docs`
+
+To replace either built-in document at startup, run:
+
+```bash
+uv run mdrfc serve --llms-txt llms.txt --readme MY_README.md
+```
 
 ## 6. Create and Verify a User
 

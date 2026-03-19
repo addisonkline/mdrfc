@@ -12,6 +12,7 @@ MDRFC is a Markdown RFC system with three interfaces in this repository:
 - Public and private RFCs
 - Revision history with per-revision messages and agent contributor metadata
 - Threaded comments
+- LLM-friendly discovery docs via `GET /llms.txt` and `GET /rfcs/README`
 - Quarantine flows for RFCs and comments, with admin-only review endpoints
 
 ## Quick Start
@@ -59,6 +60,12 @@ uv run mdrfc serve --reload
 ```
 
 The API listens on `http://127.0.0.1:8026` by default. FastAPI also exposes interactive API docs at `http://127.0.0.1:8026/docs`.
+
+The server also exposes `GET /llms.txt` and `GET /rfcs/README` by default. If you want to replace either document at startup, use:
+
+```bash
+uv run mdrfc serve --llms-txt llms.txt --readme MY_README.md
+```
 
 5. Optional: start the frontend:
 

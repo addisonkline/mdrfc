@@ -5,6 +5,7 @@ This directory documents the current routes exposed by `src/mdrfc/server.py`.
 ## Basic
 
 - [`GET /`](get_root.md)
+- [`GET /llms.txt`](get_llms_txt.md)
 
 ## Authentication
 
@@ -15,6 +16,7 @@ This directory documents the current routes exposed by `src/mdrfc/server.py`.
 
 ## RFCs
 
+- [`GET /rfcs/README`](get_rfcs_readme.md)
 - [`GET /rfcs`](get_rfcs.md)
 - [`GET /rfcs/quarantined`](get_rfcs_quarantined.md)
 - [`DELETE /rfcs/quarantined/{quarantine_id}`](delete_rfcs_quarantined.md)

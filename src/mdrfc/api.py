@@ -35,8 +35,10 @@ from mdrfc.backend.document import RFCDocumentInDB, RFCRevisionInDB
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
-
-def get_root(
+#
+# BASIC endpoints
+#
+async def get_root(
     time_start: float,
 ) -> res_types.GetRootResponse:
     """
@@ -53,9 +55,31 @@ def get_root(
     )
 
 
+async def get_llms_txt(
+    llms_txt: str,
+) -> res_types.GetLlmsTxtResponse:
+    """
+    Handle a request to the endpoint `GET /llms.txt`.
+    """
+    return res_types.GetLlmsTxtResponse(
+        content=llms_txt
+    )
+
+
 #
 # RFC endpoints
 #
+async def get_rfcs_readme(
+    rfcs_readme: str,
+) -> res_types.GetRfcsReadmeResponse:
+    """
+    Handle a request to the endpoint `GET /rfcs/README`.
+    """
+    return res_types.GetRfcsReadmeResponse(
+        content=rfcs_readme
+    )
+
+
 async def get_rfcs(
     current_user: User | None,
 ) -> res_types.GetRfcsResponse:

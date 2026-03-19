@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+from fastapi import Response
 from pydantic import BaseModel
 
 from mdrfc.backend.comment import CommentThread, QuarantinedComment
@@ -13,7 +14,9 @@ from mdrfc.backend.document import (
     RFCRevisionSummary,
 )
 
-
+#
+# BASIC endpoints
+#
 class GetRootResponse(BaseModel):
     """
     HTTP response object for `GET /`.
@@ -24,6 +27,15 @@ class GetRootResponse(BaseModel):
     status: str
     uptime: float
     metadata: dict[str, Any]
+
+
+class GetLlmsTxtResponse(Response):
+    """
+    HTTP response object for `GET /llms.txt`.
+    """
+
+    media_type: str = "text/plain"
+    content: str
 
 
 #
@@ -54,6 +66,15 @@ class PostVerifyEmailResponse(BaseModel):
 #
 # RFC endpoints
 #
+class GetRfcsReadmeResponse(Response):
+    """
+    HTTP response object for `GET /rfcs/README`.
+    """
+
+    media_type: str = "text/markdown"
+    content: str
+
+
 class GetRfcsResponse(BaseModel):
     """
     HTTP response object for `GET /rfcs`.

@@ -30,10 +30,13 @@ from mdrfc.backend.db import init_db, close_db
 from mdrfc.backend.document import validate_quarantine_rfc_reason
 from mdrfc.backend.email import check_valid_email, send_verification_email_task
 from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
+from mdrfc.utils.llms_txt import LLMS_TXT
 from mdrfc.utils.logging import init_logger
 import mdrfc.api as api
 import mdrfc.requests as req_types
 import mdrfc.responses as res_types
+from mdrfc.utils.rfcs_readme import RFCS_README
+from mdrfc.utils.version import get_mdrfc_version
 
 
 logger = logging.getLogger(__name__)
@@ -45,6 +48,9 @@ if token_expiry_time is None:
         "environment variable ACCESS_TOKEN_EXPIRE_MINUTES is required but was not found"
     )
 ACCESS_TOKEN_EXPIRE_MINUTES = int(token_expiry_time)
+
+_llms_txt = LLMS_TXT
+_rfcs_readme = RFCS_README
 
 
 async def _server_startup(app: FastAPI):
@@ -83,7 +89,13 @@ async def lifespan(app: FastAPI):
     await _server_shutdown(app)
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="MDRFC",
+    summary="Markdown-formatted RFC server",
+    description="A server for hosting Markdown RFCs",
+    version=get_mdrfc_version(),
+    lifespan=lifespan
+)
 signup_rate_limiter = SlidingWindowRateLimiter()
 
 DEPRECATED_ROUTE_REPLACEMENTS = {
@@ -129,18 +141,40 @@ def _add_deprecation_headers(request: Request, response: Response) -> None:
     )
 
 
-@app.get("/", response_model=res_types.GetRootResponse)
+@app.get(
+    "/", 
+    response_model=res_types.GetRootResponse,
+    tags=["basic"]
+)
 async def get_root() -> res_types.GetRootResponse:
     """
     `GET /`: Obtain basic server information and metadata.
     """
-    return api.get_root(app.state.time_start)
+    return await api.get_root(app.state.time_start)
+
+
+@app.get(
+    "/llms.txt",
+    tags=["basic"]
+)
+async def get_llms_txt() -> res_types.GetLlmsTxtResponse:
+    """
+    `GET /llms.txt`: Obtain server information in an LLM-friendly format.
+    """
+    global _llms_txt
+    return await api.get_llms_txt(
+        llms_txt=_llms_txt,
+    )
 
 
 #
 # AUTH endpoints
 #
-@app.post("/login", response_model=Token)
+@app.post(
+    "/login", 
+    response_model=Token,
+    tags=["auth"]
+)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
@@ -163,7 +197,11 @@ async def login_for_access_token(
     return Token(access_token=access_token, token_type="bearer")
 
 
-@app.post("/signup", response_model=res_types.PostSignupResponse)
+@app.post(
+    "/signup", 
+    response_model=res_types.PostSignupResponse,
+    tags=["auth"]
+)
 async def post_new_user(
     background_tasks: BackgroundTasks,
     http_request: Request,
@@ -236,7 +274,11 @@ async def post_new_user(
     )
 
 
-@app.post("/verify-email", response_model=res_types.PostVerifyEmailResponse)
+@app.post(
+    "/verify-email", 
+    response_model=res_types.PostVerifyEmailResponse,
+    tags=["auth"]
+)
 async def post_verify_email(
     payload: req_types.PostVerifyEmailRequest,
 ) -> res_types.PostVerifyEmailResponse:
@@ -255,7 +297,11 @@ async def post_verify_email(
     )
 
 
-@app.get("/users/me", response_model=User)
+@app.get(
+    "/users/me",
+    response_model=User,
+    tags=["auth", "users"]
+)
 async def get_users_me(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
@@ -268,7 +314,27 @@ async def get_users_me(
 #
 # RFC endpoints
 #
-@app.get("/rfcs", response_model=res_types.GetRfcsResponse)
+@app.get(
+    "/rfcs/README",
+    tags=["basic", "rfcs"]
+)
+async def get_rfcs_readme(
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
+) -> res_types.GetRfcsReadmeResponse:
+    """
+    `GET /rfcs/README`: Get the README document for this server.
+    """
+    global _rfcs_readme
+    return await api.get_rfcs_readme(
+        rfcs_readme=_rfcs_readme
+    )
+
+
+@app.get(
+    "/rfcs",
+    response_model=res_types.GetRfcsResponse,
+    tags=["rfcs"]
+)
 async def get_rfcs(
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcsResponse:
@@ -280,7 +346,11 @@ async def get_rfcs(
     )
 
 
-@app.get("/rfcs/quarantined", response_model=res_types.GetQuarantinedRfcsResponse)
+@app.get(
+    "/rfcs/quarantined",
+    response_model=res_types.GetQuarantinedRfcsResponse,
+    tags=["rfcs", "admin"]
+)
 async def get_rfcs_quarantined(
     current_admin: Annotated[User, Depends(get_current_active_admin)],
 ) -> res_types.GetQuarantinedRfcsResponse:
@@ -293,6 +363,7 @@ async def get_rfcs_quarantined(
 @app.delete(
     "/rfcs/quarantined/{quarantine_id}",
     response_model=res_types.DeleteQuarantinedRfcResponse,
+    tags=["rfcs", "admin"]
 )
 async def delete_rfc(
     quarantine_id: int,
@@ -307,6 +378,7 @@ async def delete_rfc(
 @app.post(
     "/rfcs/quarantined/{quarantine_id}",
     response_model=res_types.PostQuarantinedRfcResponse,
+    tags=["rfcs", "admin"]
 )
 async def unquarantine_rfc(
     quarantine_id: int,
@@ -319,7 +391,11 @@ async def unquarantine_rfc(
 
 
 @app.post("/rfc", response_model=res_types.PostRfcResponse, deprecated=True)
-@app.post("/rfcs", response_model=res_types.PostRfcResponse)
+@app.post(
+    "/rfcs",
+    response_model=res_types.PostRfcResponse,
+    tags=["rfcs", "user"]
+)
 async def post_rfc(
     http_request: Request,
     response: Response,
@@ -344,7 +420,11 @@ async def post_rfc(
     deprecated=True,
 )
 @app.get("/rfc/{rfc_id}", response_model=res_types.GetRfcResponse, deprecated=True)
-@app.get("/rfcs/{rfc_id}")
+@app.get(
+    "/rfcs/{rfc_id}",
+    response_model=res_types.GetRfcResponse,
+    tags=["rfcs"]
+)
 async def get_rfc_by_id(
     http_request: Request,
     response: Response,
@@ -364,7 +444,11 @@ async def get_rfc_by_id(
 @app.delete(
     "/rfc/{rfc_id}", response_model=res_types.DeleteRfcResponse, deprecated=True
 )
-@app.delete("/rfcs/{rfc_id}", response_model=res_types.DeleteRfcResponse)
+@app.delete(
+    "/rfcs/{rfc_id}",
+    response_model=res_types.DeleteRfcResponse,
+    tags=["rfcs", "user"]
+)
 async def quarantine_rfc(
     http_request: Request,
     response: Response,
@@ -391,7 +475,11 @@ async def quarantine_rfc(
     response_model=res_types.GetRfcRevisionsResponse,
     deprecated=True,
 )
-@app.get("/rfcs/{rfc_id}/revs", response_model=res_types.GetRfcRevisionsResponse)
+@app.get(
+    "/rfcs/{rfc_id}/revs",
+    response_model=res_types.GetRfcRevisionsResponse,
+    tags=["rfcs", "revs"]
+)
 async def get_rfc_revisions(
     http_request: Request,
     response: Response,
@@ -411,7 +499,9 @@ async def get_rfc_revisions(
     deprecated=True,
 )
 @app.get(
-    "/rfcs/{rfc_id}/revs/{rev_id}", response_model=res_types.GetRfcRevisionResponse
+    "/rfcs/{rfc_id}/revs/{rev_id}",
+    response_model=res_types.GetRfcRevisionResponse,
+    tags=["rfcs", "revs"]
 )
 async def get_rfc_revision(
     http_request: Request,
@@ -434,7 +524,11 @@ async def get_rfc_revision(
     response_model=res_types.PostRfcRevisionResponse,
     deprecated=True,
 )
-@app.post("/rfcs/{rfc_id}/revs", response_model=res_types.PostRfcRevisionResponse)
+@app.post(
+    "/rfcs/{rfc_id}/revs",
+    response_model=res_types.PostRfcRevisionResponse,
+    tags=["rfcs", "revs"]
+)
 async def post_rfc_revision(
     http_request: Request,
     response: Response,
@@ -462,7 +556,11 @@ async def post_rfc_revision(
     response_model=res_types.PostRfcCommentResponse,
     deprecated=True,
 )
-@app.post("/rfcs/{rfc_id}/comments", response_model=res_types.PostRfcCommentResponse)
+@app.post(
+    "/rfcs/{rfc_id}/comments",
+    response_model=res_types.PostRfcCommentResponse,
+    tags=["rfcs", "comments", "user"]
+)
 async def post_rfc_comment(
     http_request: Request,
     response: Response,
@@ -485,7 +583,11 @@ async def post_rfc_comment(
     response_model=res_types.GetRfcCommentsResponse,
     deprecated=True,
 )
-@app.get("/rfcs/{rfc_id}/comments", response_model=res_types.GetRfcCommentsResponse)
+@app.get(
+    "/rfcs/{rfc_id}/comments",
+    response_model=res_types.GetRfcCommentsResponse,
+    tags=["rfcs", "comments"]
+)
 async def get_rfc_comments(
     http_request: Request,
     response: Response,
@@ -507,6 +609,7 @@ async def get_rfc_comments(
 @app.get(
     "/rfcs/{rfc_id}/comments/quarantined",
     response_model=res_types.GetQuarantinedCommentsResponse,
+    tags=["rfcs", "comments", "admin"]
 )
 async def get_quarantined_comments(
     http_request: Request,
@@ -529,6 +632,7 @@ async def get_quarantined_comments(
 @app.delete(
     "/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
     response_model=res_types.DeleteQuarantinedCommentResponse,
+    tags=["rfcs", "comments", "admin"]
 )
 async def delete_comment(
     http_request: Request,
@@ -554,6 +658,7 @@ async def delete_comment(
 @app.post(
     "/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
     response_model=res_types.PostQuarantinedCommentResponse,
+    tags=["rfcs", "comments", "admin"]
 )
 async def unquarantine_comment(
     http_request: Request,
@@ -580,6 +685,7 @@ async def unquarantine_comment(
 @app.get(
     "/rfcs/{rfc_id}/comments/{comment_id}",
     response_model=res_types.GetRfcCommentResponse,
+    tags=["rfcs", "comments"]
 )
 async def get_rfc_comment(
     http_request: Request,
@@ -605,6 +711,7 @@ async def get_rfc_comment(
 @app.delete(
     "/rfcs/{rfc_id}/comments/{comment_id}",
     response_model=res_types.DeleteRfcCommentResponse,
+    tags=["rfcs", "comments", "user"]
 )
 async def quarantine_comment(
     http_request: Request,
@@ -626,11 +733,34 @@ async def quarantine_comment(
     )
 
 
+def _load_llms_txt(file: str) -> None:
+    """
+    Load a new `llms.txt` from the given file.
+    """
+    with open(file) as llms_txt_file:
+        global _llms_txt
+        _llms_txt = llms_txt_file.read()
+
+
+def _load_rfcs_readme(file: str) -> None:
+    """
+    Load a new RFC README from the given file.
+    """
+    with open(file) as rfcs_readme_file:
+        global _rfcs_readme
+        _rfcs_readme = rfcs_readme_file.read()
+
+
 def run_server(args: Namespace) -> None:
     """
     Run the mdrfc server via the CLI.
     """
     init_logger(args.log_file, args.log_level_file, args.log_level_console)
+
+    if args.llms_txt:
+        _load_llms_txt(args.llms_txt)
+    if args.readme:
+        _load_rfcs_readme(args.readme)
 
     uvicorn.run(
         "mdrfc.server:app",

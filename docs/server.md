@@ -7,6 +7,8 @@ This document covers the current FastAPI backend in `src/mdrfc/server.py`.
 The backend provides:
 
 - email-verified signup and JWT-based login
+- a plain-text discovery document at `GET /llms.txt`
+- a Markdown RFC README at `GET /rfcs/README`
 - RFC creation, retrieval, revision history, and soft-delete quarantine
 - threaded comments with reply support
 - admin endpoints for reviewing, restoring, and permanently deleting quarantined content
@@ -72,6 +74,19 @@ Default runtime:
 
 FastAPI's interactive docs are available at `http://127.0.0.1:8026/docs`.
 
+Additional built-in documents are available at:
+
+- `http://127.0.0.1:8026/llms.txt`
+- `http://127.0.0.1:8026/rfcs/README`
+
+To replace either document at startup, use:
+
+```bash
+uv run mdrfc serve --llms-txt llms.txt --readme MY_README.md
+```
+
+`--llms-txt` serves plain text at `GET /llms.txt`. `--readme` serves Markdown at `GET /rfcs/README`.
+
 ## Authentication Flow
 
 The current auth flow is:
@@ -130,12 +145,14 @@ The backend enforces the following signup rules:
 
 `mdrfc serve` currently supports:
 
-- `-H`, `--host`
-- `-p`, `--port`
-- `-r`, `--reload`
-- `-lf`, `--log-file`
-- `-llf`, `--log-level-file`
-- `-llc`, `--log-level-console`
+- `-H`, `--host`: host to bind to
+- `-p`, `--port`: port to listen on
+- `-r`, `--reload`: reload on code changes
+- `-lf`, `--log-file`: log file path
+- `-llf`, `--log-level-file`: minimum file log level
+- `-llc`, `--log-level-console`: minimum console log level
+- `-llm`, `--llms-txt`: custom document to serve on `GET /llms.txt`
+- `-R`, `--readme`: custom document to serve on `GET /rfcs/README`
 
 ## Related Docs
 
