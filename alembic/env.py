@@ -2,12 +2,11 @@ from logging.config import fileConfig
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import engine_from_config, create_engine
-from sqlalchemy import pool
+from sqlalchemy import create_engine
 
 from alembic import context
 
-from mdrfc.backend.db import metadata_obj
+from mdrfc.backend.schema import metadata_obj
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -31,6 +30,14 @@ target_metadata = metadata_obj
 load_dotenv()
 
 
+def _get_database_url() -> str:
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("env var DATABASE_URL not found")
+    config.set_main_option("sqlalchemy.url", database_url)
+    return database_url
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -43,7 +50,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = _get_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -62,17 +69,16 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise ValueError("env var DATABASE_URL not found")
+    connectable = create_engine(_get_database_url())
 
-    connectable = create_engine(database_url)
+    try:
+        with connectable.connect() as connection:
+            context.configure(connection=connection, target_metadata=target_metadata)
 
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-
-        with context.begin_transaction():
-            context.run_migrations()
+            with context.begin_transaction():
+                context.run_migrations()
+    finally:
+        connectable.dispose()
 
 
 if context.is_offline_mode():

@@ -5,10 +5,13 @@ import importlib
 import os
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import asyncpg
 import pytest
+from alembic import command
+from alembic.config import Config
 from dotenv import dotenv_values
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -55,7 +58,25 @@ from mdrfc.backend.users import User, UserInDB
 
 
 FIXED_TIMESTAMP = datetime(2026, 3, 9, 12, 0, 0, tzinfo=timezone.utc)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ALEMBIC_INI_PATH = REPO_ROOT / "alembic.ini"
 _MISSING = object()
+
+
+def _apply_alembic_migrations(database_url: str) -> None:
+    config = Config(str(ALEMBIC_INI_PATH))
+    config.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+    config.set_main_option("prepend_sys_path", str(REPO_ROOT))
+
+    previous_database_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = database_url
+    try:
+        command.upgrade(config, "head")
+    finally:
+        if previous_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = previous_database_url
 
 
 @pytest.fixture(autouse=True)
@@ -157,9 +178,7 @@ def isolated_postgres_db(
     test_url = base_url.set(database=database_name).render_as_string(
         hide_password=False
     )
-    test_engine = create_engine(test_url)
-    db.metadata_obj.create_all(test_engine)
-    test_engine.dispose()
+    _apply_alembic_migrations(test_url)
 
     loop = asyncio.new_event_loop()
     pool = loop.run_until_complete(

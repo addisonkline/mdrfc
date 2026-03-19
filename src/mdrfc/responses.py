@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 from mdrfc.backend.comment import CommentThread, QuarantinedComment
 from mdrfc.backend.document import (
-    QuarantinedRFC,
     QuarantinedRFCSummary,
     RFCDocument,
     RFCDocumentSummary,
