@@ -31,7 +31,7 @@ from mdrfc.backend.db import (
     unquarantine_comment_in_db,
     unquarantine_rfc_in_db,
 )
-from mdrfc.backend.document import RFCDocumentInDB, RFCRevisionInDB
+from mdrfc.backend.document import RFCDocumentInDB, RFCReadme, RFCRevisionInDB
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
@@ -70,14 +70,42 @@ async def get_llms_txt(
 # RFC endpoints
 #
 async def get_rfcs_readme(
-    rfcs_readme: str,
+    user: User | None,
+    rfcs_readme: RFCReadme,
 ) -> res_types.GetRfcsReadmeResponse:
     """
     Handle a request to the endpoint `GET /rfcs/README`.
     """
+    if (user is None) and (not rfcs_readme.public):
+        raise HTTPException(
+            status_code=401,
+            detail="unauthorized"
+        )
+
     return res_types.GetRfcsReadmeResponse(
-        content=rfcs_readme
+        message="success",
+        readme=rfcs_readme,
+        metadata={}
     )
+
+
+async def patch_rfcs_readme(
+    rfcs_readme: RFCReadme,
+    payload: req_types.PatchRfcsReadmeRequest
+) -> RFCReadme:
+    """
+    Patch the current RFC README file.
+    """
+    reason = payload.reason
+    new_content = payload.content
+    new_public = payload.public
+
+    if new_content is not None:
+        rfcs_readme.content = new_content
+    if new_public is not None:
+        rfcs_readme.public = new_public
+
+    return rfcs_readme
 
 
 async def get_rfcs(

@@ -115,13 +115,37 @@ def validate_revision_message(message: str) -> str:
 def validate_quarantine_rfc_reason(reason: str) -> str:
     if len(reason) < consts.LEN_QUARANTINED_RFC_REASON_MIN:
         raise ValueError(
-            f"message must be at least {consts.LEN_QUARANTINED_RFC_REASON_MIN} characters long"
+            f"reason must be at least {consts.LEN_QUARANTINED_RFC_REASON_MIN} characters long"
         )
     if len(reason) > consts.LEN_QUARANTINED_RFC_REASON_MAX:
         raise ValueError(
-            f"message must be no greater than {consts.LEN_QUARANTINED_RFC_REASON_MAX} characters long"
+            f"reason must be no greater than {consts.LEN_QUARANTINED_RFC_REASON_MAX} characters long"
         )
     return reason
+
+
+def validate_patch_readme_reason(reason: str) -> str:
+    if len(reason) < consts.LEN_README_PATCH_REASON_MIN:
+        raise ValueError(
+            f"reason must be at least {consts.LEN_README_PATCH_REASON_MIN} characters long"
+        )
+    if len(reason) > consts.LEN_README_PATCH_REASON_MAX:
+        raise ValueError(
+            f"reason must be no greater than {consts.LEN_README_PATCH_REASON_MAX} characters long"
+        )
+    return reason
+
+
+def validate_patch_readme_content(content: str) -> str:
+    if len(content) < consts.LEN_README_PATCH_CONTENT_MIN:
+        raise ValueError(
+            f"content must be at least {consts.LEN_README_PATCH_CONTENT_MIN} characters long"
+        )
+    if len(content) > consts.LEN_README_PATCH_CONTENT_MAX:
+        raise ValueError(
+            f"content must be no greater than {consts.LEN_README_PATCH_CONTENT_MAX} characters long"
+        )
+    return content
 
 
 #
@@ -202,6 +226,13 @@ class QuarantinedRFCInDB(BaseModel):
     quarantined_at: datetime
     reason: str
     rfc_id: int
+
+
+class RFCReadme(BaseModel):
+    content: str
+    created_at: datetime
+    updated_at: datetime
+    public: bool = False
 
 
 #

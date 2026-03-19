@@ -17,6 +17,8 @@ import mdrfc.backend.constants as consts
 from mdrfc.backend.document import (
     RFCRevisionRequest,
     validate_agent_contributors,
+    validate_patch_readme_content,
+    validate_patch_readme_reason,
     validate_quarantine_rfc_reason,
     validate_revision_message,
     validate_rfc_content,
@@ -80,9 +82,27 @@ class PostVerifyEmailRequest(BaseModel):
 #
 # RFC endpoints
 #
+class PatchRfcsReadmeRequest(BaseModel):
+    """
+    HTTP request object for `PATCH /rfcs/README`.
+    """
+
+    reason: Annotated[str, AfterValidator(validate_patch_readme_reason)]
+    content: Annotated[str, AfterValidator(validate_patch_readme_content)] | None = None
+    public: bool | None = None
+
+
+async def validate_patch_rfcs_readme_request(request: Request) -> PatchRfcsReadmeRequest:
+    try:
+        request_json = await request.json()
+        return PatchRfcsReadmeRequest.model_validate(request_json)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
+
+
 class PostRfcRequest(BaseModel):
     """
-    HTTP request object for `POST /rfc`.
+    HTTP request object for `POST /rfcs`.
     """
 
     title: Annotated[str, AfterValidator(validate_rfc_title)]

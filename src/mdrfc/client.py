@@ -765,14 +765,27 @@ def _cmd_rfc_readme(args: Namespace) -> None:
 
     response = httpx.get(url=f"{_url}/rfcs/README", headers=headers)
 
+    global _console
     if response.status_code != 200:
         _console.print(
             f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
         )
         return
     
-    markdown = Markdown(response.content.decode())
-    _console.print(markdown)
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcsReadmeResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    readme = response_obj.readme
+    content_markdown = Markdown(readme.content)
+    _console.print(f"[bold]created at[/bold]: {readme.created_at}")
+    _console.print(f"[bold]updated at[/bold]: {readme.updated_at}")
+    _console.print(f"[bold]public[/bold]: {readme.public}")
+    _console.print(content_markdown)
 
 
 def _cmd_rfc_list(args: Namespace) -> None:

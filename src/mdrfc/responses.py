@@ -10,6 +10,7 @@ from mdrfc.backend.document import (
     QuarantinedRFCSummary,
     RFCDocument,
     RFCDocumentSummary,
+    RFCReadme,
     RFCRevision,
     RFCRevisionSummary,
 )
@@ -66,13 +67,24 @@ class PostVerifyEmailResponse(BaseModel):
 #
 # RFC endpoints
 #
-class GetRfcsReadmeResponse(Response):
+class GetRfcsReadmeResponse(BaseModel):
     """
     HTTP response object for `GET /rfcs/README`.
     """
 
-    media_type: str = "text/markdown"
-    content: str
+    message: str
+    readme: RFCReadme
+    metadata: dict[str, Any]
+
+
+class PatchRfcsReadmeResponse(BaseModel):
+    """
+    HTTP response object for `PATCH /rfcs/README`.
+    """
+
+    message: str
+    readme: RFCReadme
+    metadata: dict[str, Any]
 
 
 class GetRfcsResponse(BaseModel):
