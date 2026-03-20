@@ -17,7 +17,7 @@ No path parameters, query parameters, or request body.
 ```json
 {
   "name": "mdrfc",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "status": "ok",
   "uptime": 12.34,
   "metadata": {}

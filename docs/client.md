@@ -31,13 +31,13 @@ If both are set, the client will try to log in automatically on startup. The `re
 
 ## Client Config File
 
-The config model is versioned and currently expects version `0.2.0`.
+The config model is versioned and currently expects version `0.3.0`.
 
 Example:
 
 ```json
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "aliases": [
     { "alias": "ls", "command": "rfc-list" },
     { "alias": "cat", "command": "rfc-get" }
