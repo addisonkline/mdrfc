@@ -127,17 +127,67 @@ whoami_p.add_argument(
 )
 
 #
-# RFC commands
+# README commands
 #
-rfc_readme_desc = "Get the README for this MDRFC server"
-rfc_readme_p = subparsers.add_parser(
-    "rfc-readme",
-    aliases=["rfc-R"],
-    usage="rfc-readme [option]...",
-    help=rfc_readme_desc,
-    description=rfc_readme_desc
+readme_desc = "Get the README file for this MDRFC server"
+readme_p = subparsers.add_parser(
+    "readme",
+    aliases=["R"],
+    usage="readme [option]...",
+    help=readme_desc,
+    description=readme_desc
 )
 
+readme_rev_list_desc = "Get all revisions on the RFC README file"
+readme_rev_list_p = subparsers.add_parser(
+    "readme-rev-list",
+    aliases=["Rl"],
+    usage="readme-rev-list [option]...",
+    help=readme_rev_list_desc,
+    description=readme_rev_list_desc
+)
+
+readme_rev_get_desc = "Get a specific revision on the RFC README file"
+readme_rev_get_p = subparsers.add_parser(
+    "readme-rev-get",
+    aliases=["Rg"],
+    usage="readme-rev-get [option]...",
+    help=readme_rev_get_desc,
+    description=readme_rev_get_desc
+)
+readme_rev_get_p.add_argument(
+    "revision_id",
+    help="the revision ID to get"
+)
+
+readme_rev_post_desc = "(admin required) Post a new revision for the RFC README file"
+readme_rev_post_p = subparsers.add_parser(
+    "readme-rev-post",
+    aliases=["Rp"],
+    usage="readme-rev-post <reason> [option]...",
+    help=readme_rev_post_desc,
+    description=readme_rev_post_desc
+)
+readme_rev_post_p.add_argument(
+    "reason",
+    help="the reason for this revision"
+)
+readme_rev_post_p.add_argument(
+    "-cf",
+    "--content-file",
+    help="the filepath of the README to upload"
+)
+readme_rev_post_p.add_argument(
+    "-p",
+    "--public",
+    type=bool,
+    help="change the README file's visibility"
+)
+
+
+#
+# RFC commands
+#
 # get the list of RFC documents
 rfc_list_desc = "List the current RFC documents"
 rfc_list_p = subparsers.add_parser(
@@ -526,6 +576,20 @@ alias_list_p.add_argument(
     "-v", "--verbose", action="store_true", help="include more detailed alias info"
 )
 
+# delete an existing alias
+alias_delete_desc = "Delete an existing alias"
+alias_delete_p = subparsers.add_parser(
+    "alias-delete",
+    aliases=["ad"],
+    usage="alias-delete <alias_name> [option]...",
+    help=alias_delete_desc,
+    description=alias_delete_desc
+)
+alias_delete_p.add_argument(
+    "alias_name",
+    help="the alias name to delete"
+)
+
 
 # command handlers
 def _cmd_ping(args: Namespace) -> None:
@@ -751,7 +815,7 @@ def _cmd_whoami(args: Namespace) -> None:
         _console.print(f"username: [green]{response_obj.username}[/green]")
 
 
-def _cmd_rfc_readme(args: Namespace) -> None:
+def _cmd_readme(args: Namespace) -> None:
     """
     Get the server's RFC README file.
     """
@@ -788,7 +852,147 @@ def _cmd_rfc_readme(args: Namespace) -> None:
     _console.print(content_markdown)
 
 
+def _cmd_readme_rev_list(args: Namespace) -> None:
+    """
+    List all revisions of the server's RFC README file.
+    """
+    global _url
+    global _token
+
+    headers = {"User-Agent": _get_user_agent()}
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
+    response = httpx.get(url=f"{_url}/rfcs/README/revs", headers=headers)
+
+    global _console
+    if response.status_code != 200:
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcsReadmeRevsResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    revs = response_obj.revisions
+    _console.print(f"found {len(revs)} revisions")
+    for rev in revs:
+        _console.print(f"[bold]revision id[/bold]: {rev.revision_id}")
+        _console.print(f"[bold]created at[/bold]: {rev.created_at}")
+        _console.print(f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}")
+        _console.print(f"[bold]reason[/bold]: {rev.reason}")
+        _console.print(f"[bold]public[/bold]: {rev.public}")
+        _console.print("=" * 60)
+
+
+def _cmd_readme_rev_get(args: Namespace) -> None:
+    """
+    Get a specific revision of the server's RFC README file.
+    """
+    global _url
+    global _token
+
+    headers = {"User-Agent": _get_user_agent()}
+
+    if _token is not None:
+        headers["Authorization"] = f"Bearer {_token}"
+
+    revision_id = args.revision_id
+
+    response = httpx.get(url=f"{_url}/rfcs/README/revs/{revision_id}", headers=headers)
+
+    global _console
+    if response.status_code != 200:
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
+        return
+    
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcsReadmeRevResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    rev = response_obj.revision
+    content_markdown = Markdown(rev.content)
+    _console.print(f"[bold]revision id[/bold]: {rev.revision_id}")
+    _console.print(f"[bold]created at[/bold]: {rev.created_at}")
+    _console.print(f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}")
+    _console.print(f"[bold]reason[/bold]: {rev.reason}")
+    _console.print(f"[bold]public[/bold]: {rev.public}")
+    _console.print(content_markdown)
+
+
+def _cmd_readme_rev_post(args: Namespace) -> None:
+    """
+    Post a new revision to the server's RFC README file.
+    """
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+        return
+
+    reason = args.reason
+    try:
+        content_file = args.content_file
+        with open(content_file) as file:
+            content = file.read()
+    except AttributeError:
+        content = None
+    try:
+        public = args.public
+    except AttributeError:
+        public = None
+
+    body = {
+        "reason": reason,
+        "content": content,
+        "public": public
+    }
+
+    global _url
+    response = httpx.post(
+        url=f"{_url}/rfcs/README/revs",
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
+        json=body,
+    )
+
+    if response.status_code != 200:
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
+        return
+
+    response_json = response.json()
+    try:
+        response_obj = res_types.PostRfcsReadmeRevResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    rev = response_obj.revision
+    content_markdown = Markdown(rev.content)
+    _console.print(f"[bold]revision id[/bold]: {rev.revision_id}")
+    _console.print(f"[bold]created at[/bold]: {rev.created_at}")
+    _console.print(f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}")
+    _console.print(f"[bold]reason[/bold]: {rev.reason}")
+    _console.print(f"[bold]public[/bold]: {rev.public}")
+    _console.print(content_markdown)
+
+
 def _cmd_rfc_list(args: Namespace) -> None:
+
     """
     Attempt to list the RFCs currently on this server.
     """
@@ -1661,6 +1865,22 @@ def _cmd_alias_list(args: Namespace) -> None:
         _console.print(f"[cyan]{alias}[/cyan] -> [cyan]{cmd}[/cyan]")
 
 
+def _cmd_alias_delete(args: Namespace) -> None:
+    """
+    Attempt to delete an existing alias in this CLI.
+    """
+    alias = args.alias_name
+
+    global _aliases
+    if alias not in _aliases:
+        _console.print("[bold red]error[/bold red] not an existing alias")
+        return
+    
+    cmd = _aliases.pop(alias)
+
+    _console.print(f"successfully unlinked alias: [cyan]{alias}[/cyan] -> [cyan]{cmd}[/cyan]")
+
+
 Command = Callable[[Namespace], None]
 
 _commands: dict[str, Command] = {
@@ -1678,9 +1898,16 @@ _commands: dict[str, Command] = {
     "lo": _cmd_logout,
     "whoami": _cmd_whoami,
     "me": _cmd_whoami,
+    # README
+    "readme": _cmd_readme,
+    "R": _cmd_readme,
+    "readme-rev-list": _cmd_readme_rev_list,
+    "Rl": _cmd_readme_rev_list,
+    "readme-rev-get": _cmd_readme_rev_get,
+    "Rg": _cmd_readme_rev_get,
+    "readme-rev-post": _cmd_readme_rev_post,
+    "Rp": _cmd_readme_rev_post,
     # rfcs
-    "rfc-readme": _cmd_rfc_readme,
-    "rfc-R": _cmd_rfc_readme,
     "rfc-list": _cmd_rfc_list,
     "rfc-l": _cmd_rfc_list,
     "rfc-get": _cmd_rfc_get,
@@ -1724,6 +1951,8 @@ _commands: dict[str, Command] = {
     "ag": _cmd_alias_get,
     "alias-list": _cmd_alias_list,
     "al": _cmd_alias_list,
+    "alias-delete": _cmd_alias_delete,
+    "ad": _cmd_alias_delete
 }
 
 _aliases: dict[str, str] = {item.alias: item.command for item in _config.aliases}

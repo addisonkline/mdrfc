@@ -16,11 +16,14 @@ from mdrfc.backend.db import (
     delete_comment_from_db,
     delete_rfc_from_db,
     get_comments_quarantined_in_db,
+    get_rfcs_readme_in_db,
     get_revision_from_db,
     get_revisions_from_db,
     get_rfc_from_db,
     get_rfcs_from_db,
     get_rfcs_quarantined_from_db,
+    get_rfcs_readme_rev_in_db,
+    get_rfcs_readme_revs_in_db,
     quarantine_comment_in_db,
     quarantine_rfc_in_db,
     register_revision_in_db,
@@ -28,10 +31,16 @@ from mdrfc.backend.db import (
     register_comment_in_db,
     get_rfc_comments_from_db,
     check_comment_is_on_rfc,
+    register_rfcs_readme_rev_in_db,
     unquarantine_comment_in_db,
     unquarantine_rfc_in_db,
 )
-from mdrfc.backend.document import RFCDocumentInDB, RFCReadme, RFCReadmeRevisionInDB, RFCRevisionInDB
+from mdrfc.backend.document import (
+    RFCDocumentInDB,
+    RFCReadme,
+    RFCReadmeRevisionInDB,
+    RFCRevisionInDB,
+)
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
@@ -69,43 +78,71 @@ async def get_llms_txt(
 #
 # RFC endpoints
 #
-async def get_rfcs_readme(
+def _check_rfcs_readme_visibility(
     user: User | None,
     rfcs_readme: RFCReadme,
+) -> None:
+    if (user is None) and (not rfcs_readme.public):
+        raise HTTPException(
+            status_code=401,
+            detail="unauthorized",
+        )
+
+
+async def _get_current_rfcs_readme() -> RFCReadme:
+    rfcs_readme = await get_rfcs_readme_in_db()
+    if rfcs_readme is None:
+        raise HTTPException(
+            status_code=404,
+            detail="RFC README not found",
+        )
+    return rfcs_readme
+
+
+async def _build_rfcs_readme_revision(
+    admin: User,
+    reason: str,
+    content: str | None,
+    public: bool | None,
+) -> RFCReadmeRevisionInDB:
+    current_readme = await get_rfcs_readme_in_db()
+
+    if current_readme is None:
+        if content is None:
+            raise HTTPException(
+                status_code=400,
+                detail="content is required for the initial RFC README revision",
+            )
+        next_content = content
+        next_public = public if public is not None else False
+    else:
+        next_content = content if content is not None else current_readme.content
+        next_public = public if public is not None else current_readme.public
+
+    return RFCReadmeRevisionInDB(
+        revision_id=uuid.uuid4(),
+        created_at=datetime.now(timezone.utc),
+        created_by=admin.id,
+        reason=reason,
+        content=next_content,
+        public=next_public,
+    )
+
+
+async def get_rfcs_readme(
+    user: User | None,
 ) -> res_types.GetRfcsReadmeResponse:
     """
     Handle a request to the endpoint `GET /rfcs/README`.
     """
-    if (user is None) and (not rfcs_readme.public):
-        raise HTTPException(
-            status_code=401,
-            detail="unauthorized"
-        )
+    rfcs_readme = await _get_current_rfcs_readme()
+    _check_rfcs_readme_visibility(user=user, rfcs_readme=rfcs_readme)
 
     return res_types.GetRfcsReadmeResponse(
         message="success",
         readme=rfcs_readme,
-        metadata={}
+        metadata={},
     )
-
-
-async def patch_rfcs_readme(
-    rfcs_readme: RFCReadme,
-    payload: req_types.PatchRfcsReadmeRequest
-) -> RFCReadme:
-    """
-    Patch the current RFC README file.
-    """
-    reason = payload.reason
-    new_content = payload.content
-    new_public = payload.public
-
-    if new_content is not None:
-        rfcs_readme.content = new_content
-    if new_public is not None:
-        rfcs_readme.public = new_public
-
-    return rfcs_readme
 
 
 async def get_rfcs_readme_revs(
@@ -114,42 +151,40 @@ async def get_rfcs_readme_revs(
     """
     Handle a request to the endpoint `GET /rfcs/README/revs`.
     """
-    revs, readme_public = await get_rfcs_readme_revs_from_db()
-
-    if (user is None) and (not readme_public):
-        raise HTTPException(
-            status_code=401,
-            detail="unauthorized"
-        )
+    current_readme = await _get_current_rfcs_readme()
+    _check_rfcs_readme_visibility(user=user, rfcs_readme=current_readme)
+    revs = await get_rfcs_readme_revs_in_db()
 
     return res_types.GetRfcsReadmeRevsResponse(
         message="success",
         revisions=revs,
-        metadata={}
+        metadata={},
     )
 
 
 async def get_rfcs_readme_rev(
     user: User | None,
-    revision_id: str,
+    revision_id: uuid.UUID,
 ) -> res_types.GetRfcsReadmeRevResponse:
     """
     Handle a request to the endpoint `GET /rfcs/README/rev`.
     """
-    rev, readme_public = await get_rfcs_readme_rev_from_db(
-        revision_id=revision_id
-    )
+    current_readme = await _get_current_rfcs_readme()
+    _check_rfcs_readme_visibility(user=user, rfcs_readme=current_readme)
 
-    if (user is None) and (not readme_public):
+    rev = await get_rfcs_readme_rev_in_db(
+        revision_id=revision_id,
+    )
+    if rev is None:
         raise HTTPException(
-            status_code=401,
-            detail="unauthorized"
+            status_code=404,
+            detail="RFC README revision not found",
         )
 
     return res_types.GetRfcsReadmeRevResponse(
         message="success",
         revision=rev,
-        metadata={}
+        metadata={},
     )
 
 
@@ -160,25 +195,22 @@ async def post_rfcs_readme_rev(
     """
     Handle a request to the endpoint `POST /rfcs/README/revs`.
     """
-    rfcs_readme_in_db = await get_rfcs_readme_in_db()
-
-    rfcs_readme_rev_in_db = RFCReadmeRevisionInDB(
-        revision_id=uuid.uuid4(),
-        created_at=datetime.now(timezone.utc),
-        created_by=admin.id,
+    rfcs_readme_rev_in_db = await _build_rfcs_readme_revision(
+        admin=admin,
         reason=payload.reason,
-        content=payload.content or rfcs_readme_in_db.content,
-        public=payload.public or rfcs_readme_in_db.public,
+        content=payload.content,
+        public=payload.public,
     )
 
     rev = await register_rfcs_readme_rev_in_db(
-        payload=rfcs_readme_rev_in_db
+        admin=admin,
+        revision=rfcs_readme_rev_in_db,
     )
 
-    return res_types.GetRfcsReadmeRevResponse(
+    return res_types.PostRfcsReadmeRevResponse(
         message="success",
         revision=rev,
-        metadata={}
+        metadata={},
     )
 
 

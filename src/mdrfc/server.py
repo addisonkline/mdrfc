@@ -6,6 +6,7 @@ from os import getenv
 from typing import Annotated
 import logging
 import time
+from uuid import UUID
 
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Depends, HTTPException, Request, Response
@@ -28,7 +29,7 @@ from mdrfc.backend.auth import (
 from mdrfc.backend.comment import validate_quarantine_comment_reason
 import mdrfc.backend.constants as consts
 from mdrfc.backend.db import init_db, close_db
-from mdrfc.backend.document import RFCReadme, validate_quarantine_rfc_reason
+from mdrfc.backend.document import validate_quarantine_rfc_reason
 from mdrfc.backend.email import check_valid_email, send_verification_email_task
 from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
 from mdrfc.utils.llms_txt import LLMS_TXT
@@ -36,7 +37,6 @@ from mdrfc.utils.logging import init_logger
 import mdrfc.api as api
 import mdrfc.requests as req_types
 import mdrfc.responses as res_types
-from mdrfc.utils.rfcs_readme import RFCS_README
 from mdrfc.utils.version import get_mdrfc_version
 
 
@@ -51,12 +51,6 @@ if token_expiry_time is None:
 ACCESS_TOKEN_EXPIRE_MINUTES = int(token_expiry_time)
 
 _llms_txt = LLMS_TXT
-_rfcs_readme = RFCReadme(
-    content=RFCS_README,
-    created_at=datetime.now(timezone.utc),
-    updated_at=datetime.now(timezone.utc),
-    public=False
-)
 
 
 async def _server_startup(app: FastAPI):
@@ -330,37 +324,10 @@ async def get_rfcs_readme(
     """
     `GET /rfcs/README`: Get the README document for this server.
     """
-    global _rfcs_readme
     return await api.get_rfcs_readme(
         user=current_user,
-        rfcs_readme=_rfcs_readme
     )
 
-
-@app.patch(
-    "/rfcs/README",
-    response_model=res_types.PatchRfcsReadmeResponse,
-    tags=["rfcs", "admin"]
-)
-async def patch_rfcs_readme(
-    current_admin: Annotated[User, Depends(get_current_active_admin)],
-    payload: Annotated[req_types.PatchRfcsReadmeRequest, Depends(req_types.validate_patch_rfcs_readme_request)]
-) -> res_types.PatchRfcsReadmeResponse:
-    """
-    `PATCH /rfcs/README`: Update the server's RFC README.
-    """
-    global _rfcs_readme
-    result = await api.patch_rfcs_readme(
-        rfcs_readme=_rfcs_readme,
-        payload=payload
-    )
-    _rfcs_readme = result
-
-    return res_types.PatchRfcsReadmeResponse(
-        message="success",
-        readme=result,
-        metadata={}
-    )
 
 @app.get(
     "/rfcs/README/revs",
@@ -373,7 +340,7 @@ async def get_rfcs_readme_revs(
     """
     `GET /rfcs/README/revs`: Get all revisions on the RFC README file.
     """
-    raise NotImplementedError
+    return await api.get_rfcs_readme_revs(user=current_user)
 
 
 @app.get(
@@ -382,13 +349,16 @@ async def get_rfcs_readme_revs(
     tags=["rfcs", "rev"]
 )
 async def get_rfcs_readme_rev(
-    revision_id: int,
+    revision_id: UUID,
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcsReadmeRevResponse:
     """
     `GET /rfcs/README/revs/{revision_id}`: Get a specific revision on the RFC README file.
     """
-    raise NotImplementedError
+    return await api.get_rfcs_readme_rev(
+        user=current_user,
+        revision_id=revision_id,
+    )
 
 
 @app.post(
@@ -403,7 +373,10 @@ async def post_rfcs_readme_rev(
     """
     `POST /rfcs/README/revs`: Post a new revision on the RFC README file.
     """
-    raise NotImplementedError
+    return await api.post_rfcs_readme_rev(
+        admin=current_admin,
+        payload=payload,
+    )
 
 
 @app.get(
@@ -818,29 +791,6 @@ def _load_llms_txt(file: str) -> None:
         _llms_txt = llms_txt_file.read()
 
 
-def _load_rfcs_readme(file: str) -> None:
-    """
-    Load a new RFC README from the given file.
-    """
-    with open(file) as rfcs_readme_file:
-        content = rfcs_readme_file.read()
-        try:
-            content_json = json.loads(content)
-            content_obj = RFCReadme.model_validate(content_json)
-        except Exception as e:
-            print("fatal: could not read provided RFC README file")
-            print(f"detail: {e}")
-            exit(1)
-
-        global _rfcs_readme
-        _rfcs_readme = RFCReadme(
-            content=content_obj.content,
-            created_at=content_obj.created_at,
-            updated_at=content_obj.updated_at,
-            public=content_obj.public
-        )
-
-
 def run_server(args: Namespace) -> None:
     """
     Run the mdrfc server via the CLI.
@@ -849,8 +799,6 @@ def run_server(args: Namespace) -> None:
 
     if args.llms_txt:
         _load_llms_txt(args.llms_txt)
-    if args.readme:
-        _load_rfcs_readme(args.readme)
 
     uvicorn.run(
         "mdrfc.server:app",

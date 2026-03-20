@@ -16,6 +16,7 @@ from mdrfc.backend.document import (
     RFCDocument,
     RFCDocumentInDB,
     RFCDocumentSummary,
+    RFCReadme,
     RFCReadmeRevision,
     RFCReadmeRevisionInDB,
     RFCReadmeRevisionSummary,
@@ -219,6 +220,34 @@ async def verify_user_by_token_in_db(
 #
 # RFC functions
 #
+async def get_rfcs_readme_in_db() -> RFCReadme | None:
+    """
+    Get the current RFC README file from the database.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            revisions_in_db = await connection.fetch(
+                """
+                SELECT id, created_at, content, COALESCE(is_public, FALSE) AS is_public
+                FROM readme_revisions
+                ORDER BY created_at ASC, id ASC
+                """
+            )
+            if len(revisions_in_db) == 0:
+                return None
+            first_revision = revisions_in_db[0]
+            latest_revision = revisions_in_db[-1]
+            return RFCReadme(
+                content=latest_revision.get("content"),
+                created_at=first_revision.get("created_at"),
+                updated_at=latest_revision.get("created_at"),
+                current_revision=latest_revision.get("id"),
+                revisions=[rev.get("id") for rev in revisions_in_db],
+                public=latest_revision.get("is_public") or False,
+            )
+
+
 async def get_rfcs_readme_revs_in_db() -> list[RFCReadmeRevisionSummary]:
     """
     Get all revisions on the RFC README file from the database.
@@ -227,26 +256,31 @@ async def get_rfcs_readme_revs_in_db() -> list[RFCReadmeRevisionSummary]:
     async with _pool.acquire() as connection:
         async with connection.transaction():
             revs_in_db = await connection.fetch(
-                "SELECT * FROM readme_revisions"
+                """
+                SELECT
+                    rr.id AS revision_id,
+                    rr.created_at,
+                    rr.reason,
+                    COALESCE(rr.is_public, FALSE) AS is_public,
+                    u.name_last AS created_by_name_last,
+                    u.name_first AS created_by_name_first
+                FROM readme_revisions AS rr
+                JOIN users AS u ON u.id = rr.created_by
+                ORDER BY rr.created_at ASC, rr.id ASC
+                """
             )
-            if revs_in_db is None:
-                return []
-            else:
-                summaries: list[RFCReadmeRevisionSummary] = []
-                for rev in revs_in_db:
-                    user = await get_user_by_id(rev.get("created_by"))
-                    if user is None:
-                        continue
-                    summary = RFCReadmeRevisionSummary(
-                        revision_id=rev.get("revision_id"),
-                        created_by_name_last=user.name_last,
-                        created_by_name_first=user.name_first,
-                        created_at=rev.get("created_at"),
-                        reason=rev.get("reason"),
-                        public=rev.get("is_public")
-                    )
-                    summaries.append(summary)
-                return summaries 
+            summaries: list[RFCReadmeRevisionSummary] = []
+            for rev in revs_in_db:
+                summary = RFCReadmeRevisionSummary(
+                    revision_id=rev.get("revision_id"),
+                    created_by_name_last=rev.get("created_by_name_last"),
+                    created_by_name_first=rev.get("created_by_name_first"),
+                    created_at=rev.get("created_at"),
+                    reason=rev.get("reason"),
+                    public=rev.get("is_public") or False,
+                )
+                summaries.append(summary)
+            return summaries
 
 
 
@@ -260,30 +294,37 @@ async def get_rfcs_readme_rev_in_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             rev_in_db = await connection.fetchrow(
-                "SELECT * FROM readme_revisions WHERE revision_id = $1",
-                revision_id
+                """
+                SELECT
+                    rr.id AS revision_id,
+                    rr.created_at,
+                    rr.reason,
+                    rr.content,
+                    COALESCE(rr.is_public, FALSE) AS is_public,
+                    u.name_last AS created_by_name_last,
+                    u.name_first AS created_by_name_first
+                FROM readme_revisions AS rr
+                JOIN users AS u ON u.id = rr.created_by
+                WHERE rr.id = $1
+                """,
+                revision_id,
             )
             if rev_in_db is None:
                 return None
-            else:
-                creator = await get_user_by_id(rev_in_db.get("created_by"))
-                if creator is None:
-                    return None
-                rev = RFCReadmeRevision(
-                    revision_id=rev_in_db.get("revision_id"),
-                    created_at=rev_in_db.get("created_at"),
-                    created_by_name_last=creator.name_last,
-                    created_by_name_first=creator.name_first,
-                    reason=rev_in_db.get("reason"),
-                    content=rev_in_db.get("content"),
-                    public=rev_in_db.get("public")
-                )
-                return rev
-            
+            return RFCReadmeRevision(
+                revision_id=rev_in_db.get("revision_id"),
+                created_at=rev_in_db.get("created_at"),
+                created_by_name_last=rev_in_db.get("created_by_name_last"),
+                created_by_name_first=rev_in_db.get("created_by_name_first"),
+                reason=rev_in_db.get("reason"),
+                content=rev_in_db.get("content"),
+                public=rev_in_db.get("is_public") or False,
+            )
+
 
 async def register_rfcs_readme_rev_in_db(
     admin: User,
-    revision: RFCReadmeRevisionInDB
+    revision: RFCReadmeRevisionInDB,
 ) -> RFCReadmeRevision:
     """
     Post a new revision for the RFC README file.
@@ -293,7 +334,7 @@ async def register_rfcs_readme_rev_in_db(
         async with connection.transaction():
             query = """
             INSERT INTO readme_revisions (
-                revision_id, created_at, created_by, reason, content, public
+                id, created_at, created_by, reason, content, is_public
             )
             VALUES ($1, $2, $3, $4, $5, $6);
             """
@@ -304,7 +345,7 @@ async def register_rfcs_readme_rev_in_db(
                 revision.created_by,
                 revision.reason,
                 revision.content,
-                revision.public
+                revision.public,
             )
             return RFCReadmeRevision(
                 revision_id=revision.revision_id,
@@ -313,7 +354,7 @@ async def register_rfcs_readme_rev_in_db(
                 created_by_name_first=admin.name_first,
                 reason=revision.reason,
                 content=revision.content,
-                public=revision.public
+                public=revision.public,
             )
 
 

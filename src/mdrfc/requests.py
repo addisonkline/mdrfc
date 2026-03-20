@@ -110,10 +110,12 @@ class PostRfcsReadmeRevRequest(BaseModel):
     public: bool | None = None
 
 
-async def validate_post_rfcs_readme_rev_request(request: Request) -> PatchRfcsReadmeRequest:
+async def validate_post_rfcs_readme_rev_request(
+    request: Request,
+) -> PostRfcsReadmeRevRequest:
     try:
         request_json = await request.json()
-        return PatchRfcsReadmeRequest.model_validate(request_json)
+        return PostRfcsReadmeRevRequest.model_validate(request_json)
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
 
