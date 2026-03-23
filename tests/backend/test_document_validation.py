@@ -42,14 +42,14 @@ def test_validate_agent_contributors_checks_each_value() -> None:
         validate_agent_contributors(["codex@openai", "invalid"])
 
 
-@pytest.mark.parametrize("status", ["draft", "open"])
+@pytest.mark.parametrize("status", ["draft", "open", "accepted", "rejected"])
 def test_validate_rfc_status_accepts_editable_statuses(status: str) -> None:
     assert validate_rfc_status(status) == status
 
 
 def test_validate_rfc_status_rejects_invalid_values() -> None:
     with pytest.raises(ValueError, match="invalid status value"):
-        validate_rfc_status("accepted")
+        validate_rfc_status("invalid")
 
 
 def test_validate_quarantine_rfc_reason_enforces_bounds() -> None:

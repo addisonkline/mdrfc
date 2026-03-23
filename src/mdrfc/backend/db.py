@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import json
 from os import getenv
-from typing import Any
+from typing import Any, Literal
 import uuid
 
 from fastapi import HTTPException
@@ -515,9 +515,10 @@ async def register_rfc_in_db(document: RFCDocumentInDB) -> int:
                 INSERT INTO rfcs (
                     created_by, created_at, updated_at,
                     title, slug, status, content, summary,
-                    revisions, current_revision, agent_contributions, is_public
+                    revisions, current_revision, agent_contributions, is_public,
+                    review_requested, is_reviewed
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $15, $16)
                 RETURNING id
             ), revision_insert AS (
                 INSERT INTO rfc_revisions (
@@ -548,6 +549,8 @@ async def register_rfc_in_db(document: RFCDocumentInDB) -> int:
                 document.public,
                 document.agent_contributions.get(document.current_revision, []),
                 "First revision",
+                False,
+                False
             )
             if rfc_id is None:
                 raise HTTPException(status_code=500, detail="got rfc_id = None")
@@ -588,6 +591,9 @@ async def get_rfc_from_db(
                     rfc.get("agent_contributions")
                 ),
                 public=rfc.get("is_public") or False,
+                review_requested=rfc.get("review_requested") or False,
+                reviewed=rfc.get("is_reviewed") or False,
+                review_reason=rfc.get("review_reason"),
             )
 
 
@@ -627,6 +633,114 @@ async def quarantine_rfc_in_db(
             """
             await connection.execute(
                 query_quarantined, user.id, datetime.now(timezone.utc), reason, rfc_id
+            )
+
+
+async def get_rfcs_review_needed_from_db() -> list[RFCDocumentSummary]:
+    """
+    Fetch all RFC documents from the database where the author has requested admin review.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query = """
+            SELECT *
+            FROM rfcs
+            WHERE review_requested = TRUE;
+            """
+            rfcs_in_db = await connection.fetch(query)
+            if rfcs_in_db is None:
+                return []
+            summaries: list[RFCDocumentSummary] = []
+            for rfc in rfcs_in_db:
+                if rfc.get("is_quarantined"):
+                    continue
+                user = await get_user_by_id(rfc.get("created_by"))
+                if user is None:
+                    continue
+                summary = RFCDocumentSummary(
+                    id=rfc.get("id"),
+                    author_name_last=user.name_last,
+                    author_name_first=user.name_first,
+                    created_at=rfc.get("created_at"),
+                    updated_at=rfc.get("updated_at"),
+                    title=rfc.get("title"),
+                    slug=rfc.get("slug"),
+                    status=rfc.get("status"),
+                    summary=rfc.get("summary"),
+                    public=rfc.get("is_public") or False,
+                )
+                summaries.append(summary)
+            return summaries
+
+
+async def post_rfc_review_req_in_db(
+    rfc_id: int,
+    user: User,
+) -> None:
+    """
+    Request that an existing RFC in the database gets admin review.
+    """
+    if not await check_user_created_rfc(
+        user=user,
+        rfc_id=rfc_id
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="unauthorized to request review on this RFC"
+        )
+    
+    if not await check_rfc_not_already_requested_review(
+        rfc_id=rfc_id
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="RFC already requested review"
+        )
+    
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query = """
+            UPDATE rfcs
+            SET review_requested = TRUE
+            WHERE id = $1;
+            """
+            await connection.execute(
+                query,
+                rfc_id
+            )
+
+
+async def update_rfc_status_in_db(
+    rfc_id: int,
+    new_status: Literal["accepted", "rejected"],
+    reason: str
+) -> None:
+    """
+    Attempt to update an RFC's status to either `accepted` or `rejected` after admin review.
+    """
+    if await check_rfc_not_already_requested_review(
+        rfc_id=rfc_id
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="RFC not open to review"
+        )
+
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query = """
+            UPDATE rfcs
+            SET status = $1, is_reviewed = TRUE, review_reason = $2
+            WHERE id = $3;
+            """
+            await connection.execute(
+                query,
+                new_status,
+                reason,
+                rfc_id
             )
 
 
@@ -726,6 +840,21 @@ async def register_revision_in_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
+            rfc_state = await connection.fetchrow(
+                "SELECT review_requested, status FROM rfcs WHERE id = $1 FOR UPDATE",
+                rfc_id,
+            )
+            if rfc_state is None:
+                raise HTTPException(status_code=404, detail="RFC not found")
+            if rfc_state.get("review_requested") or rfc_state.get("status") in {
+                "accepted",
+                "rejected",
+            }:
+                raise HTTPException(
+                    status_code=400,
+                    detail="RFC is no longer open for revisions",
+                )
+
             query = """
             WITH revision_insert AS (
                 INSERT INTO rfc_revisions (
@@ -1160,3 +1289,22 @@ async def check_comment_is_quarantined(
             if is_quarantined:
                 return True
             return False
+
+
+async def check_rfc_not_already_requested_review(
+    rfc_id: int,
+) -> bool:
+    """
+    Check that this RFC does not already have review requested.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            review_requested = await connection.fetchval(
+                "SELECT review_requested FROM rfcs WHERE id = $1",
+                rfc_id
+            )
+            if review_requested:
+                return False
+            return True
+        

@@ -19,6 +19,7 @@ from mdrfc.backend.document import (
     validate_agent_contributors,
     validate_patch_readme_content,
     validate_patch_readme_reason,
+    validate_patch_rfc_status_reason,
     validate_quarantine_rfc_reason,
     validate_revision_message,
     validate_rfc_content,
@@ -156,6 +157,23 @@ async def validate_delete_rfc_request(request: Request) -> DeleteRfcRequest:
     try:
         request_json = await request.json()
         return DeleteRfcRequest.model_validate(request_json)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
+
+
+class PatchRfcStatusRequest(BaseModel):
+    """
+    HTTP request object for `PATCH /rfcs/{rfc_id}/status`.
+    """
+
+    status: Literal["accepted", "rejected"]
+    reason: Annotated[str, AfterValidator(validate_patch_rfc_status_reason)]
+
+
+async def validate_patch_rfc_status_request(request: Request) -> PatchRfcStatusRequest:
+    try:
+        request_json = await request.json()
+        return PatchRfcStatusRequest.model_validate(request_json)
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
 

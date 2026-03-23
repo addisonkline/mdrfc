@@ -61,11 +61,15 @@ def validate_rfc_slug(slug: str) -> str:
     return slug
 
 
-def validate_rfc_status(status: str) -> Literal["draft", "open"]:
+def validate_rfc_status(status: str) -> Literal["draft", "open", "accepted", "rejected"]:
     if status == "draft":
         return "draft"
     elif status == "open":
         return "open"
+    elif status == "accepted":
+        return "accepted"
+    elif status == "rejected":
+        return "rejected"
     else:
         raise ValueError("invalid status value")
 
@@ -148,6 +152,18 @@ def validate_patch_readme_content(content: str) -> str:
     return content
 
 
+def validate_patch_rfc_status_reason(reason: str) -> str:
+    if len(reason) < consts.LEN_PATCH_RFC_STATUS_REASON_MIN:
+        raise ValueError(
+            f"reason must be at least {consts.LEN_PATCH_RFC_STATUS_REASON_MIN} characters long"
+        )
+    if len(reason) > consts.LEN_PATCH_RFC_STATUS_REASON_MAX:
+        raise ValueError(
+            f"reason must be no greater than {consts.LEN_PATCH_RFC_STATUS_REASON_MAX} characters long"
+        )
+    return reason
+
+
 #
 # DOCUMENT types
 #
@@ -166,6 +182,9 @@ class RFCDocument(BaseModel):
     current_revision: UUID
     agent_contributions: AgentContributions
     public: bool
+    review_requested: bool
+    reviewed: bool
+    review_reason: str | None = None
 
 
 class RFCDocumentSummary(BaseModel):
@@ -196,6 +215,9 @@ class RFCDocumentInDB(BaseModel):
     agent_contributions: AgentContributions
     public: bool = False
     quarantined: bool = False
+    review_requested: bool = False
+    reviewed: bool = False
+    review_reason: str | None = None
 
 
 class QuarantinedRFC(BaseModel):

@@ -24,6 +24,8 @@ from mdrfc.backend.db import (
     get_rfcs_quarantined_from_db,
     get_rfcs_readme_rev_in_db,
     get_rfcs_readme_revs_in_db,
+    get_rfcs_review_needed_from_db,
+    post_rfc_review_req_in_db,
     quarantine_comment_in_db,
     quarantine_rfc_in_db,
     register_revision_in_db,
@@ -34,6 +36,7 @@ from mdrfc.backend.db import (
     register_rfcs_readme_rev_in_db,
     unquarantine_comment_in_db,
     unquarantine_rfc_in_db,
+    update_rfc_status_in_db,
 )
 from mdrfc.backend.document import (
     RFCDocumentInDB,
@@ -334,6 +337,59 @@ async def delete_rfc(
     )
 
 
+async def get_rfcs_review_needed() -> res_types.GetRfcsReviewNeededResponse:
+    """
+    Get all RFCs where the author has requested admin review.
+    """
+    rfc_summaries = await get_rfcs_review_needed_from_db()
+
+    return res_types.GetRfcsReviewNeededResponse(
+        message="success",
+        rfcs=rfc_summaries,
+        metadata={}
+    )
+
+
+async def post_rfc_review_req(
+    rfc_id: int,
+    user: User,
+) -> res_types.PostRfcReviewResponse:
+    """
+    Request an admin review on the given RFC.
+    """
+    await post_rfc_review_req_in_db(
+        rfc_id=rfc_id,
+        user=user
+    )
+
+    return res_types.PostRfcReviewResponse(
+        message="success",
+        requested_at=datetime.now(timezone.utc),
+        metadata={}
+    )
+
+
+async def patch_rfc_status(
+    rfc_id: int,
+    admin: User,
+    payload: req_types.PatchRfcStatusRequest,
+) -> res_types.PatchRfcStatusResponse:
+    """
+    Update an RFC's status to either `accepted` or `rejected`.
+    """
+    await update_rfc_status_in_db(
+        rfc_id=rfc_id,
+        new_status=payload.status,
+        reason=payload.reason
+    )
+
+    return res_types.PatchRfcStatusResponse(
+        message="success",
+        updated_at=datetime.now(timezone.utc),
+        metadata={}
+    )
+
+
 #
 # REVISION endpoints
 #
@@ -395,6 +451,11 @@ async def post_rfc_revision(
     rfc = await get_rfc_from_db(rfc_id)
     if rfc is None:
         raise HTTPException(status_code=404, detail="RFC not found")
+    if rfc.review_requested or rfc.status in {"accepted", "rejected"}:
+        raise HTTPException(
+            status_code=400,
+            detail="RFC is no longer open for revisions",
+        )
 
     to_update: dict[str, Any] = {
         "title": request.update.title or rfc.title,
