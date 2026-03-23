@@ -264,6 +264,21 @@ rfc_delete_p.add_argument(
     help="include more detailed response metadata",
 )
 
+rfc_review_needed_desc = "(admin required) List all RFCs where admin review has been requested"
+rfc_review_needed_p = subparsers.add_parser(
+    "rfc-review-needed",
+    aliases=["rfc-rn"],
+    usage="rfc-review-needed [option]...",
+    help=rfc_review_needed_desc,
+    description=rfc_review_needed_desc
+)
+rfc_review_needed_p.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="include more detailed response metadata",
+)
+
 rfc_review_request_desc = "(login required) Request admin review for a specific RFC"
 rfc_review_request_p = subparsers.add_parser(
     "rfc-review-request",
@@ -1244,6 +1259,60 @@ def _cmd_rfc_delete(args: Namespace) -> None:
         _console.print("successfully deleted RFC")
 
 
+def _cmd_rfc_review_needed(args: Namespace) -> None:
+    """
+    List all RFC documents where admin review has been requested.
+    """
+    global _console
+    global _token
+    if _token is None:
+        _console.print("[bold red]error[/bold red] not logged in")
+
+    global _url
+    response = httpx.get(
+        url=f"{_url}/rfcs/review-needed",
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "User-Agent": _get_user_agent()
+        }
+    )
+
+    if response.status_code != 200:
+        _console.print(
+            f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
+        )
+        if args.verbose:
+            _console.print(response.content)
+        return
+
+    response_json = response.json()
+    try:
+        response_obj = res_types.GetRfcsReviewNeededResponse.model_validate(response_json)
+    except ValidationError as e:
+        _console.print("[bold red]error[/bold red] response validation failed")
+        _console.print(e)
+        return
+    
+    if args.verbose:
+        _console.print(f"[bold]message[/bold]: {response_obj.message}")
+        _console.print(f"[bold]rfcs[/bold]: {response_obj.rfcs}")
+        _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
+    else:
+        rfcs = response_obj.rfcs
+        _console.print(f"found {len(rfcs)} RFCs")
+        for rfc in rfcs:
+            _console.print("=" * 60)
+            _console.print(f"[bold]id[/bold]: {rfc.id}")
+            _console.print(f"[bold]created by[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
+            _console.print(f"[bold]created at[/bold]: {rfc.created_at}")
+            _console.print(f"[bold]updated at[/bold]: {rfc.updated_at}")
+            _console.print(f"[bold]title[/bold]: {rfc.title}")
+            _console.print(f"[bold]slug[/bold]: {rfc.slug}")
+            _console.print(f"[bold]status[/bold]: {rfc.status}")
+            _console.print(f"[bold]summary[/bold]: {rfc.summary}")
+            _console.print(f"[bold]public[/bold]: {rfc.public}")
+
+
 def _cmd_rfc_review_request(args: Namespace) -> None:
     """
     Request admin review on a specific RFC.
@@ -2058,6 +2127,8 @@ _commands: dict[str, Command] = {
     "rfc-p": _cmd_rfc_post,
     "rfc-delete": _cmd_rfc_delete,
     "rfc-d": _cmd_rfc_delete,
+    "rfc-review-needed": _cmd_rfc_review_needed,
+    "rfc-rn": _cmd_rfc_review_needed,
     "rfc-review-request": _cmd_rfc_review_request,
     "rfc-rr": _cmd_rfc_review_request,
     "rfc-review-admin": _cmd_rfc_review_admin,

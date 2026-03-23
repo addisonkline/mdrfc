@@ -634,6 +634,44 @@ async def quarantine_rfc_in_db(
             )
 
 
+async def get_rfcs_review_needed_from_db() -> list[RFCDocumentSummary]:
+    """
+    Fetch all RFC documents from the database where the author has requested admin review.
+    """
+    global _pool
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            query = """
+            SELECT *
+            FROM rfcs
+            WHERE review_requested = TRUE;
+            """
+            rfcs_in_db = await connection.fetch(query)
+            if rfcs_in_db is None:
+                return []
+            summaries: list[RFCDocumentSummary] = []
+            for rfc in rfcs_in_db:
+                if rfc.get("is_quarantined"):
+                    continue
+                user = await get_user_by_id(rfc.get("created_by"))
+                if user is None:
+                    continue
+                summary = RFCDocumentSummary(
+                    id=rfc.get("id"),
+                    author_name_last=user.name_last,
+                    author_name_first=user.name_first,
+                    created_at=rfc.get("created_at"),
+                    updated_at=rfc.get("updated_at"),
+                    title=rfc.get("title"),
+                    slug=rfc.get("slug"),
+                    status=rfc.get("status"),
+                    summary=rfc.get("summary"),
+                    public=rfc.get("is_public") or False,
+                )
+                summaries.append(summary)
+            return summaries
+
+
 async def post_rfc_review_req_in_db(
     rfc_id: int,
     user: User,

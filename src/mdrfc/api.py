@@ -24,6 +24,7 @@ from mdrfc.backend.db import (
     get_rfcs_quarantined_from_db,
     get_rfcs_readme_rev_in_db,
     get_rfcs_readme_revs_in_db,
+    get_rfcs_review_needed_from_db,
     post_rfc_review_req_in_db,
     quarantine_comment_in_db,
     quarantine_rfc_in_db,
@@ -333,6 +334,19 @@ async def delete_rfc(
 
     return res_types.DeleteRfcResponse(
         message="success", quarantined_at=datetime.now(timezone.utc), metadata={}
+    )
+
+
+async def get_rfcs_review_needed() -> res_types.GetRfcsReviewNeededResponse:
+    """
+    Get all RFCs where the author has requested admin review.
+    """
+    rfc_summaries = await get_rfcs_review_needed_from_db()
+
+    return res_types.GetRfcsReviewNeededResponse(
+        message="success",
+        rfcs=rfc_summaries,
+        metadata={}
     )
 
 

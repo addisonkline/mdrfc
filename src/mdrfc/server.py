@@ -464,6 +464,20 @@ async def post_rfc(
 
 
 @app.get(
+    "/rfcs/review-needed",
+    response_model=res_types.GetRfcsReviewNeededResponse,
+    tags=["rfcs", "admin"]
+)
+async def get_rfcs_review_needed(
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
+) -> res_types.GetRfcsReviewNeededResponse:
+    """
+    `GET /rfcs/review-needed`: Get all RFCs where the author has requested admin review.
+    """
+    return await api.get_rfcs_review_needed()
+
+
+@app.get(
     "/rfc/{rfc_id}/rev/current",
     response_model=res_types.GetRfcResponse,
     deprecated=True,
