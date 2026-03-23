@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Response
 from pydantic import BaseModel
@@ -118,13 +118,62 @@ class PostRfcsReadmeRevResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+class PaginationMetadata(BaseModel):
+    """
+    Pagination metadata for list responses.
+    """
+
+    limit: int
+    offset: int
+    returned: int
+    total: int
+    has_more: bool
+
+
+class EmptyFiltersMetadata(BaseModel):
+    """
+    Empty filter metadata for list responses with no server-side filters.
+    """
+
+
+class GetRfcsFiltersMetadata(BaseModel):
+    """
+    Filter metadata for `GET /rfcs`.
+    """
+
+    status: Literal["draft", "open", "accepted", "rejected"] | None = None
+    public: bool | None = None
+    author_id: int | None = None
+    review_requested: bool | None = None
+
+
+class GetRfcsMetadata(BaseModel):
+    """
+    Metadata payload for `GET /rfcs`.
+    """
+
+    pagination: PaginationMetadata
+    filters: GetRfcsFiltersMetadata
+    sort: str
+
+
+class GetRfcCommentsMetadata(BaseModel):
+    """
+    Metadata payload for `GET /rfcs/{rfc_id}/comments`.
+    """
+
+    pagination: PaginationMetadata
+    filters: EmptyFiltersMetadata
+    sort: str
+
+
 class GetRfcsResponse(BaseModel):
     """
     HTTP response object for `GET /rfcs`.
     """
 
     rfcs: list[RFCDocumentSummary]
-    metadata: dict[str, Any]
+    metadata: GetRfcsMetadata
 
 
 class GetQuarantinedRfcsResponse(BaseModel):
@@ -264,7 +313,7 @@ class GetRfcCommentsResponse(BaseModel):
     """
 
     comment_threads: list[CommentThread]
-    metadata: dict[str, Any]
+    metadata: GetRfcCommentsMetadata
 
 
 class GetQuarantinedCommentsResponse(BaseModel):

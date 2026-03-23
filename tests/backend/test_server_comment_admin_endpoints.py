@@ -183,11 +183,24 @@ def test_get_rfc_comments_returns_api_payload(
 ) -> None:
     comment_thread = build_comment_threads([comment_factory(id=4, rfc_id=11)])[0]
 
-    async def fake_get_rfc_comments(*, rfc_id: int, current_user):
+    async def fake_get_rfc_comments(*, rfc_id: int, current_user, request):
         assert (rfc_id, current_user) == (11, None)
+        assert request.limit == 20
+        assert request.offset == 0
+        assert request.sort == "created_at_asc"
         return res_types.GetRfcCommentsResponse(
             comment_threads=[comment_thread],
-            metadata={"loaded": True},
+            metadata={
+                "pagination": {
+                    "limit": 20,
+                    "offset": 0,
+                    "returned": 1,
+                    "total": 1,
+                    "has_more": False,
+                },
+                "filters": {},
+                "sort": "created_at_asc",
+            },
         )
 
     monkeypatch.setattr(server.api, "get_rfc_comments", fake_get_rfc_comments)
@@ -196,7 +209,48 @@ def test_get_rfc_comments_returns_api_payload(
 
     assert response.status_code == 200
     assert response.json()["comment_threads"][0]["id"] == 4
-    assert response.json()["metadata"] == {"loaded": True}
+    assert response.json()["metadata"]["pagination"]["total"] == 1
+    assert response.json()["metadata"]["sort"] == "created_at_asc"
+
+
+def test_get_rfc_comments_passes_query_params_to_api(
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_get_rfc_comments(*, rfc_id: int, current_user, request):
+        captured["rfc_id"] = rfc_id
+        captured["current_user"] = current_user
+        captured["request"] = request
+        return res_types.GetRfcCommentsResponse(
+            comment_threads=[],
+            metadata={
+                "pagination": {
+                    "limit": request.limit,
+                    "offset": request.offset,
+                    "returned": 0,
+                    "total": 0,
+                    "has_more": False,
+                },
+                "filters": {},
+                "sort": request.sort,
+            },
+        )
+
+    monkeypatch.setattr(server.api, "get_rfc_comments", fake_get_rfc_comments)
+
+    response = client.get(
+        "/rfcs/11/comments",
+        params={"limit": 5, "offset": 15, "sort": "created_at_desc"},
+    )
+
+    assert response.status_code == 200
+    request = captured["request"]
+    assert captured["rfc_id"] == 11
+    assert request.limit == 5
+    assert request.offset == 15
+    assert request.sort == "created_at_desc"
 
 
 def test_delete_comment_route_passes_reason_query_to_api(

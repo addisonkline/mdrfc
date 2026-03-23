@@ -15,6 +15,10 @@ Current repository state:
 
 The base Alembic revision is now frozen to the original schema instead of importing live application metadata. Fresh Postgres databases can move cleanly from base schema to head, and that path is covered by automated tests.
 
+### Pagination and filtering
+
+`GET /rfcs` and `GET /rfcs/{id}/comments` now support pagination and server-side filtering so the frontend and CLI no longer need full-list fetches.
+
 ## High Priority
 
 ### Persist signup rate limiting
@@ -27,9 +31,9 @@ The backend has quarantine review, restore, and permanent-delete endpoints, but 
 
 ## Medium Priority
 
-### Pagination and filtering
+### Frontend RFC visibility controls
 
-`GET /rfcs` and `GET /rfcs/{id}/comments` currently return full lists. Add pagination and server-side filtering before the dataset gets large.
+The backend supports public and private RFCs, but the browser app still creates RFCs as private by default because it does not expose a visibility toggle.
 
 ### Search
 

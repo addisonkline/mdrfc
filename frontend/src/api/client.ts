@@ -1,5 +1,7 @@
 const TOKEN_KEY = 'mdrfc_token';
 
+type QueryParamValue = string | number | boolean | null | undefined;
+
 export class ApiError extends Error {
   status: number;
   detail: string;
@@ -22,6 +24,24 @@ export function setStoredToken(token: string): void {
 
 export function clearStoredToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+export function buildApiPath<T extends object>(
+  path: string,
+  query: T = {} as T,
+): string {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query) as Array<[string, QueryParamValue]>) {
+    if (value === null || value === undefined) continue;
+    params.set(key, String(value));
+  }
+
+  const queryString = params.toString();
+  if (queryString.length === 0) {
+    return path;
+  }
+  return `${path}?${queryString}`;
 }
 
 export async function apiFetch<T>(

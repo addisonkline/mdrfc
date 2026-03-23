@@ -112,6 +112,8 @@ npm run dev
 
 The Vite dev server proxies `/api/*` to `http://127.0.0.1:8026`, so the frontend can talk to the local backend without extra configuration.
 
+The current browser UI does not expose an RFC visibility toggle. RFCs created there are private by default, so they will only appear in the list while you are logged in unless you create them through a direct API request with `"public": true`.
+
 ## 8. Optional: Run the CLI Client
 
 Start the REPL client from the repository root:

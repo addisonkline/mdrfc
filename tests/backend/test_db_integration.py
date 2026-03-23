@@ -33,22 +33,33 @@ def _register_rfc(
     *,
     created_by: int,
     public: bool,
+    title: str = "Testing RFC",
+    slug: str = "testing-rfc",
+    status: str = "draft",
+    summary: str = "Summary for testing RFC behavior.",
+    content: str = "Content for testing RFC behavior.",
+    created_at=None,
+    updated_at=None,
+    review_requested: bool = False,
 ):
     first_revision_id = uuid4()
+    created = created_at or fixed_timestamp
+    updated = updated_at or created
     document = RFCDocumentInDB(
         id=-1,
         created_by=created_by,
-        created_at=fixed_timestamp,
-        updated_at=fixed_timestamp,
-        title="Testing RFC",
-        slug="testing-rfc",
-        status="draft",
-        content="Content for testing RFC behavior.",
-        summary="Summary for testing RFC behavior.",
+        created_at=created,
+        updated_at=updated,
+        title=title,
+        slug=slug,
+        status=status,  # type: ignore[arg-type]
+        content=content,
+        summary=summary,
         revisions=[first_revision_id],
         current_revision=first_revision_id,
         agent_contributions={first_revision_id: ["codex@openai"]},
         public=public,
+        review_requested=review_requested,
     )
     rfc_id = run_db(db.register_rfc_in_db(document))
     return rfc_id, first_revision_id
@@ -113,14 +124,87 @@ def test_register_rfc_round_trip_persists_public_and_initial_revision(
     assert stored_rfc is not None
     assert stored_rfc.id == rfc_id
     assert stored_rfc.public is True
-    assert summaries is not None
-    assert summaries[0].public is True
+    assert summaries.total == 1
+    assert summaries.items[0].public is True
     assert revisions is not None
     assert len(revisions) == 1
     assert revisions[0].public is True
     assert current_revision is not None
     assert current_revision.public is True
     assert current_revision.message == "First revision"
+
+
+def test_get_rfcs_from_db_applies_pagination_and_filters(
+    run_db,
+    fixed_timestamp,
+    user_in_db_factory,
+    user_factory,
+) -> None:
+    user_id, user = _register_verified_user(
+        run_db,
+        user_in_db_factory,
+        user_factory,
+        fixed_timestamp=fixed_timestamp,
+    )
+    first_rfc_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=True,
+        title="RFC One A",
+        slug="rfc-one",
+        status="open",
+        updated_at=fixed_timestamp,
+    )
+    hidden_rfc_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=False,
+        title="RFC Two B",
+        slug="rfc-two",
+        status="draft",
+        updated_at=fixed_timestamp + timedelta(minutes=1),
+    )
+    latest_rfc_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=True,
+        title="RFC Three C",
+        slug="rfc-three",
+        status="open",
+        updated_at=fixed_timestamp + timedelta(minutes=2),
+    )
+    run_db(
+        db.post_rfc_review_req_in_db(
+            rfc_id=hidden_rfc_id,
+            user=user,
+        )
+    )
+
+    page = run_db(
+        db.get_rfcs_from_db(
+            limit=1,
+            offset=1,
+            status="open",
+            public=True,
+            include_private=True,
+            sort="updated_at_desc",
+        )
+    )
+    review_requested = run_db(
+        db.get_rfcs_from_db(
+            include_private=True,
+            review_requested=True,
+        )
+    )
+
+    assert page.total == 2
+    assert [rfc.id for rfc in page.items] == [first_rfc_id]
+    assert review_requested.total == 1
+    assert [rfc.id for rfc in review_requested.items] == [hidden_rfc_id]
+    assert latest_rfc_id != first_rfc_id
 
 
 def test_register_revision_updates_current_revision_and_public_flag(
@@ -237,6 +321,98 @@ def test_comment_round_trip_and_quarantine_cycle(
     assert quarantined[0].comment.id == comment_id
     assert restored_comment is not None
     assert restored_comment.id == comment_id
+
+
+def test_get_rfc_comments_from_db_paginates_root_threads(
+    run_db,
+    fixed_timestamp,
+    user_in_db_factory,
+    user_factory,
+) -> None:
+    user_id, _ = _register_verified_user(
+        run_db,
+        user_in_db_factory,
+        user_factory,
+        fixed_timestamp=fixed_timestamp,
+    )
+    rfc_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=True,
+    )
+
+    first_root_id = run_db(
+        db.register_comment_in_db(
+            RFCCommentInDB(
+                id=-1,
+                parent_id=None,
+                rfc_id=rfc_id,
+                created_by=user_id,
+                created_at=fixed_timestamp,
+                content="First root comment.",
+            )
+        )
+    )
+    second_root_id = run_db(
+        db.register_comment_in_db(
+            RFCCommentInDB(
+                id=-1,
+                parent_id=None,
+                rfc_id=rfc_id,
+                created_by=user_id,
+                created_at=fixed_timestamp + timedelta(minutes=1),
+                content="Second root comment.",
+            )
+        )
+    )
+    second_reply_id = run_db(
+        db.register_comment_in_db(
+            RFCCommentInDB(
+                id=-1,
+                parent_id=second_root_id,
+                rfc_id=rfc_id,
+                created_by=user_id,
+                created_at=fixed_timestamp + timedelta(minutes=2),
+                content="Reply on second root.",
+            )
+        )
+    )
+    third_root_id = run_db(
+        db.register_comment_in_db(
+            RFCCommentInDB(
+                id=-1,
+                parent_id=None,
+                rfc_id=rfc_id,
+                created_by=user_id,
+                created_at=fixed_timestamp + timedelta(minutes=3),
+                content="Third root comment.",
+            )
+        )
+    )
+
+    page = run_db(
+        db.get_rfc_comments_from_db(
+            rfc_id=rfc_id,
+            limit=1,
+            offset=1,
+            sort="created_at_asc",
+        )
+    )
+    latest_root_page = run_db(
+        db.get_rfc_comments_from_db(
+            rfc_id=rfc_id,
+            limit=1,
+            offset=0,
+            sort="created_at_desc",
+        )
+    )
+
+    assert page.total == 3
+    assert [comment.id for comment in page.items] == [second_root_id, second_reply_id]
+    assert latest_root_page.total == 3
+    assert [comment.id for comment in latest_root_page.items] == [third_root_id]
+    assert first_root_id != third_root_id
 
 
 def test_rfc_quarantine_and_unquarantine_cycle(

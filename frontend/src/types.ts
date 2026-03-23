@@ -1,4 +1,10 @@
 export type RFCStatus = 'draft' | 'open' | 'accepted' | 'rejected';
+export type RfcListSort =
+  | 'updated_at_desc'
+  | 'updated_at_asc'
+  | 'created_at_desc'
+  | 'created_at_asc';
+export type CommentListSort = 'created_at_asc' | 'created_at_desc';
 
 export interface RFCDocument {
   id: number;
@@ -11,6 +17,10 @@ export interface RFCDocument {
   status: RFCStatus;
   content: string;
   summary: string;
+  public: boolean;
+  review_requested: boolean;
+  reviewed: boolean;
+  review_reason: string | null;
 }
 
 export interface RFCDocumentSummary {
@@ -23,6 +33,7 @@ export interface RFCDocumentSummary {
   slug: string;
   status: RFCStatus;
   summary: string;
+  public: boolean;
 }
 
 export interface CommentThread {
@@ -81,10 +92,53 @@ export interface PostCommentData {
   content: string;
 }
 
+export interface PaginationMetadata {
+  limit: number;
+  offset: number;
+  returned: number;
+  total: number;
+  has_more: boolean;
+}
+
+export interface GetRfcsFiltersMetadata {
+  status: RFCStatus | null;
+  public: boolean | null;
+  author_id: number | null;
+  review_requested: boolean | null;
+}
+
+export interface GetRfcsMetadata {
+  pagination: PaginationMetadata;
+  filters: GetRfcsFiltersMetadata;
+  sort: RfcListSort;
+}
+
+export interface GetRfcCommentsMetadata {
+  pagination: PaginationMetadata;
+  filters: Record<string, never>;
+  sort: CommentListSort;
+}
+
+export interface GetRfcsQuery {
+  limit?: number;
+  offset?: number;
+  status?: RFCStatus;
+  public?: boolean;
+  author_id?: number;
+  review_requested?: boolean;
+  sort?: RfcListSort;
+}
+
+export interface GetRfcCommentsQuery {
+  limit?: number;
+  offset?: number;
+  sort?: CommentListSort;
+}
+
 // API response wrappers
 export interface GetRfcsResponse {
   rfcs: RFCDocumentSummary[];
-  metadata: Record<string, unknown>;
+  metadata: GetRfcsMetadata;
 }
 
 export interface GetRfcResponse {
@@ -125,7 +179,7 @@ export interface PostRfcCommentResponse {
 
 export interface GetRfcCommentsResponse {
   comment_threads: CommentThread[];
-  metadata: Record<string, unknown>;
+  metadata: GetRfcCommentsMetadata;
 }
 
 export interface GetRfcCommentResponse {

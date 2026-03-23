@@ -1,7 +1,8 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 from os import getenv
-from typing import Any, Literal
+from typing import Any, Generic, Literal, TypeVar
 import uuid
 
 from fastapi import HTTPException
@@ -40,6 +41,27 @@ metadata_obj = schema.metadata_obj
 
 # asyncpg connection pool for this module
 _pool: asyncpg.Pool = None
+
+T = TypeVar("T")
+
+
+@dataclass(slots=True)
+class PaginatedResult(Generic[T]):
+    items: list[T]
+    total: int
+
+
+RFC_LIST_SORTS = {
+    "updated_at_desc": "rfcs.updated_at DESC, rfcs.id DESC",
+    "updated_at_asc": "rfcs.updated_at ASC, rfcs.id ASC",
+    "created_at_desc": "rfcs.created_at DESC, rfcs.id DESC",
+    "created_at_asc": "rfcs.created_at ASC, rfcs.id ASC",
+}
+
+COMMENT_LIST_SORTS = {
+    "created_at_desc": "created_at DESC, id DESC",
+    "created_at_asc": "created_at ASC, id ASC",
+}
 
 
 def _serialize_agent_contributions(
@@ -359,39 +381,100 @@ async def register_rfcs_readme_rev_in_db(
 
 
 async def get_rfcs_from_db(
+    limit: int = consts.PAGE_LIMIT_DEFAULT,
+    offset: int = 0,
+    status: Literal["draft", "open", "accepted", "rejected"] | None = None,
+    public: bool | None = None,
+    author_id: int | None = None,
+    review_requested: bool | None = None,
+    sort: Literal[
+        "updated_at_desc",
+        "updated_at_asc",
+        "created_at_desc",
+        "created_at_asc",
+    ] = "updated_at_desc",
+    include_private: bool = False,
     quarantine_ok: bool = False,
-) -> list[RFCDocumentSummary] | None:
+) -> PaginatedResult[RFCDocumentSummary]:
     """
-    Get all RFCs from the database, or `None` if there are none.
+    Get paginated RFC summaries from the database.
     """
+    sort_clause = RFC_LIST_SORTS[sort]
+    conditions: list[str] = []
+    args: list[object] = []
+
+    if not quarantine_ok:
+        conditions.append("COALESCE(rfcs.is_quarantined, FALSE) = FALSE")
+    if not include_private:
+        conditions.append("COALESCE(rfcs.is_public, FALSE) = TRUE")
+    if status is not None:
+        args.append(status)
+        conditions.append(f"rfcs.status = ${len(args)}")
+    if public is not None:
+        args.append(public)
+        conditions.append(f"COALESCE(rfcs.is_public, FALSE) = ${len(args)}")
+    if author_id is not None:
+        args.append(author_id)
+        conditions.append(f"rfcs.created_by = ${len(args)}")
+    if review_requested is not None:
+        args.append(review_requested)
+        conditions.append(f"COALESCE(rfcs.review_requested, FALSE) = ${len(args)}")
+
+    where_clause = ""
+    if conditions:
+        where_clause = " WHERE " + " AND ".join(conditions)
+
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            rfcs_in_db = await connection.fetch("SELECT * FROM rfcs")
-            if rfcs_in_db is None:
-                return None
-            else:
-                summaries: list[RFCDocumentSummary] = []
-                for rfc in rfcs_in_db:
-                    if rfc.get("is_quarantined") and not quarantine_ok:
-                        continue
-                    user = await get_user_by_id(rfc.get("created_by"))
-                    if user is None:
-                        continue
-                    summary = RFCDocumentSummary(
-                        id=rfc.get("id"),
-                        author_name_last=user.name_last,
-                        author_name_first=user.name_first,
-                        created_at=rfc.get("created_at"),
-                        updated_at=rfc.get("updated_at"),
-                        title=rfc.get("title"),
-                        slug=rfc.get("slug"),
-                        status=rfc.get("status"),
-                        summary=rfc.get("summary"),
-                        public=rfc.get("is_public") or False,
-                    )
-                    summaries.append(summary)
-                return summaries
+            total = int(
+                await connection.fetchval(
+                    "SELECT COUNT(*) FROM rfcs" + where_clause,
+                    *args,
+                )
+                or 0
+            )
+
+            query_args = [*args, limit, offset]
+            rfcs_in_db = await connection.fetch(
+                f"""
+                SELECT
+                    rfcs.id,
+                    users.name_last AS author_name_last,
+                    users.name_first AS author_name_first,
+                    rfcs.created_at,
+                    rfcs.updated_at,
+                    rfcs.title,
+                    rfcs.slug,
+                    rfcs.status,
+                    rfcs.summary,
+                    COALESCE(rfcs.is_public, FALSE) AS is_public
+                FROM rfcs
+                JOIN users ON users.id = rfcs.created_by
+                {where_clause}
+                ORDER BY {sort_clause}
+                LIMIT ${len(args) + 1}
+                OFFSET ${len(args) + 2}
+                """,
+                *query_args,
+            )
+
+            summaries = [
+                RFCDocumentSummary(
+                    id=rfc.get("id"),
+                    author_name_last=rfc.get("author_name_last"),
+                    author_name_first=rfc.get("author_name_first"),
+                    created_at=rfc.get("created_at"),
+                    updated_at=rfc.get("updated_at"),
+                    title=rfc.get("title"),
+                    slug=rfc.get("slug"),
+                    status=rfc.get("status"),
+                    summary=rfc.get("summary"),
+                    public=rfc.get("is_public") or False,
+                )
+                for rfc in rfcs_in_db
+            ]
+            return PaginatedResult(items=summaries, total=total)
 
 
 async def get_rfcs_quarantined_from_db() -> list[QuarantinedRFCSummary]:
@@ -1005,43 +1088,126 @@ async def get_comment_from_db(
 
 async def get_rfc_comments_from_db(
     rfc_id: int,
+    limit: int | None = consts.PAGE_LIMIT_DEFAULT,
+    offset: int = 0,
+    sort: Literal["created_at_asc", "created_at_desc"] = "created_at_asc",
     quarantine_ok: bool = False,
-) -> list[RFCComment]:
+) -> PaginatedResult[RFCComment]:
     """
-    Attempt to fetch all comments on the RFC with the given ID from the database,
+    Attempt to fetch paginated top-level comment threads on the RFC with the given ID,
     including author names.
     """
     if await check_rfc_is_quarantined(
         rfc_id=rfc_id,
     ):
-        return []
+        return PaginatedResult(items=[], total=0)
+
+    root_conditions = ["rfc_id = $1", "parent_id IS NULL"]
+    tree_conditions = ["child.rfc_id = $1"]
+    if not quarantine_ok:
+        root_conditions.append("COALESCE(is_quarantined, FALSE) = FALSE")
+        tree_conditions.append("COALESCE(child.is_quarantined, FALSE) = FALSE")
+
+    sort_clause = COMMENT_LIST_SORTS[sort]
+    root_where_clause = " AND ".join(root_conditions)
+    tree_where_clause = " AND ".join(tree_conditions)
 
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
-            result = await connection.fetch(
-                "SELECT * FROM rfc_comments WHERE rfc_id = $1", rfc_id
+            total = int(
+                await connection.fetchval(
+                    f"""
+                    SELECT COUNT(*)
+                    FROM rfc_comments
+                    WHERE {root_where_clause}
+                    """,
+                    rfc_id,
+                )
+                or 0
             )
-            if result is None:
-                return []
-            comments: list[RFCComment] = []
-            for comment in result:
-                if comment.get("is_quarantined") and not quarantine_ok:
-                    continue
-                creator = await get_user_by_id(comment.get("created_by"))
-                if creator is None:
-                    continue
-                comment_obj = RFCComment(
+
+            if limit is None:
+                root_ids = await connection.fetch(
+                    f"""
+                    SELECT id
+                    FROM rfc_comments
+                    WHERE {root_where_clause}
+                    ORDER BY {sort_clause}
+                    """,
+                    rfc_id,
+                )
+            else:
+                root_ids = await connection.fetch(
+                    f"""
+                    SELECT id
+                    FROM rfc_comments
+                    WHERE {root_where_clause}
+                    ORDER BY {sort_clause}
+                    LIMIT $2
+                    OFFSET $3
+                    """,
+                    rfc_id,
+                    limit,
+                    offset,
+                )
+            selected_root_ids = [row.get("id") for row in root_ids]
+            if len(selected_root_ids) == 0:
+                return PaginatedResult(items=[], total=total)
+
+            result = await connection.fetch(
+                f"""
+                WITH RECURSIVE comment_tree AS (
+                    SELECT
+                        c.id,
+                        c.parent_id,
+                        c.rfc_id,
+                        c.created_at,
+                        c.content,
+                        c.created_by
+                    FROM rfc_comments AS c
+                    WHERE c.id = ANY($2::INT[])
+                    UNION ALL
+                    SELECT
+                        child.id,
+                        child.parent_id,
+                        child.rfc_id,
+                        child.created_at,
+                        child.content,
+                        child.created_by
+                    FROM rfc_comments AS child
+                    JOIN comment_tree ON child.parent_id = comment_tree.id
+                    WHERE {tree_where_clause}
+                )
+                SELECT
+                    comment_tree.id,
+                    comment_tree.parent_id,
+                    comment_tree.rfc_id,
+                    comment_tree.created_at,
+                    comment_tree.content,
+                    users.name_last AS author_name_last,
+                    users.name_first AS author_name_first
+                FROM comment_tree
+                JOIN users ON users.id = comment_tree.created_by
+                ORDER BY comment_tree.created_at ASC, comment_tree.id ASC
+                """,
+                rfc_id,
+                selected_root_ids,
+            )
+
+            comments = [
+                RFCComment(
                     id=comment.get("id"),
                     rfc_id=comment.get("rfc_id"),
                     parent_id=comment.get("parent_id"),
                     created_at=comment.get("created_at"),
                     content=comment.get("content"),
-                    author_name_last=creator.name_last,
-                    author_name_first=creator.name_first,
+                    author_name_last=comment.get("author_name_last"),
+                    author_name_first=comment.get("author_name_first"),
                 )
-                comments.append(comment_obj)
-            return comments
+                for comment in result
+            ]
+            return PaginatedResult(items=comments, total=total)
 
 
 async def get_comments_quarantined_in_db(

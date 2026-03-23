@@ -1,13 +1,17 @@
-import { apiFetch } from './client';
+import { apiFetch, buildApiPath } from './client';
 import type {
   GetRfcCommentsResponse,
   GetRfcCommentResponse,
   PostRfcCommentResponse,
   PostCommentData,
+  GetRfcCommentsQuery,
 } from '../types';
 
-export async function getComments(rfcId: number): Promise<GetRfcCommentsResponse> {
-  return apiFetch<GetRfcCommentsResponse>(`/rfcs/${rfcId}/comments`);
+export async function getComments(
+  rfcId: number,
+  query: GetRfcCommentsQuery = {},
+): Promise<GetRfcCommentsResponse> {
+  return apiFetch<GetRfcCommentsResponse>(buildApiPath(`/rfcs/${rfcId}/comments`, query));
 }
 
 export async function getComment(rfcId: number, commentId: number): Promise<GetRfcCommentResponse> {

@@ -1,7 +1,7 @@
 import re
 from typing import Annotated, Literal
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Query, Request
 from pydantic import (
     AfterValidator,
     BaseModel,
@@ -121,6 +121,56 @@ async def validate_post_rfcs_readme_rev_request(
         raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
 
 
+RfcListSort = Literal[
+    "updated_at_desc",
+    "updated_at_asc",
+    "created_at_desc",
+    "created_at_asc",
+]
+
+
+class GetRfcsRequest(BaseModel):
+    """
+    HTTP request object for `GET /rfcs`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    limit: int = Field(
+        default=consts.PAGE_LIMIT_DEFAULT,
+        ge=1,
+        le=consts.PAGE_LIMIT_MAX,
+    )
+    offset: int = Field(default=0, ge=0)
+    status: Literal["draft", "open", "accepted", "rejected"] | None = None
+    public: bool | None = None
+    author_id: int | None = Field(default=None, ge=1)
+    review_requested: bool | None = None
+    sort: RfcListSort = "updated_at_desc"
+
+
+async def validate_get_rfcs_request(
+    limit: Annotated[
+        int, Query(ge=1, le=consts.PAGE_LIMIT_MAX)
+    ] = consts.PAGE_LIMIT_DEFAULT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    status: Literal["draft", "open", "accepted", "rejected"] | None = None,
+    public: bool | None = None,
+    author_id: Annotated[int | None, Query(ge=1)] = None,
+    review_requested: bool | None = None,
+    sort: RfcListSort = "updated_at_desc",
+) -> GetRfcsRequest:
+    return GetRfcsRequest(
+        limit=limit,
+        offset=offset,
+        status=status,
+        public=public,
+        author_id=author_id,
+        review_requested=review_requested,
+        sort=sort,
+    )
+
+
 class PostRfcRequest(BaseModel):
     """
     HTTP request object for `POST /rfcs`.
@@ -203,6 +253,39 @@ async def validate_post_rfc_revision_request(
 #
 # COMMENT endpoints
 #
+CommentListSort = Literal["created_at_asc", "created_at_desc"]
+
+
+class GetRfcCommentsRequest(BaseModel):
+    """
+    HTTP request object for `GET /rfcs/{rfc_id}/comments`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    limit: int = Field(
+        default=consts.PAGE_LIMIT_DEFAULT,
+        ge=1,
+        le=consts.PAGE_LIMIT_MAX,
+    )
+    offset: int = Field(default=0, ge=0)
+    sort: CommentListSort = "created_at_asc"
+
+
+async def validate_get_rfc_comments_request(
+    limit: Annotated[
+        int, Query(ge=1, le=consts.PAGE_LIMIT_MAX)
+    ] = consts.PAGE_LIMIT_DEFAULT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    sort: CommentListSort = "created_at_asc",
+) -> GetRfcCommentsRequest:
+    return GetRfcCommentsRequest(
+        limit=limit,
+        offset=offset,
+        sort=sort,
+    )
+
+
 class PostRfcCommentRequest(BaseModel):
     """
     HTTP request object for `POST /rfcs/{rfc_id}/comments`.
