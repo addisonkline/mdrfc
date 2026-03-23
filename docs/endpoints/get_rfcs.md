@@ -68,3 +68,4 @@ sort: "updated_at_desc" | "updated_at_asc" | "created_at_desc" | "created_at_asc
 
 - Empty result sets return `200 OK` with `"rfcs": []`.
 - Anonymous callers are always restricted to public RFCs even when no `public` filter is supplied.
+- The current React frontend creates RFCs without sending a `public` field, so browser-created RFCs are private by default and will not appear in anonymous `GET /rfcs` responses.

@@ -47,3 +47,5 @@ Body:
 
 - `status` currently accepts only `draft` or `open` on write.
 - `agent_contributors` entries must be in `agent@host` format.
+- `public` defaults to `false` when omitted.
+- The current React frontend does not expose an RFC visibility control, so RFCs created in the browser are private by default unless you set `"public": true` through a direct API request.
