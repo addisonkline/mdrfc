@@ -305,6 +305,7 @@ def rfc_summary_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocumentS
     def _make_rfc_summary(
         *,
         id: int = 1,
+        author_id: int = 1,
         title: str = "Testing RFC",
         slug: str = "testing-rfc",
         status: str = "draft",
@@ -319,6 +320,7 @@ def rfc_summary_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocumentS
         updated = updated_at or created
         return RFCDocumentSummary(
             id=id,
+            author_id=author_id,
             author_name_first=author_name_first,
             author_name_last=author_name_last,
             created_at=created,
@@ -338,6 +340,7 @@ def rfc_document_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocument
     def _make_rfc_document(
         *,
         id: int = 1,
+        author_id: int = 1,
         title: str = "Testing RFC",
         slug: str = "testing-rfc",
         status: str = "draft",
@@ -365,6 +368,7 @@ def rfc_document_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocument
 
         return RFCDocument(
             id=id,
+            author_id=author_id,
             author_name_first=author_name_first,
             author_name_last=author_name_last,
             created_at=created,

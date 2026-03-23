@@ -26,6 +26,19 @@ export function clearStoredToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+async function parseErrorDetail(response: Response): Promise<string> {
+  try {
+    const body = await response.json();
+    if (typeof body?.detail === 'string') {
+      return body.detail;
+    }
+  } catch {
+    // Ignore JSON parse failures and fall back to the generic message below.
+  }
+
+  return `Request failed with status ${response.status}`;
+}
+
 export function buildApiPath<T extends object>(
   path: string,
   query: T = {} as T,
@@ -65,16 +78,12 @@ export async function apiFetch<T>(
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
+    const detail = await parseErrorDetail(response);
+
+    if (response.status === 401 && detail === 'could not validate credentials') {
       clearStoredToken();
     }
-    let detail = `Request failed with status ${response.status}`;
-    try {
-      const body = await response.json();
-      if (body.detail) detail = body.detail;
-    } catch {
-      // ignore parse errors
-    }
+
     throw new ApiError(response.status, detail);
   }
 

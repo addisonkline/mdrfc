@@ -34,6 +34,10 @@ export function ProfilePage() {
           <dt className="font-medium text-gray-500">Joined</dt>
           <dd className="text-gray-900">{new Date(user.created_at).toLocaleDateString()}</dd>
         </div>
+        <div>
+          <dt className="font-medium text-gray-500">Role</dt>
+          <dd className="text-gray-900">{user.is_admin ? 'Admin' : 'User'}</dd>
+        </div>
       </dl>
       <button
         onClick={handleLogout}

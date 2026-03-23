@@ -1,16 +1,28 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
 import { RfcDetailPage } from './pages/RfcDetailPage';
 import { RfcCreatePage } from './pages/RfcCreatePage';
-import { RfcEditPage } from './pages/RfcEditPage';
+import { RfcRevisionCreatePage } from './pages/RfcRevisionCreatePage';
+import { RfcRevisionsPage } from './pages/RfcRevisionsPage';
+import { RfcRevisionDetailPage } from './pages/RfcRevisionDetailPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
+
+function LegacyRfcDetailRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/rfcs/${id}`} replace />;
+}
+
+function LegacyRfcEditRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/rfcs/${id}/revisions/new`} replace />;
+}
 
 export default function App() {
   return (
@@ -19,23 +31,29 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/rfcs" element={<HomePage />} />
             <Route
-              path="/rfc/new"
+              path="/rfcs/new"
               element={
                 <ProtectedRoute>
                   <RfcCreatePage />
                 </ProtectedRoute>
               }
             />
-            <Route path="/rfc/:id" element={<RfcDetailPage />} />
+            <Route path="/rfcs/:id" element={<RfcDetailPage />} />
+            <Route path="/rfcs/:id/revisions" element={<RfcRevisionsPage />} />
             <Route
-              path="/rfc/:id/edit"
+              path="/rfcs/:id/revisions/new"
               element={
                 <ProtectedRoute>
-                  <RfcEditPage />
+                  <RfcRevisionCreatePage />
                 </ProtectedRoute>
               }
             />
+            <Route path="/rfcs/:id/revisions/:revisionId" element={<RfcRevisionDetailPage />} />
+            <Route path="/rfc/new" element={<Navigate to="/rfcs/new" replace />} />
+            <Route path="/rfc/:id" element={<LegacyRfcDetailRedirect />} />
+            <Route path="/rfc/:id/edit" element={<LegacyRfcEditRedirect />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />

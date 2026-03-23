@@ -1,12 +1,12 @@
 import { apiFetch, buildApiPath } from './client';
 import type {
-  GetRfcsResponse,
-  GetRfcResponse,
-  PostRfcResponse,
-  PatchRfcResponse,
   CreateRfcData,
-  UpdateRfcData,
+  DeleteRfcResponse,
+  GetRfcResponse,
   GetRfcsQuery,
+  GetRfcsResponse,
+  PostRfcResponse,
+  PostRfcReviewResponse,
 } from '../types';
 
 export async function listRfcs(query: GetRfcsQuery = {}): Promise<GetRfcsResponse> {
@@ -24,9 +24,14 @@ export async function createRfc(data: CreateRfcData): Promise<PostRfcResponse> {
   });
 }
 
-export async function updateRfc(id: number, data: UpdateRfcData): Promise<PatchRfcResponse> {
-  return apiFetch<PatchRfcResponse>(`/rfcs/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
+export async function requestRfcReview(id: number): Promise<PostRfcReviewResponse> {
+  return apiFetch<PostRfcReviewResponse>(`/rfcs/${id}/review`, {
+    method: 'POST',
+  });
+}
+
+export async function quarantineRfc(id: number, reason: string): Promise<DeleteRfcResponse> {
+  return apiFetch<DeleteRfcResponse>(buildApiPath(`/rfcs/${id}`, { reason }), {
+    method: 'DELETE',
   });
 }

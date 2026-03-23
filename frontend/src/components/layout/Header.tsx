@@ -11,12 +11,12 @@ export function Header() {
           mdrfc
         </Link>
         <nav className="flex items-center gap-4 text-sm">
-          <Link to="/" className="text-gray-600 hover:text-gray-900">
+          <Link to="/rfcs" className="text-gray-600 hover:text-gray-900">
             RFCs
           </Link>
           {isAuthenticated ? (
             <>
-              <Link to="/rfc/new" className="text-gray-600 hover:text-gray-900">
+              <Link to="/rfcs/new" className="text-gray-600 hover:text-gray-900">
                 New RFC
               </Link>
               <Link to="/profile" className="text-gray-600 hover:text-gray-900">

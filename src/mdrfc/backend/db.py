@@ -440,6 +440,7 @@ async def get_rfcs_from_db(
                 f"""
                 SELECT
                     rfcs.id,
+                    rfcs.created_by,
                     users.name_last AS author_name_last,
                     users.name_first AS author_name_first,
                     rfcs.created_at,
@@ -462,6 +463,7 @@ async def get_rfcs_from_db(
             summaries = [
                 RFCDocumentSummary(
                     id=rfc.get("id"),
+                    author_id=rfc.get("created_by"),
                     author_name_last=rfc.get("author_name_last"),
                     author_name_first=rfc.get("author_name_first"),
                     created_at=rfc.get("created_at"),
@@ -659,6 +661,7 @@ async def get_rfc_from_db(
                 return None
             return RFCDocument(
                 id=rfc.get("id"),
+                author_id=rfc.get("created_by"),
                 author_name_last=creator.name_last,
                 author_name_first=creator.name_first,
                 created_at=rfc.get("created_at"),
@@ -743,6 +746,7 @@ async def get_rfcs_review_needed_from_db() -> list[RFCDocumentSummary]:
                     continue
                 summary = RFCDocumentSummary(
                     id=rfc.get("id"),
+                    author_id=rfc.get("created_by"),
                     author_name_last=user.name_last,
                     author_name_first=user.name_first,
                     created_at=rfc.get("created_at"),
