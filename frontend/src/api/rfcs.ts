@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, buildApiPath } from './client';
 import type {
   GetRfcsResponse,
   GetRfcResponse,
@@ -6,10 +6,11 @@ import type {
   PatchRfcResponse,
   CreateRfcData,
   UpdateRfcData,
+  GetRfcsQuery,
 } from '../types';
 
-export async function listRfcs(): Promise<GetRfcsResponse> {
-  return apiFetch<GetRfcsResponse>('/rfcs');
+export async function listRfcs(query: GetRfcsQuery = {}): Promise<GetRfcsResponse> {
+  return apiFetch<GetRfcsResponse>(buildApiPath('/rfcs', query));
 }
 
 export async function getRfc(id: number): Promise<GetRfcResponse> {

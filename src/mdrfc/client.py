@@ -41,6 +41,20 @@ def _get_user_agent() -> str:
     return f"MDRFC-Client/{version} (https://github.com/addisonkline/mdrfc)"
 
 
+def _parse_optional_bool(value: str | None) -> bool | None:
+    if value is None:
+        return None
+    return value.lower() == "true"
+
+
+def _prune_query_params(query_params: dict[str, object | None]) -> dict[str, object]:
+    return {
+        key: value
+        for key, value in query_params.items()
+        if value is not None
+    }
+
+
 parser = ArgumentParser(
     prog="mdrfc-client",
     usage="<command> [option]...",
@@ -202,6 +216,44 @@ rfc_list_p.add_argument(
     "--verbose",
     action="store_true",
     help="include more detailed metadata per RFC",
+)
+rfc_list_p.add_argument(
+    "--limit",
+    type=int,
+    default=20,
+    help="maximum number of RFCs to return",
+)
+rfc_list_p.add_argument(
+    "--offset",
+    type=int,
+    default=0,
+    help="number of RFCs to skip before listing",
+)
+rfc_list_p.add_argument(
+    "--status",
+    choices=["draft", "open", "accepted", "rejected"],
+    help="filter RFCs by status",
+)
+rfc_list_p.add_argument(
+    "--public",
+    choices=["true", "false"],
+    help="filter RFCs by public visibility",
+)
+rfc_list_p.add_argument(
+    "--author-id",
+    type=int,
+    help="filter RFCs by author ID",
+)
+rfc_list_p.add_argument(
+    "--review-requested",
+    choices=["true", "false"],
+    help="filter RFCs by review-requested state",
+)
+rfc_list_p.add_argument(
+    "--sort",
+    choices=["updated_at_desc", "updated_at_asc", "created_at_desc", "created_at_asc"],
+    default="updated_at_desc",
+    help="sort order for the RFC list",
 )
 
 # get a specific RFC document by ID
@@ -397,6 +449,24 @@ comment_list_p.add_argument(
     "--verbose",
     action="store_true",
     help="include more detailed response metadata",
+)
+comment_list_p.add_argument(
+    "--limit",
+    type=int,
+    default=20,
+    help="maximum number of comment threads to return",
+)
+comment_list_p.add_argument(
+    "--offset",
+    type=int,
+    default=0,
+    help="number of top-level comment threads to skip before listing",
+)
+comment_list_p.add_argument(
+    "--sort",
+    choices=["created_at_asc", "created_at_desc"],
+    default="created_at_asc",
+    help="sort order for top-level comment threads",
 )
 
 # get a specific RFC comment
@@ -1056,7 +1126,6 @@ def _cmd_readme_rev_post(args: Namespace) -> None:
 
 
 def _cmd_rfc_list(args: Namespace) -> None:
-
     """
     Attempt to list the RFCs currently on this server.
     """
@@ -1064,11 +1133,26 @@ def _cmd_rfc_list(args: Namespace) -> None:
     global _token
 
     headers = {"User-Agent": _get_user_agent()}
+    query_params = _prune_query_params(
+        {
+            "limit": args.limit,
+            "offset": args.offset,
+            "status": args.status,
+            "public": _parse_optional_bool(args.public),
+            "author_id": args.author_id,
+            "review_requested": _parse_optional_bool(args.review_requested),
+            "sort": args.sort,
+        }
+    )
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(url=f"{_url}/rfcs", headers=headers)
+    response = httpx.get(
+        url=f"{_url}/rfcs",
+        headers=headers,
+        params=query_params,
+    )
 
     if response.status_code != 200:
         _console.print(
@@ -1085,6 +1169,9 @@ def _cmd_rfc_list(args: Namespace) -> None:
         return
 
     rfcs = [doc for doc in response_obj.rfcs]
+    pagination = response_obj.metadata.pagination
+    start = 0 if pagination.total == 0 else pagination.offset + 1
+    end = 0 if pagination.total == 0 else pagination.offset + len(rfcs)
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
         _console.print("=" * 40)
@@ -1101,7 +1188,9 @@ def _cmd_rfc_list(args: Namespace) -> None:
             _console.print(f"[bold]updated at[/bold]: {rfc.updated_at}")
             _console.print("=" * 40)
     else:
-        _console.print(f"found {len(rfcs)} documents")
+        _console.print(
+            f"found {len(rfcs)} documents (showing {start}-{end} of {pagination.total})"
+        )
         for rfc in rfcs:
             _console.print(
                 f"RFC {rfc.id}: {rfc.author_name_last}, {rfc.author_name_first}. '{rfc.title}'. Last updated: {rfc.updated_at}."
@@ -1549,11 +1638,22 @@ def _cmd_comment_list(args: Namespace) -> None:
     global _token
 
     headers = {"User-Agent": _get_user_agent()}
+    query_params = _prune_query_params(
+        {
+            "limit": args.limit,
+            "offset": args.offset,
+            "sort": args.sort,
+        }
+    )
 
     if _token is not None:
         headers["Authorization"] = f"Bearer {_token}"
 
-    response = httpx.get(url=f"{_url}/rfcs/{rfc_id}/comments", headers=headers)
+    response = httpx.get(
+        url=f"{_url}/rfcs/{rfc_id}/comments",
+        headers=headers,
+        params=query_params,
+    )
 
     if response.status_code != 200:
         _console.print(
@@ -1570,10 +1670,15 @@ def _cmd_comment_list(args: Namespace) -> None:
         return
 
     comment_threads = [thread for thread in response_obj.comment_threads]
+    pagination = response_obj.metadata.pagination
+    start = 0 if pagination.total == 0 else pagination.offset + 1
+    end = 0 if pagination.total == 0 else pagination.offset + len(comment_threads)
     if args.verbose:
         _console.print(f"[bold]metadata[/bold]: {response_obj.metadata}")
         _console.print("=" * 40)
-    _console.print(f"found {len(comment_threads)} comments")
+    _console.print(
+        f"found {len(comment_threads)} comment threads (showing {start}-{end} of {pagination.total})"
+    )
     _print_comment_threads(comment_threads)
 
 
