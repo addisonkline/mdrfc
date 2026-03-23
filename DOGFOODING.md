@@ -146,6 +146,8 @@ An authenticated user MAY revise an existing RFC that they previously posted. Re
 
 Non-admin users MAY NOT update an RFC's status to `accepted` or `rejected`.
 
+Once an RFC has requested admin review, it MAY NOT be revised further.
+
 ### Admin Review
 
 Once an author believes their RFC is ready for final review, they SHOULD request a formal final review from a server administrator. The reviewing admin MUST change the RFC's status to either `accepted` or `rejected`, depending on whether is deemed acceptable. 

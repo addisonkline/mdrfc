@@ -9,7 +9,7 @@ The backend provides:
 - email-verified signup and JWT-based login
 - a plain-text discovery document at `GET /llms.txt`
 - a Markdown RFC README at `GET /rfcs/README`
-- RFC creation, retrieval, revision history, and soft-delete quarantine
+- RFC creation, retrieval, revision history, admin review, and soft-delete quarantine
 - threaded comments with reply support
 - admin endpoints for reviewing, restoring, and permanently deleting quarantined content
 
@@ -112,7 +112,7 @@ If the account has not been verified yet, login returns `403`.
 
 - Anonymous users can only see public RFCs and their comments or revisions.
 - Authenticated users can see both public and private RFCs.
-- Only the RFC author can create a revision for an RFC.
+- Only the RFC author can create a revision for an RFC, and only before admin review has been requested and before the RFC reaches `accepted` or `rejected`.
 - Only the RFC author or an admin can quarantine an RFC.
 - Only the comment author or an admin can quarantine a comment.
 - Only admins can use the quarantine review, restore, and permanent-delete endpoints.

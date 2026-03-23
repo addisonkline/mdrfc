@@ -7,6 +7,7 @@ Creates a new revision for an existing RFC.
 ## Auth
 
 Requires a bearer token from the RFC's author. The current implementation does not allow non-authors to create revisions.
+The RFC must also still be open for revision: once `review_requested` is set, or once the RFC status is `accepted` or `rejected`, this endpoint returns `400`.
 
 ## Request
 
@@ -69,4 +70,6 @@ Body:
 
 - All fields inside `update` are optional.
 - On write, `status` only accepts `draft` or `open`.
-- `update.public=true` can publish the RFC, but `false` currently leaves the existing visibility unchanged.
+- `update.public` can explicitly change visibility in either direction.
+- New revisions cannot be submitted after the author requests admin review.
+- New revisions cannot be submitted after an admin sets the RFC status to `accepted` or `rejected`.
