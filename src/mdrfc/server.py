@@ -516,6 +516,44 @@ async def quarantine_rfc(
     )
 
 
+@app.post(
+    "/rfcs/{rfc_id}/review",
+    response_model=res_types.PostRfcReviewResponse,
+    tags=["rfcs", "user"]
+)
+async def post_rfc_review_req(
+    rfc_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> res_types.PostRfcReviewResponse:
+    """
+    `POST /rfcs/{rfc_id}/review`: Request admin review on a specific RFC.
+    """
+    return await api.post_rfc_review_req(
+        rfc_id=rfc_id,
+        user=current_user,
+    )
+
+
+@app.patch(
+    "/rfcs/{rfc_id}/status",
+    response_model=res_types.PatchRfcStatusResponse,
+    tags=["rfcs", "admin"]
+)
+async def patch_rfc_status(
+    rfc_id: int,
+    current_admin: Annotated[User, Depends(get_current_active_admin)],
+    payload: Annotated[req_types.PatchRfcStatusRequest, Depends(req_types.validate_patch_rfc_status_request)]
+) -> res_types.PatchRfcStatusResponse:
+    """
+    `PATCH /rfcs/{rfc_id}/status`: Update an RFC's status to `accepted` or `rejected` following admin review.
+    """
+    return await api.patch_rfc_status(
+        rfc_id=rfc_id,
+        admin=current_admin,
+        payload=payload
+    )
+
+
 #
 # REVISION endpoints
 #

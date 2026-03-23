@@ -185,6 +185,26 @@ class DeleteRfcResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+class PostRfcReviewResponse(BaseModel):
+    """
+    HTTP response object for `POST /rfcs/{rfc_id}/review`.
+    """
+
+    message: str
+    requested_at: datetime
+    metadata: dict[str, Any]
+
+
+class PatchRfcStatusResponse(BaseModel):
+    """
+    HTTP response object for `PATCH /rfcs/{rfc_id}/status`.
+    """
+
+    message: str
+    updated_at: datetime
+    metadata: dict[str, Any]
+
+
 #
 # REVISION endpoints
 #

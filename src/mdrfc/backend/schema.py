@@ -55,6 +55,9 @@ rfcs = Table(
     Column("agent_contributions", JSON, nullable=False),
     Column("is_public", Boolean, nullable=True, default=False),
     Column("is_quarantined", Boolean, nullable=True, default=False),
+    Column("review_requested", Boolean, nullable=True, default=False),
+    Column("is_reviewed", Boolean, nullable=True, default=False),
+    Column("review_reason", String(consts.LEN_PATCH_RFC_STATUS_REASON_MAX), nullable=True)
 )
 
 rfc_comments = Table(

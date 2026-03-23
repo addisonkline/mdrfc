@@ -24,6 +24,7 @@ from mdrfc.backend.db import (
     get_rfcs_quarantined_from_db,
     get_rfcs_readme_rev_in_db,
     get_rfcs_readme_revs_in_db,
+    post_rfc_review_req_in_db,
     quarantine_comment_in_db,
     quarantine_rfc_in_db,
     register_revision_in_db,
@@ -34,6 +35,7 @@ from mdrfc.backend.db import (
     register_rfcs_readme_rev_in_db,
     unquarantine_comment_in_db,
     unquarantine_rfc_in_db,
+    update_rfc_status_in_db,
 )
 from mdrfc.backend.document import (
     RFCDocumentInDB,
@@ -331,6 +333,46 @@ async def delete_rfc(
 
     return res_types.DeleteRfcResponse(
         message="success", quarantined_at=datetime.now(timezone.utc), metadata={}
+    )
+
+
+async def post_rfc_review_req(
+    rfc_id: int,
+    user: User,
+) -> res_types.PostRfcReviewResponse:
+    """
+    Request an admin review on the given RFC.
+    """
+    await post_rfc_review_req_in_db(
+        rfc_id=rfc_id,
+        user=user
+    )
+
+    return res_types.PostRfcReviewResponse(
+        message="success",
+        requested_at=datetime.now(timezone.utc),
+        metadata={}
+    )
+
+
+async def patch_rfc_status(
+    rfc_id: int,
+    admin: User,
+    payload: req_types.PatchRfcStatusRequest,
+) -> res_types.PatchRfcStatusResponse:
+    """
+    Update an RFC's status to either `accepted` or `rejected`.
+    """
+    await update_rfc_status_in_db(
+        rfc_id=rfc_id,
+        new_status=payload.status,
+        reason=payload.reason
+    )
+
+    return res_types.PatchRfcStatusResponse(
+        message="success",
+        updated_at=datetime.now(timezone.utc),
+        metadata={}
     )
 
 
