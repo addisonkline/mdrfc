@@ -19,6 +19,14 @@ Path parameter:
 rfc_id: integer
 ```
 
+Optional query parameters:
+
+```txt
+limit: integer (default 20, min 1, max 100)
+offset: integer (default 0, min 0)
+sort: "created_at_asc" | "created_at_desc"
+```
+
 ## Success Response
 
 `200 OK`
@@ -46,7 +54,17 @@ rfc_id: integer
       ]
     }
   ],
-  "metadata": {}
+  "metadata": {
+    "pagination": {
+      "limit": 20,
+      "offset": 0,
+      "returned": 1,
+      "total": 1,
+      "has_more": false
+    },
+    "filters": {},
+    "sort": "created_at_asc"
+  }
 }
 ```
 
@@ -54,3 +72,4 @@ rfc_id: integer
 
 - Missing RFCs return `404`.
 - Anonymous requests against private RFCs return `401`.
+- Pagination is applied to top-level comment threads. Replies for the selected roots are included in the same page.

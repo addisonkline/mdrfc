@@ -131,6 +131,8 @@ def _add_deprecation_headers(request: Request, response: Response) -> None:
         return
 
     replacement_path = _format_route_path(replacement_template, request.path_params)
+    if request.url.query:
+        replacement_path = f"{replacement_path}?{request.url.query}"
     response.headers["Deprecation"] = "true"
     response.headers["Link"] = f'<{replacement_path}>; rel="alternate"'
     logger.warning(
@@ -385,6 +387,10 @@ async def post_rfcs_readme_rev(
     tags=["rfcs"]
 )
 async def get_rfcs(
+    query: Annotated[
+        req_types.GetRfcsRequest,
+        Depends(req_types.validate_get_rfcs_request),
+    ],
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcsResponse:
     """
@@ -392,6 +398,7 @@ async def get_rfcs(
     """
     return await api.get_rfcs(
         current_user=current_user,
+        request=query,
     )
 
 
@@ -693,13 +700,21 @@ async def get_rfc_comments(
     http_request: Request,
     response: Response,
     rfc_id: int,
+    query: Annotated[
+        req_types.GetRfcCommentsRequest,
+        Depends(req_types.validate_get_rfc_comments_request),
+    ],
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcCommentsResponse:
     """
     `GET /rfcs/{rfc_id}/comments`: Get all comments on an existing RFC.
     """
     _add_deprecation_headers(http_request, response)
-    return await api.get_rfc_comments(rfc_id=rfc_id, current_user=current_user)
+    return await api.get_rfc_comments(
+        rfc_id=rfc_id,
+        current_user=current_user,
+        request=query,
+    )
 
 
 @app.get(

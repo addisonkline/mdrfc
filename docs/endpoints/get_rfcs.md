@@ -11,7 +11,19 @@ Auth is optional.
 
 ## Request
 
-No path parameters, query parameters, or request body.
+No path parameters or request body.
+
+Optional query parameters:
+
+```txt
+limit: integer (default 20, min 1, max 100)
+offset: integer (default 0, min 0)
+status: "draft" | "open" | "accepted" | "rejected"
+public: boolean
+author_id: integer
+review_requested: boolean
+sort: "updated_at_desc" | "updated_at_asc" | "created_at_desc" | "created_at_asc"
+```
 
 ## Success Response
 
@@ -33,10 +45,26 @@ No path parameters, query parameters, or request body.
       "public": true
     }
   ],
-  "metadata": {}
+  "metadata": {
+    "pagination": {
+      "limit": 20,
+      "offset": 0,
+      "returned": 1,
+      "total": 1,
+      "has_more": false
+    },
+    "filters": {
+      "status": null,
+      "public": null,
+      "author_id": null,
+      "review_requested": null
+    },
+    "sort": "updated_at_desc"
+  }
 }
 ```
 
 ## Notes
 
-- If there are no RFCs, the current implementation returns `404`.
+- Empty result sets return `200 OK` with `"rfcs": []`.
+- Anonymous callers are always restricted to public RFCs even when no `public` filter is supplied.

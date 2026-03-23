@@ -92,6 +92,22 @@ def _check_rfcs_readme_visibility(
         )
 
 
+def _build_pagination_metadata(
+    *,
+    limit: int,
+    offset: int,
+    returned: int,
+    total: int,
+) -> res_types.PaginationMetadata:
+    return res_types.PaginationMetadata(
+        limit=limit,
+        offset=offset,
+        returned=returned,
+        total=total,
+        has_more=(offset + returned) < total,
+    )
+
+
 async def _get_current_rfcs_readme() -> RFCReadme:
     rfcs_readme = await get_rfcs_readme_in_db()
     if rfcs_readme is None:
@@ -219,19 +235,40 @@ async def post_rfcs_readme_rev(
 
 async def get_rfcs(
     current_user: User | None,
+    request: req_types.GetRfcsRequest,
 ) -> res_types.GetRfcsResponse:
     """
     Handle a request to the endpoint `GET /rfcs`.
     """
-    result = await get_rfcs_from_db()
+    result = await get_rfcs_from_db(
+        limit=request.limit,
+        offset=request.offset,
+        status=request.status,
+        public=request.public,
+        author_id=request.author_id,
+        review_requested=request.review_requested,
+        sort=request.sort,
+        include_private=current_user is not None,
+    )
 
-    if result is None:
-        raise HTTPException(status_code=404, detail="no RFC documents found")
-
-    if current_user is None:
-        result = [summary for summary in result if summary.public]
-
-    return res_types.GetRfcsResponse(rfcs=result, metadata={})
+    return res_types.GetRfcsResponse(
+        rfcs=result.items,
+        metadata=res_types.GetRfcsMetadata(
+            pagination=_build_pagination_metadata(
+                limit=request.limit,
+                offset=request.offset,
+                returned=len(result.items),
+                total=result.total,
+            ),
+            filters=res_types.GetRfcsFiltersMetadata(
+                status=request.status,
+                public=request.public,
+                author_id=request.author_id,
+                review_requested=request.review_requested,
+            ),
+            sort=request.sort,
+        ),
+    )
 
 
 async def get_rfcs_quarantined() -> res_types.GetQuarantinedRfcsResponse:
@@ -530,6 +567,7 @@ async def post_rfc_comment(
 async def get_rfc_comments(
     rfc_id: int,
     current_user: User | None,
+    request: req_types.GetRfcCommentsRequest,
 ) -> res_types.GetRfcCommentsResponse:
     """
     Handle a request to the endpoint `GET /rfcs/{rfc_id}/comments`.
@@ -543,11 +581,28 @@ async def get_rfc_comments(
     if (current_user is None) and (not rfc.public):
         raise HTTPException(status_code=401, detail="unable to access this RFC")
 
-    comment_rows = await get_rfc_comments_from_db(rfc_id)
-    comment_threads = build_comment_threads(comment_rows)
+    comment_result = await get_rfc_comments_from_db(
+        rfc_id=rfc_id,
+        limit=request.limit,
+        offset=request.offset,
+        sort=request.sort,
+    )
+    comment_threads = build_comment_threads(comment_result.items)
+    if request.sort == "created_at_desc":
+        comment_threads.reverse()
 
     return res_types.GetRfcCommentsResponse(
-        comment_threads=comment_threads, metadata={}
+        comment_threads=comment_threads,
+        metadata=res_types.GetRfcCommentsMetadata(
+            pagination=_build_pagination_metadata(
+                limit=request.limit,
+                offset=request.offset,
+                returned=len(comment_threads),
+                total=comment_result.total,
+            ),
+            filters=res_types.EmptyFiltersMetadata(),
+            sort=request.sort,
+        ),
     )
 
 
@@ -612,8 +667,8 @@ async def get_rfc_comment(
     if not await check_comment_is_on_rfc(comment_id, rfc_id):
         raise HTTPException(status_code=400, detail="comment_id does not match rfc_id")
 
-    comment_rows = await get_rfc_comments_from_db(rfc_id)
-    comment_threads = build_comment_threads(comment_rows)
+    comment_rows = await get_rfc_comments_from_db(rfc_id, limit=None)
+    comment_threads = build_comment_threads(comment_rows.items)
     comment_thread = find_comment_thread(comment_threads, comment_id)
 
     if comment_thread is None:

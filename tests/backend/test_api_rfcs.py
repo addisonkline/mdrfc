@@ -1,11 +1,12 @@
 import asyncio
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
 
 import mdrfc.api as api
-from mdrfc.requests import PostRfcRequest, PostRfcRevisionRequest
+from mdrfc.requests import GetRfcsRequest, PostRfcRequest, PostRfcRevisionRequest
 from mdrfc.backend.document import RFCRevisionRequest
 
 
@@ -13,17 +14,28 @@ def test_get_rfcs_filters_private_documents_for_anonymous_users(
     monkeypatch: pytest.MonkeyPatch,
     rfc_summary_factory,
 ) -> None:
-    async def fake_get_rfcs_from_db():
-        return [
-            rfc_summary_factory(id=1, public=False),
-            rfc_summary_factory(id=2, public=True, slug="public-rfc"),
-        ]
+    captured: dict[str, object] = {}
+
+    async def fake_get_rfcs_from_db(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            items=[rfc_summary_factory(id=2, public=True, slug="public-rfc")],
+            total=1,
+        )
 
     monkeypatch.setattr(api, "get_rfcs_from_db", fake_get_rfcs_from_db)
 
-    response = asyncio.run(api.get_rfcs(current_user=None))
+    response = asyncio.run(
+        api.get_rfcs(
+            current_user=None,
+            request=GetRfcsRequest(),
+        )
+    )
 
     assert [rfc.id for rfc in response.rfcs] == [2]
+    assert captured["include_private"] is False
+    assert response.metadata.pagination.total == 1
+    assert response.metadata.sort == "updated_at_desc"
 
 
 def test_get_rfcs_returns_private_documents_for_authenticated_users(
@@ -31,17 +43,34 @@ def test_get_rfcs_returns_private_documents_for_authenticated_users(
     rfc_summary_factory,
     user_factory,
 ) -> None:
-    async def fake_get_rfcs_from_db():
-        return [
-            rfc_summary_factory(id=1, public=False),
-            rfc_summary_factory(id=2, public=True, slug="public-rfc"),
-        ]
+    captured: dict[str, object] = {}
+
+    async def fake_get_rfcs_from_db(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            items=[
+                rfc_summary_factory(id=1, public=False),
+                rfc_summary_factory(id=2, public=True, slug="public-rfc"),
+            ],
+            total=2,
+        )
 
     monkeypatch.setattr(api, "get_rfcs_from_db", fake_get_rfcs_from_db)
 
-    response = asyncio.run(api.get_rfcs(current_user=user_factory()))
+    response = asyncio.run(
+        api.get_rfcs(
+            current_user=user_factory(),
+            request=GetRfcsRequest(limit=10, offset=5, status="open"),
+        )
+    )
 
     assert [rfc.id for rfc in response.rfcs] == [1, 2]
+    assert captured["include_private"] is True
+    assert captured["limit"] == 10
+    assert captured["offset"] == 5
+    assert captured["status"] == "open"
+    assert response.metadata.pagination.offset == 5
+    assert response.metadata.filters.status == "open"
 
 
 def test_get_rfc_blocks_anonymous_access_to_private_document(

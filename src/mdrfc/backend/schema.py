@@ -5,6 +5,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     String,
@@ -124,3 +125,29 @@ readme_revisions = Table(
     Column("is_public", Boolean, nullable=True, default=False),
     Column("reason", String(consts.LEN_README_PATCH_REASON_MAX), nullable=False),
 )
+
+Index(
+    "ix_rfcs_listing_updated_at_id",
+    rfcs.c.is_quarantined,
+    rfcs.c.updated_at,
+    rfcs.c.id,
+)
+Index(
+    "ix_rfcs_listing_created_at_id",
+    rfcs.c.is_quarantined,
+    rfcs.c.created_at,
+    rfcs.c.id,
+)
+Index("ix_rfcs_status", rfcs.c.status)
+Index("ix_rfcs_created_by", rfcs.c.created_by)
+Index("ix_rfcs_review_requested", rfcs.c.review_requested)
+Index("ix_rfcs_is_public", rfcs.c.is_public)
+Index(
+    "ix_rfc_comments_listing_parent_created_at_id",
+    rfc_comments.c.rfc_id,
+    rfc_comments.c.parent_id,
+    rfc_comments.c.is_quarantined,
+    rfc_comments.c.created_at,
+    rfc_comments.c.id,
+)
+Index("ix_rfc_comments_parent_id", rfc_comments.c.parent_id)

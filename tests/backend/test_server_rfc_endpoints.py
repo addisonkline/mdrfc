@@ -12,11 +12,33 @@ def test_get_rfcs_returns_api_payload_for_anonymous_user(
     monkeypatch: pytest.MonkeyPatch,
     rfc_summary_factory,
 ) -> None:
-    async def fake_get_rfcs(*, current_user):
+    async def fake_get_rfcs(*, current_user, request):
         assert current_user is None
+        assert request.limit == 20
+        assert request.offset == 0
+        assert request.status is None
+        assert request.public is None
+        assert request.author_id is None
+        assert request.review_requested is None
+        assert request.sort == "updated_at_desc"
         return res_types.GetRfcsResponse(
             rfcs=[rfc_summary_factory(id=2, public=True, slug="public-rfc")],
-            metadata={"source": "stub"},
+            metadata={
+                "pagination": {
+                    "limit": 20,
+                    "offset": 0,
+                    "returned": 1,
+                    "total": 1,
+                    "has_more": False,
+                },
+                "filters": {
+                    "status": None,
+                    "public": None,
+                    "author_id": None,
+                    "review_requested": None,
+                },
+                "sort": "updated_at_desc",
+            },
         )
 
     monkeypatch.setattr(server.api, "get_rfcs", fake_get_rfcs)
@@ -25,7 +47,63 @@ def test_get_rfcs_returns_api_payload_for_anonymous_user(
 
     assert response.status_code == 200
     assert response.json()["rfcs"][0]["id"] == 2
-    assert response.json()["metadata"] == {"source": "stub"}
+    assert response.json()["metadata"]["pagination"]["total"] == 1
+    assert response.json()["metadata"]["sort"] == "updated_at_desc"
+
+
+def test_get_rfcs_passes_query_params_to_api(
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_get_rfcs(*, current_user, request):
+        captured["current_user"] = current_user
+        captured["request"] = request
+        return res_types.GetRfcsResponse(
+            rfcs=[],
+            metadata={
+                "pagination": {
+                    "limit": request.limit,
+                    "offset": request.offset,
+                    "returned": 0,
+                    "total": 0,
+                    "has_more": False,
+                },
+                "filters": {
+                    "status": request.status,
+                    "public": request.public,
+                    "author_id": request.author_id,
+                    "review_requested": request.review_requested,
+                },
+                "sort": request.sort,
+            },
+        )
+
+    monkeypatch.setattr(server.api, "get_rfcs", fake_get_rfcs)
+
+    response = client.get(
+        "/rfcs",
+        params={
+            "limit": 5,
+            "offset": 10,
+            "status": "open",
+            "public": "true",
+            "author_id": 7,
+            "review_requested": "false",
+            "sort": "created_at_asc",
+        },
+    )
+
+    assert response.status_code == 200
+    request = captured["request"]
+    assert request.limit == 5
+    assert request.offset == 10
+    assert request.status == "open"
+    assert request.public is True
+    assert request.author_id == 7
+    assert request.review_requested is False
+    assert request.sort == "created_at_asc"
 
 
 def test_get_quarantined_rfcs_returns_admin_payload(
