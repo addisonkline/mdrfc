@@ -351,6 +351,9 @@ def rfc_document_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocument
         revisions: list[UUID] | None = None,
         current_revision: UUID | None = None,
         agent_contributions: dict[UUID, list[str]] | None = None,
+        review_requested: bool = False,
+        reviewed: bool = False,
+        review_reason: str | None = None,
     ) -> RFCDocument:
         created = created_at or fixed_timestamp
         updated = updated_at or created
@@ -375,6 +378,9 @@ def rfc_document_factory(fixed_timestamp: datetime) -> Callable[..., RFCDocument
             current_revision=current,
             agent_contributions=contributions,
             public=public,
+            review_requested=review_requested,
+            reviewed=reviewed,
+            review_reason=review_reason,
         )
 
     return _make_rfc_document

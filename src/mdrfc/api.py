@@ -451,6 +451,11 @@ async def post_rfc_revision(
     rfc = await get_rfc_from_db(rfc_id)
     if rfc is None:
         raise HTTPException(status_code=404, detail="RFC not found")
+    if rfc.review_requested or rfc.status in {"accepted", "rejected"}:
+        raise HTTPException(
+            status_code=400,
+            detail="RFC is no longer open for revisions",
+        )
 
     to_update: dict[str, Any] = {
         "title": request.update.title or rfc.title,

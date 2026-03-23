@@ -515,7 +515,8 @@ async def register_rfc_in_db(document: RFCDocumentInDB) -> int:
                 INSERT INTO rfcs (
                     created_by, created_at, updated_at,
                     title, slug, status, content, summary,
-                    revisions, current_revision, agent_contributions, is_public
+                    revisions, current_revision, agent_contributions, is_public,
+                    review_requested, is_reviewed
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $15, $16)
                 RETURNING id
@@ -590,8 +591,9 @@ async def get_rfc_from_db(
                     rfc.get("agent_contributions")
                 ),
                 public=rfc.get("is_public") or False,
-                review_requested=rfc.get("requested_review") or False,
-                reviewed=rfc.get("is_reviewed") or False
+                review_requested=rfc.get("review_requested") or False,
+                reviewed=rfc.get("is_reviewed") or False,
+                review_reason=rfc.get("review_reason"),
             )
 
 
@@ -838,6 +840,21 @@ async def register_revision_in_db(
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
+            rfc_state = await connection.fetchrow(
+                "SELECT review_requested, status FROM rfcs WHERE id = $1 FOR UPDATE",
+                rfc_id,
+            )
+            if rfc_state is None:
+                raise HTTPException(status_code=404, detail="RFC not found")
+            if rfc_state.get("review_requested") or rfc_state.get("status") in {
+                "accepted",
+                "rejected",
+            }:
+                raise HTTPException(
+                    status_code=400,
+                    detail="RFC is no longer open for revisions",
+                )
+
             query = """
             WITH revision_insert AS (
                 INSERT INTO rfc_revisions (
@@ -1291,4 +1308,3 @@ async def check_rfc_not_already_requested_review(
                 return False
             return True
         
-

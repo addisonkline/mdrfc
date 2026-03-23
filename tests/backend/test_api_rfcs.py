@@ -166,6 +166,84 @@ def test_post_rfc_revision_merges_partial_updates(
     assert response.revision.title == "Updated RFC title"
 
 
+def test_post_rfc_revision_rejects_when_review_requested(
+    monkeypatch: pytest.MonkeyPatch,
+    rfc_document_factory,
+    user_factory,
+) -> None:
+    existing_rfc = rfc_document_factory(review_requested=True)
+    register_called = False
+
+    async def fake_get_rfc_from_db(_: int):
+        return existing_rfc
+
+    async def fake_register_revision_in_db(**kwargs):
+        nonlocal register_called
+        register_called = True
+        raise AssertionError("register_revision_in_db should not be called")
+
+    monkeypatch.setattr(api, "get_rfc_from_db", fake_get_rfc_from_db)
+    monkeypatch.setattr(api, "register_revision_in_db", fake_register_revision_in_db)
+
+    with pytest.raises(HTTPException) as excinfo:
+        asyncio.run(
+            api.post_rfc_revision(
+                rfc_id=existing_rfc.id,
+                user=user_factory(id=9),
+                request=PostRfcRevisionRequest(
+                    update=RFCRevisionRequest(title="Updated RFC title"),
+                    message="Update the RFC title",
+                ),
+            )
+        )
+
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.detail == "RFC is no longer open for revisions"
+    assert register_called is False
+
+
+@pytest.mark.parametrize("status", ["accepted", "rejected"])
+def test_post_rfc_revision_rejects_for_terminal_status(
+    monkeypatch: pytest.MonkeyPatch,
+    rfc_document_factory,
+    user_factory,
+    status: str,
+) -> None:
+    existing_rfc = rfc_document_factory(
+        status=status,
+        reviewed=True,
+        review_reason="Final admin decision recorded.",
+    )
+    register_called = False
+
+    async def fake_get_rfc_from_db(_: int):
+        return existing_rfc
+
+    async def fake_register_revision_in_db(**kwargs):
+        nonlocal register_called
+        register_called = True
+        raise AssertionError("register_revision_in_db should not be called")
+
+    monkeypatch.setattr(api, "get_rfc_from_db", fake_get_rfc_from_db)
+    monkeypatch.setattr(api, "register_revision_in_db", fake_register_revision_in_db)
+
+    with pytest.raises(HTTPException) as excinfo:
+        asyncio.run(
+            api.post_rfc_revision(
+                rfc_id=existing_rfc.id,
+                user=user_factory(id=9),
+                request=PostRfcRevisionRequest(
+                    update=RFCRevisionRequest(title="Updated RFC title"),
+                    message="Update the RFC title",
+                ),
+            )
+        )
+
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.detail == "RFC is no longer open for revisions"
+    assert register_called is False
+
+
 def test_post_rfc_revision_can_explicitly_make_rfc_private(
     monkeypatch: pytest.MonkeyPatch,
     rfc_document_factory,

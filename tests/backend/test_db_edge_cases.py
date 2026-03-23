@@ -63,6 +63,32 @@ def _register_rfc(run_db, fixed_timestamp, *, created_by: int, slug: str) -> int
     return run_db(db.register_rfc_in_db(document))
 
 
+def _build_revision(
+    *,
+    rfc_id: int,
+    created_by: int,
+    fixed_timestamp,
+    title: str = "Updated RFC",
+    slug: str = "owner-rfc",
+    status: str = "open",
+    message: str = "Revise the RFC after feedback",
+) -> RFCRevisionInDB:
+    return RFCRevisionInDB(
+        id=uuid4(),
+        rfc_id=rfc_id,
+        created_at=fixed_timestamp + timedelta(minutes=5),
+        created_by=created_by,
+        agent_contributors=[],
+        title=title,
+        slug=slug,
+        status=status,
+        content="Updated content for testing RFC behavior.",
+        summary="Updated summary for testing RFC behavior.",
+        message=message,
+        public=True,
+    )
+
+
 def test_register_user_in_db_rejects_duplicate_identity(
     run_db,
     user_in_db_factory,
@@ -143,19 +169,11 @@ def test_register_revision_in_db_rejects_non_author(
     rfc_id = _register_rfc(
         run_db, fixed_timestamp, created_by=owner_id, slug="owner-rfc"
     )
-    revision = RFCRevisionInDB(
-        id=uuid4(),
+    revision = _build_revision(
         rfc_id=rfc_id,
-        created_at=fixed_timestamp + timedelta(minutes=5),
         created_by=outsider_id,
-        agent_contributors=[],
-        title="Updated RFC",
-        slug="owner-rfc",
-        status="open",
-        content="Updated content for testing RFC behavior.",
-        summary="Updated summary for testing RFC behavior.",
+        fixed_timestamp=fixed_timestamp,
         message="Attempt unauthorized revision",
-        public=True,
     )
 
     with pytest.raises(HTTPException) as excinfo:
@@ -171,6 +189,94 @@ def test_register_revision_in_db_rejects_non_author(
 
     assert excinfo.value.status_code == 401
     assert excinfo.value.detail == "unauthorized to revise this RFC"
+
+
+def test_register_revision_in_db_rejects_review_requested_rfc(
+    run_db,
+    fixed_timestamp,
+    user_in_db_factory,
+    user_factory,
+) -> None:
+    owner_id, owner = _register_verified_user(
+        run_db,
+        user_in_db_factory,
+        user_factory,
+        fixed_timestamp=fixed_timestamp,
+        username="owner",
+        email="owner@example.com",
+    )
+    rfc_id = _register_rfc(
+        run_db, fixed_timestamp, created_by=owner_id, slug="owner-rfc"
+    )
+    run_db(db.post_rfc_review_req_in_db(rfc_id=rfc_id, user=owner))
+    revision = _build_revision(
+        rfc_id=rfc_id,
+        created_by=owner_id,
+        fixed_timestamp=fixed_timestamp,
+    )
+
+    with pytest.raises(HTTPException) as excinfo:
+        run_db(
+            db.register_revision_in_db(
+                rfc_id=rfc_id,
+                user=owner,
+                request=revision,
+                new_revisions=[revision.id],
+                new_contributions={revision.id: []},
+            )
+        )
+
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.detail == "RFC is no longer open for revisions"
+
+
+@pytest.mark.parametrize("status", ["accepted", "rejected"])
+def test_register_revision_in_db_rejects_terminal_review_status(
+    run_db,
+    fixed_timestamp,
+    user_in_db_factory,
+    user_factory,
+    status: str,
+) -> None:
+    owner_id, owner = _register_verified_user(
+        run_db,
+        user_in_db_factory,
+        user_factory,
+        fixed_timestamp=fixed_timestamp,
+        username="owner",
+        email="owner@example.com",
+    )
+    rfc_id = _register_rfc(
+        run_db, fixed_timestamp, created_by=owner_id, slug="owner-rfc"
+    )
+    run_db(db.post_rfc_review_req_in_db(rfc_id=rfc_id, user=owner))
+    run_db(
+        db.update_rfc_status_in_db(
+            rfc_id=rfc_id,
+            new_status=status,
+            reason="Final admin decision recorded.",
+        )
+    )
+    revision = _build_revision(
+        rfc_id=rfc_id,
+        created_by=owner_id,
+        fixed_timestamp=fixed_timestamp,
+        status="draft",
+    )
+
+    with pytest.raises(HTTPException) as excinfo:
+        run_db(
+            db.register_revision_in_db(
+                rfc_id=rfc_id,
+                user=owner,
+                request=revision,
+                new_revisions=[revision.id],
+                new_contributions={revision.id: []},
+            )
+        )
+
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.detail == "RFC is no longer open for revisions"
 
 
 def test_quarantine_rfc_in_db_rejects_non_owner_non_admin(
