@@ -94,7 +94,7 @@ app = FastAPI(
     summary="Markdown-formatted RFC server",
     description="A server for hosting Markdown RFCs",
     version=get_mdrfc_version(),
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 signup_rate_limiter = SlidingWindowRateLimiter()
 
@@ -143,11 +143,7 @@ def _add_deprecation_headers(request: Request, response: Response) -> None:
     )
 
 
-@app.get(
-    "/", 
-    response_model=res_types.GetRootResponse,
-    tags=["basic"]
-)
+@app.get("/", response_model=res_types.GetRootResponse, tags=["basic"])
 async def get_root() -> res_types.GetRootResponse:
     """
     `GET /`: Obtain basic server information and metadata.
@@ -155,10 +151,7 @@ async def get_root() -> res_types.GetRootResponse:
     return await api.get_root(app.state.time_start)
 
 
-@app.get(
-    "/llms.txt",
-    tags=["basic"]
-)
+@app.get("/llms.txt", tags=["basic"])
 async def get_llms_txt() -> res_types.GetLlmsTxtResponse:
     """
     `GET /llms.txt`: Obtain server information in an LLM-friendly format.
@@ -172,11 +165,7 @@ async def get_llms_txt() -> res_types.GetLlmsTxtResponse:
 #
 # AUTH endpoints
 #
-@app.post(
-    "/login", 
-    response_model=Token,
-    tags=["auth"]
-)
+@app.post("/login", response_model=Token, tags=["auth"])
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
@@ -199,11 +188,7 @@ async def login_for_access_token(
     return Token(access_token=access_token, token_type="bearer")
 
 
-@app.post(
-    "/signup", 
-    response_model=res_types.PostSignupResponse,
-    tags=["auth"]
-)
+@app.post("/signup", response_model=res_types.PostSignupResponse, tags=["auth"])
 async def post_new_user(
     background_tasks: BackgroundTasks,
     http_request: Request,
@@ -277,9 +262,7 @@ async def post_new_user(
 
 
 @app.post(
-    "/verify-email", 
-    response_model=res_types.PostVerifyEmailResponse,
-    tags=["auth"]
+    "/verify-email", response_model=res_types.PostVerifyEmailResponse, tags=["auth"]
 )
 async def post_verify_email(
     payload: req_types.PostVerifyEmailRequest,
@@ -299,11 +282,7 @@ async def post_verify_email(
     )
 
 
-@app.get(
-    "/users/me",
-    response_model=User,
-    tags=["auth", "users"]
-)
+@app.get("/users/me", response_model=User, tags=["auth", "users"])
 async def get_users_me(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
@@ -316,12 +295,9 @@ async def get_users_me(
 #
 # RFC endpoints
 #
-@app.get(
-    "/rfcs/README",
-    tags=["basic", "rfcs"]
-)
+@app.get("/rfcs/README", tags=["basic", "rfcs"])
 async def get_rfcs_readme(
-    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)]
+    current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
 ) -> res_types.GetRfcsReadmeResponse:
     """
     `GET /rfcs/README`: Get the README document for this server.
@@ -334,7 +310,7 @@ async def get_rfcs_readme(
 @app.get(
     "/rfcs/README/revs",
     response_model=res_types.GetRfcsReadmeRevsResponse,
-    tags=["rfcs", "rev"]
+    tags=["rfcs", "rev"],
 )
 async def get_rfcs_readme_revs(
     current_user: Annotated[User | None, Depends(get_current_active_user_if_one)],
@@ -348,7 +324,7 @@ async def get_rfcs_readme_revs(
 @app.get(
     "/rfcs/README/revs/{revision_id}",
     response_model=res_types.GetRfcsReadmeRevResponse,
-    tags=["rfcs", "rev"]
+    tags=["rfcs", "rev"],
 )
 async def get_rfcs_readme_rev(
     revision_id: UUID,
@@ -366,11 +342,14 @@ async def get_rfcs_readme_rev(
 @app.post(
     "/rfcs/README/revs",
     response_model=res_types.PostRfcsReadmeRevResponse,
-    tags=["rfcs", "rev", "admin"]
+    tags=["rfcs", "rev", "admin"],
 )
 async def post_rfcs_readme_rev(
     current_admin: Annotated[User, Depends(get_current_active_admin)],
-    payload: Annotated[req_types.PostRfcsReadmeRevRequest, Depends(req_types.validate_post_rfcs_readme_rev_request)],
+    payload: Annotated[
+        req_types.PostRfcsReadmeRevRequest,
+        Depends(req_types.validate_post_rfcs_readme_rev_request),
+    ],
 ) -> res_types.PostRfcsReadmeRevResponse:
     """
     `POST /rfcs/README/revs`: Post a new revision on the RFC README file.
@@ -381,11 +360,7 @@ async def post_rfcs_readme_rev(
     )
 
 
-@app.get(
-    "/rfcs",
-    response_model=res_types.GetRfcsResponse,
-    tags=["rfcs"]
-)
+@app.get("/rfcs", response_model=res_types.GetRfcsResponse, tags=["rfcs"])
 async def get_rfcs(
     query: Annotated[
         req_types.GetRfcsRequest,
@@ -405,7 +380,7 @@ async def get_rfcs(
 @app.get(
     "/rfcs/quarantined",
     response_model=res_types.GetQuarantinedRfcsResponse,
-    tags=["rfcs", "admin"]
+    tags=["rfcs", "admin"],
 )
 async def get_rfcs_quarantined(
     current_admin: Annotated[User, Depends(get_current_active_admin)],
@@ -419,7 +394,7 @@ async def get_rfcs_quarantined(
 @app.delete(
     "/rfcs/quarantined/{quarantine_id}",
     response_model=res_types.DeleteQuarantinedRfcResponse,
-    tags=["rfcs", "admin"]
+    tags=["rfcs", "admin"],
 )
 async def delete_rfc(
     quarantine_id: int,
@@ -434,7 +409,7 @@ async def delete_rfc(
 @app.post(
     "/rfcs/quarantined/{quarantine_id}",
     response_model=res_types.PostQuarantinedRfcResponse,
-    tags=["rfcs", "admin"]
+    tags=["rfcs", "admin"],
 )
 async def unquarantine_rfc(
     quarantine_id: int,
@@ -447,11 +422,7 @@ async def unquarantine_rfc(
 
 
 @app.post("/rfc", response_model=res_types.PostRfcResponse, deprecated=True)
-@app.post(
-    "/rfcs",
-    response_model=res_types.PostRfcResponse,
-    tags=["rfcs", "user"]
-)
+@app.post("/rfcs", response_model=res_types.PostRfcResponse, tags=["rfcs", "user"])
 async def post_rfc(
     http_request: Request,
     response: Response,
@@ -473,7 +444,7 @@ async def post_rfc(
 @app.get(
     "/rfcs/review-needed",
     response_model=res_types.GetRfcsReviewNeededResponse,
-    tags=["rfcs", "admin"]
+    tags=["rfcs", "admin"],
 )
 async def get_rfcs_review_needed(
     current_admin: Annotated[User, Depends(get_current_active_admin)],
@@ -490,11 +461,7 @@ async def get_rfcs_review_needed(
     deprecated=True,
 )
 @app.get("/rfc/{rfc_id}", response_model=res_types.GetRfcResponse, deprecated=True)
-@app.get(
-    "/rfcs/{rfc_id}",
-    response_model=res_types.GetRfcResponse,
-    tags=["rfcs"]
-)
+@app.get("/rfcs/{rfc_id}", response_model=res_types.GetRfcResponse, tags=["rfcs"])
 async def get_rfc_by_id(
     http_request: Request,
     response: Response,
@@ -515,9 +482,7 @@ async def get_rfc_by_id(
     "/rfc/{rfc_id}", response_model=res_types.DeleteRfcResponse, deprecated=True
 )
 @app.delete(
-    "/rfcs/{rfc_id}",
-    response_model=res_types.DeleteRfcResponse,
-    tags=["rfcs", "user"]
+    "/rfcs/{rfc_id}", response_model=res_types.DeleteRfcResponse, tags=["rfcs", "user"]
 )
 async def quarantine_rfc(
     http_request: Request,
@@ -540,7 +505,7 @@ async def quarantine_rfc(
 @app.post(
     "/rfcs/{rfc_id}/review",
     response_model=res_types.PostRfcReviewResponse,
-    tags=["rfcs", "user"]
+    tags=["rfcs", "user"],
 )
 async def post_rfc_review_req(
     rfc_id: int,
@@ -558,20 +523,21 @@ async def post_rfc_review_req(
 @app.patch(
     "/rfcs/{rfc_id}/status",
     response_model=res_types.PatchRfcStatusResponse,
-    tags=["rfcs", "admin"]
+    tags=["rfcs", "admin"],
 )
 async def patch_rfc_status(
     rfc_id: int,
     current_admin: Annotated[User, Depends(get_current_active_admin)],
-    payload: Annotated[req_types.PatchRfcStatusRequest, Depends(req_types.validate_patch_rfc_status_request)]
+    payload: Annotated[
+        req_types.PatchRfcStatusRequest,
+        Depends(req_types.validate_patch_rfc_status_request),
+    ],
 ) -> res_types.PatchRfcStatusResponse:
     """
     `PATCH /rfcs/{rfc_id}/status`: Update an RFC's status to `accepted` or `rejected` following admin review.
     """
     return await api.patch_rfc_status(
-        rfc_id=rfc_id,
-        admin=current_admin,
-        payload=payload
+        rfc_id=rfc_id, admin=current_admin, payload=payload
     )
 
 
@@ -586,7 +552,7 @@ async def patch_rfc_status(
 @app.get(
     "/rfcs/{rfc_id}/revs",
     response_model=res_types.GetRfcRevisionsResponse,
-    tags=["rfcs", "revs"]
+    tags=["rfcs", "revs"],
 )
 async def get_rfc_revisions(
     http_request: Request,
@@ -609,7 +575,7 @@ async def get_rfc_revisions(
 @app.get(
     "/rfcs/{rfc_id}/revs/{rev_id}",
     response_model=res_types.GetRfcRevisionResponse,
-    tags=["rfcs", "revs"]
+    tags=["rfcs", "revs"],
 )
 async def get_rfc_revision(
     http_request: Request,
@@ -635,7 +601,7 @@ async def get_rfc_revision(
 @app.post(
     "/rfcs/{rfc_id}/revs",
     response_model=res_types.PostRfcRevisionResponse,
-    tags=["rfcs", "revs"]
+    tags=["rfcs", "revs"],
 )
 async def post_rfc_revision(
     http_request: Request,
@@ -667,7 +633,7 @@ async def post_rfc_revision(
 @app.post(
     "/rfcs/{rfc_id}/comments",
     response_model=res_types.PostRfcCommentResponse,
-    tags=["rfcs", "comments", "user"]
+    tags=["rfcs", "comments", "user"],
 )
 async def post_rfc_comment(
     http_request: Request,
@@ -694,7 +660,7 @@ async def post_rfc_comment(
 @app.get(
     "/rfcs/{rfc_id}/comments",
     response_model=res_types.GetRfcCommentsResponse,
-    tags=["rfcs", "comments"]
+    tags=["rfcs", "comments"],
 )
 async def get_rfc_comments(
     http_request: Request,
@@ -725,7 +691,7 @@ async def get_rfc_comments(
 @app.get(
     "/rfcs/{rfc_id}/comments/quarantined",
     response_model=res_types.GetQuarantinedCommentsResponse,
-    tags=["rfcs", "comments", "admin"]
+    tags=["rfcs", "comments", "admin"],
 )
 async def get_quarantined_comments(
     http_request: Request,
@@ -748,7 +714,7 @@ async def get_quarantined_comments(
 @app.delete(
     "/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
     response_model=res_types.DeleteQuarantinedCommentResponse,
-    tags=["rfcs", "comments", "admin"]
+    tags=["rfcs", "comments", "admin"],
 )
 async def delete_comment(
     http_request: Request,
@@ -774,7 +740,7 @@ async def delete_comment(
 @app.post(
     "/rfcs/{rfc_id}/comments/quarantined/{quarantine_id}",
     response_model=res_types.PostQuarantinedCommentResponse,
-    tags=["rfcs", "comments", "admin"]
+    tags=["rfcs", "comments", "admin"],
 )
 async def unquarantine_comment(
     http_request: Request,
@@ -801,7 +767,7 @@ async def unquarantine_comment(
 @app.get(
     "/rfcs/{rfc_id}/comments/{comment_id}",
     response_model=res_types.GetRfcCommentResponse,
-    tags=["rfcs", "comments"]
+    tags=["rfcs", "comments"],
 )
 async def get_rfc_comment(
     http_request: Request,
@@ -827,7 +793,7 @@ async def get_rfc_comment(
 @app.delete(
     "/rfcs/{rfc_id}/comments/{comment_id}",
     response_model=res_types.DeleteRfcCommentResponse,
-    tags=["rfcs", "comments", "user"]
+    tags=["rfcs", "comments", "user"],
 )
 async def quarantine_comment(
     http_request: Request,

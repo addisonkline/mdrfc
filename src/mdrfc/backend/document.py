@@ -61,7 +61,9 @@ def validate_rfc_slug(slug: str) -> str:
     return slug
 
 
-def validate_rfc_status(status: str) -> Literal["draft", "open", "accepted", "rejected"]:
+def validate_rfc_status(
+    status: str,
+) -> Literal["draft", "open", "accepted", "rejected"]:
     if status == "draft":
         return "draft"
     elif status == "open":
@@ -287,7 +289,7 @@ class RFCReadmeRevisionInDB(BaseModel):
     reason: str
     content: str
     public: bool
-    
+
 
 #
 # REVISION types

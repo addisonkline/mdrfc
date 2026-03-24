@@ -48,11 +48,7 @@ def _parse_optional_bool(value: str | None) -> bool | None:
 
 
 def _prune_query_params(query_params: dict[str, object | None]) -> dict[str, object]:
-    return {
-        key: value
-        for key, value in query_params.items()
-        if value is not None
-    }
+    return {key: value for key, value in query_params.items() if value is not None}
 
 
 parser = ArgumentParser(
@@ -85,7 +81,7 @@ llms_txt_p = subparsers.add_parser(
     aliases=["llm"],
     usage="llms-txt [option]...",
     help=llms_txt_desc,
-    description=llms_txt_desc
+    description=llms_txt_desc,
 )
 
 #
@@ -149,7 +145,7 @@ readme_p = subparsers.add_parser(
     aliases=["R"],
     usage="readme [option]...",
     help=readme_desc,
-    description=readme_desc
+    description=readme_desc,
 )
 
 readme_rev_list_desc = "Get all revisions on the RFC README file"
@@ -158,7 +154,7 @@ readme_rev_list_p = subparsers.add_parser(
     aliases=["Rl"],
     usage="readme-rev-list [option]...",
     help=readme_rev_list_desc,
-    description=readme_rev_list_desc
+    description=readme_rev_list_desc,
 )
 
 readme_rev_get_desc = "Get a specific revision on the RFC README file"
@@ -167,12 +163,9 @@ readme_rev_get_p = subparsers.add_parser(
     aliases=["Rg"],
     usage="readme-rev-get [option]...",
     help=readme_rev_get_desc,
-    description=readme_rev_get_desc
+    description=readme_rev_get_desc,
 )
-readme_rev_get_p.add_argument(
-    "revision_id",
-    help="the revision ID to get"
-)
+readme_rev_get_p.add_argument("revision_id", help="the revision ID to get")
 
 readme_rev_post_desc = "(admin required) Post a new revision for the RFC README file"
 readme_rev_post_p = subparsers.add_parser(
@@ -180,22 +173,14 @@ readme_rev_post_p = subparsers.add_parser(
     aliases=["Rp"],
     usage="readme-rev-post <reason> [option]...",
     help=readme_rev_post_desc,
-    description=readme_rev_post_desc
+    description=readme_rev_post_desc,
+)
+readme_rev_post_p.add_argument("reason", help="the reason for this revision")
+readme_rev_post_p.add_argument(
+    "-cf", "--content-file", help="the filepath of the README to upload"
 )
 readme_rev_post_p.add_argument(
-    "reason",
-    help="the reason for this revision"
-)
-readme_rev_post_p.add_argument(
-    "-cf",
-    "--content-file",
-    help="the filepath of the README to upload"
-)
-readme_rev_post_p.add_argument(
-    "-p",
-    "--public",
-    type=bool,
-    help="change the README file's visibility"
+    "-p", "--public", type=bool, help="change the README file's visibility"
 )
 
 
@@ -316,13 +301,15 @@ rfc_delete_p.add_argument(
     help="include more detailed response metadata",
 )
 
-rfc_review_needed_desc = "(admin required) List all RFCs where admin review has been requested"
+rfc_review_needed_desc = (
+    "(admin required) List all RFCs where admin review has been requested"
+)
 rfc_review_needed_p = subparsers.add_parser(
     "rfc-review-needed",
     aliases=["rfc-rn"],
     usage="rfc-review-needed [option]...",
     help=rfc_review_needed_desc,
-    description=rfc_review_needed_desc
+    description=rfc_review_needed_desc,
 )
 rfc_review_needed_p.add_argument(
     "-v",
@@ -337,12 +324,10 @@ rfc_review_request_p = subparsers.add_parser(
     aliases=["rfc-rr"],
     usage="rfc-request-review <rfc_id> [option]...",
     help=rfc_review_request_desc,
-    description=rfc_review_request_desc
+    description=rfc_review_request_desc,
 )
 rfc_review_request_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC to request review for"
+    "rfc_id", type=int, help="the ID of the RFC to request review for"
 )
 rfc_review_request_p.add_argument(
     "-v",
@@ -351,7 +336,9 @@ rfc_review_request_p.add_argument(
     help="include more detailed response metadata",
 )
 
-rfc_review_admin_desc = "(admin required) Update an RFC's status to `accepted` or `rejected"
+rfc_review_admin_desc = (
+    "(admin required) Update an RFC's status to `accepted` or `rejected"
+)
 rfc_review_admin_p = subparsers.add_parser(
     "rfc-review-admin",
     aliases=["rfc-ra"],
@@ -359,20 +346,11 @@ rfc_review_admin_p = subparsers.add_parser(
     help=rfc_review_admin_desc,
     description=rfc_review_admin_desc,
 )
+rfc_review_admin_p.add_argument("rfc_id", type=int, help="the ID of the RFC to review")
 rfc_review_admin_p.add_argument(
-    "rfc_id",
-    type=int,
-    help="the ID of the RFC to review"
+    "status", choices=["accepted", "rejected"], help="the final status for this RFC"
 )
-rfc_review_admin_p.add_argument(
-    "status",
-    choices=["accepted", "rejected"],
-    help="the final status for this RFC"
-)
-rfc_review_admin_p.add_argument(
-    "reason",
-    help="the reason for this status choice"
-)
+rfc_review_admin_p.add_argument("reason", help="the reason for this status choice")
 rfc_review_admin_p.add_argument(
     "-v",
     "--verbose",
@@ -717,12 +695,9 @@ alias_delete_p = subparsers.add_parser(
     aliases=["ad"],
     usage="alias-delete <alias_name> [option]...",
     help=alias_delete_desc,
-    description=alias_delete_desc
+    description=alias_delete_desc,
 )
-alias_delete_p.add_argument(
-    "alias_name",
-    help="the alias name to delete"
-)
+alias_delete_p.add_argument("alias_name", help="the alias name to delete")
 
 
 # command handlers
@@ -765,17 +740,14 @@ def _cmd_llms_txt(args: Namespace) -> None:
     """
     global _console
     global _url
-    response = httpx.get(
-        f"{_url}/llms.txt",
-        headers={"User-Agent": _get_user_agent()}
-    )
+    response = httpx.get(f"{_url}/llms.txt", headers={"User-Agent": _get_user_agent()})
 
     if response.status_code != 200:
         _console.print(
             f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
         )
         return
-    
+
     markdown = Markdown(response.content.decode())
     _console.print(markdown)
 
@@ -969,7 +941,7 @@ def _cmd_readme(args: Namespace) -> None:
             f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
         )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcsReadmeResponse.model_validate(response_json)
@@ -977,7 +949,7 @@ def _cmd_readme(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     readme = response_obj.readme
     content_markdown = Markdown(readme.content)
     _console.print(f"[bold]created at[/bold]: {readme.created_at}")
@@ -1006,7 +978,7 @@ def _cmd_readme_rev_list(args: Namespace) -> None:
             f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
         )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcsReadmeRevsResponse.model_validate(response_json)
@@ -1014,13 +986,15 @@ def _cmd_readme_rev_list(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     revs = response_obj.revisions
     _console.print(f"found {len(revs)} revisions")
     for rev in revs:
         _console.print(f"[bold]revision id[/bold]: {rev.revision_id}")
         _console.print(f"[bold]created at[/bold]: {rev.created_at}")
-        _console.print(f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}")
+        _console.print(
+            f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}"
+        )
         _console.print(f"[bold]reason[/bold]: {rev.reason}")
         _console.print(f"[bold]public[/bold]: {rev.public}")
         _console.print("=" * 60)
@@ -1048,7 +1022,7 @@ def _cmd_readme_rev_get(args: Namespace) -> None:
             f"[bold red]error[/bold red] request failed with status code [red]{response.status_code}[/red]"
         )
         return
-    
+
     response_json = response.json()
     try:
         response_obj = res_types.GetRfcsReadmeRevResponse.model_validate(response_json)
@@ -1056,12 +1030,14 @@ def _cmd_readme_rev_get(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     rev = response_obj.revision
     content_markdown = Markdown(rev.content)
     _console.print(f"[bold]revision id[/bold]: {rev.revision_id}")
     _console.print(f"[bold]created at[/bold]: {rev.created_at}")
-    _console.print(f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}")
+    _console.print(
+        f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}"
+    )
     _console.print(f"[bold]reason[/bold]: {rev.reason}")
     _console.print(f"[bold]public[/bold]: {rev.public}")
     _console.print(content_markdown)
@@ -1088,11 +1064,7 @@ def _cmd_readme_rev_post(args: Namespace) -> None:
     except AttributeError:
         public = None
 
-    body = {
-        "reason": reason,
-        "content": content,
-        "public": public
-    }
+    body = {"reason": reason, "content": content, "public": public}
 
     global _url
     response = httpx.post(
@@ -1114,12 +1086,14 @@ def _cmd_readme_rev_post(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     rev = response_obj.revision
     content_markdown = Markdown(rev.content)
     _console.print(f"[bold]revision id[/bold]: {rev.revision_id}")
     _console.print(f"[bold]created at[/bold]: {rev.created_at}")
-    _console.print(f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}")
+    _console.print(
+        f"[bold]created by[/bold]: {rev.created_by_name_first} {rev.created_by_name_last}"
+    )
     _console.print(f"[bold]reason[/bold]: {rev.reason}")
     _console.print(f"[bold]public[/bold]: {rev.public}")
     _console.print(content_markdown)
@@ -1360,10 +1334,7 @@ def _cmd_rfc_review_needed(args: Namespace) -> None:
     global _url
     response = httpx.get(
         url=f"{_url}/rfcs/review-needed",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
@@ -1376,12 +1347,14 @@ def _cmd_rfc_review_needed(args: Namespace) -> None:
 
     response_json = response.json()
     try:
-        response_obj = res_types.GetRfcsReviewNeededResponse.model_validate(response_json)
+        response_obj = res_types.GetRfcsReviewNeededResponse.model_validate(
+            response_json
+        )
     except ValidationError as e:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]message[/bold]: {response_obj.message}")
         _console.print(f"[bold]rfcs[/bold]: {response_obj.rfcs}")
@@ -1392,7 +1365,9 @@ def _cmd_rfc_review_needed(args: Namespace) -> None:
         for rfc in rfcs:
             _console.print("=" * 60)
             _console.print(f"[bold]id[/bold]: {rfc.id}")
-            _console.print(f"[bold]created by[/bold]: {rfc.author_name_first} {rfc.author_name_last}")
+            _console.print(
+                f"[bold]created by[/bold]: {rfc.author_name_first} {rfc.author_name_last}"
+            )
             _console.print(f"[bold]created at[/bold]: {rfc.created_at}")
             _console.print(f"[bold]updated at[/bold]: {rfc.updated_at}")
             _console.print(f"[bold]title[/bold]: {rfc.title}")
@@ -1416,10 +1391,7 @@ def _cmd_rfc_review_request(args: Namespace) -> None:
     global _url
     response = httpx.post(
         url=f"{_url}/rfcs/{rfc_id}/review",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        }
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
     )
 
     if response.status_code != 200:
@@ -1435,7 +1407,7 @@ def _cmd_rfc_review_request(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]message[/bold]: {response_obj.message}")
         _console.print(f"[bold]requested at[/bold]: {response_obj.requested_at}")
@@ -1453,24 +1425,18 @@ def _cmd_rfc_review_admin(args: Namespace) -> None:
     if _token is None:
         _console.print("[bold red]error[/bold red] not logged in")
         return
-    
+
     rfc_id = args.rfc_id
     status = args.status
     reason = args.reason
 
-    body = {
-        "status": status,
-        "reason": reason
-    }
+    body = {"status": status, "reason": reason}
 
     global _url
     response = httpx.patch(
         url=f"{_url}/rfcs/{rfc_id}/status",
-        headers={
-            "Authorization": f"Bearer {_token}",
-            "User-Agent": _get_user_agent()
-        },
-        json=body
+        headers={"Authorization": f"Bearer {_token}", "User-Agent": _get_user_agent()},
+        json=body,
     )
 
     if response.status_code != 200:
@@ -1486,7 +1452,7 @@ def _cmd_rfc_review_admin(args: Namespace) -> None:
         _console.print("[bold red]error[/bold red] response validation failed")
         _console.print(e)
         return
-    
+
     if args.verbose:
         _console.print(f"[bold]message[/bold]: {response_obj.message}")
         _console.print(f"[bold]updated at[/bold]: {response_obj.updated_at}")
@@ -2191,10 +2157,12 @@ def _cmd_alias_delete(args: Namespace) -> None:
     if alias not in _aliases:
         _console.print("[bold red]error[/bold red] not an existing alias")
         return
-    
+
     cmd = _aliases.pop(alias)
 
-    _console.print(f"successfully unlinked alias: [cyan]{alias}[/cyan] -> [cyan]{cmd}[/cyan]")
+    _console.print(
+        f"successfully unlinked alias: [cyan]{alias}[/cyan] -> [cyan]{cmd}[/cyan]"
+    )
 
 
 Command = Callable[[Namespace], None]
@@ -2274,7 +2242,7 @@ _commands: dict[str, Command] = {
     "alias-list": _cmd_alias_list,
     "al": _cmd_alias_list,
     "alias-delete": _cmd_alias_delete,
-    "ad": _cmd_alias_delete
+    "ad": _cmd_alias_delete,
 }
 
 _aliases: dict[str, str] = {item.alias: item.command for item in _config.aliases}
