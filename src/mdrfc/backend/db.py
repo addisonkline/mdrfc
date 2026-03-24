@@ -732,7 +732,9 @@ async def get_rfcs_review_needed_from_db() -> list[RFCDocumentSummary]:
             query = """
             SELECT *
             FROM rfcs
-            WHERE review_requested = TRUE;
+            WHERE COALESCE(review_requested, FALSE) = TRUE
+              AND COALESCE(is_reviewed, FALSE) = FALSE
+              AND status NOT IN ('accepted', 'rejected');
             """
             rfcs_in_db = await connection.fetch(query)
             if rfcs_in_db is None:

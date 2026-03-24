@@ -9,7 +9,7 @@ export function RfcMetaHeader({ rfc }: { rfc: RFCDocument }) {
         <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
           {rfc.public ? 'Public' : 'Private'}
         </span>
-        {rfc.review_requested && (
+        {rfc.review_requested && !rfc.reviewed && (
           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
             Review requested
           </span>
