@@ -305,7 +305,6 @@ async def get_rfcs_readme_revs_in_db() -> list[RFCReadmeRevisionSummary]:
             return summaries
 
 
-
 async def get_rfcs_readme_rev_in_db(
     revision_id: uuid.UUID,
 ) -> RFCReadmeRevision | None:
@@ -635,7 +634,7 @@ async def register_rfc_in_db(document: RFCDocumentInDB) -> int:
                 document.agent_contributions.get(document.current_revision, []),
                 "First revision",
                 False,
-                False
+                False,
             )
             if rfc_id is None:
                 raise HTTPException(status_code=500, detail="got rfc_id = None")
@@ -770,23 +769,14 @@ async def post_rfc_review_req_in_db(
     """
     Request that an existing RFC in the database gets admin review.
     """
-    if not await check_user_created_rfc(
-        user=user,
-        rfc_id=rfc_id
-    ):
+    if not await check_user_created_rfc(user=user, rfc_id=rfc_id):
         raise HTTPException(
-            status_code=401,
-            detail="unauthorized to request review on this RFC"
+            status_code=401, detail="unauthorized to request review on this RFC"
         )
-    
-    if not await check_rfc_not_already_requested_review(
-        rfc_id=rfc_id
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="RFC already requested review"
-        )
-    
+
+    if not await check_rfc_not_already_requested_review(rfc_id=rfc_id):
+        raise HTTPException(status_code=400, detail="RFC already requested review")
+
     global _pool
     async with _pool.acquire() as connection:
         async with connection.transaction():
@@ -795,27 +785,17 @@ async def post_rfc_review_req_in_db(
             SET review_requested = TRUE
             WHERE id = $1;
             """
-            await connection.execute(
-                query,
-                rfc_id
-            )
+            await connection.execute(query, rfc_id)
 
 
 async def update_rfc_status_in_db(
-    rfc_id: int,
-    new_status: Literal["accepted", "rejected"],
-    reason: str
+    rfc_id: int, new_status: Literal["accepted", "rejected"], reason: str
 ) -> None:
     """
     Attempt to update an RFC's status to either `accepted` or `rejected` after admin review.
     """
-    if await check_rfc_not_already_requested_review(
-        rfc_id=rfc_id
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="RFC not open to review"
-        )
+    if await check_rfc_not_already_requested_review(rfc_id=rfc_id):
+        raise HTTPException(status_code=400, detail="RFC not open to review")
 
     global _pool
     async with _pool.acquire() as connection:
@@ -825,12 +805,7 @@ async def update_rfc_status_in_db(
             SET status = $1, is_reviewed = TRUE, review_reason = $2, review_requested = FALSE
             WHERE id = $3;
             """
-            await connection.execute(
-                query,
-                new_status,
-                reason,
-                rfc_id
-            )
+            await connection.execute(query, new_status, reason, rfc_id)
 
 
 #
@@ -1473,10 +1448,8 @@ async def check_rfc_not_already_requested_review(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             review_requested = await connection.fetchval(
-                "SELECT review_requested FROM rfcs WHERE id = $1",
-                rfc_id
+                "SELECT review_requested FROM rfcs WHERE id = $1", rfc_id
             )
             if review_requested:
                 return False
             return True
-        

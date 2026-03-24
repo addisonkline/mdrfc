@@ -47,6 +47,7 @@ from mdrfc.backend.document import (
 from mdrfc.backend.users import User
 from mdrfc.utils.version import get_mdrfc_version
 
+
 #
 # BASIC endpoints
 #
@@ -73,9 +74,7 @@ async def get_llms_txt(
     """
     Handle a request to the endpoint `GET /llms.txt`.
     """
-    return res_types.GetLlmsTxtResponse(
-        content=llms_txt
-    )
+    return res_types.GetLlmsTxtResponse(content=llms_txt)
 
 
 #
@@ -381,9 +380,7 @@ async def get_rfcs_review_needed() -> res_types.GetRfcsReviewNeededResponse:
     rfc_summaries = await get_rfcs_review_needed_from_db()
 
     return res_types.GetRfcsReviewNeededResponse(
-        message="success",
-        rfcs=rfc_summaries,
-        metadata={}
+        message="success", rfcs=rfc_summaries, metadata={}
     )
 
 
@@ -394,15 +391,10 @@ async def post_rfc_review_req(
     """
     Request an admin review on the given RFC.
     """
-    await post_rfc_review_req_in_db(
-        rfc_id=rfc_id,
-        user=user
-    )
+    await post_rfc_review_req_in_db(rfc_id=rfc_id, user=user)
 
     return res_types.PostRfcReviewResponse(
-        message="success",
-        requested_at=datetime.now(timezone.utc),
-        metadata={}
+        message="success", requested_at=datetime.now(timezone.utc), metadata={}
     )
 
 
@@ -415,15 +407,11 @@ async def patch_rfc_status(
     Update an RFC's status to either `accepted` or `rejected`.
     """
     await update_rfc_status_in_db(
-        rfc_id=rfc_id,
-        new_status=payload.status,
-        reason=payload.reason
+        rfc_id=rfc_id, new_status=payload.status, reason=payload.reason
     )
 
     return res_types.PatchRfcStatusResponse(
-        message="success",
-        updated_at=datetime.now(timezone.utc),
-        metadata={}
+        message="success", updated_at=datetime.now(timezone.utc), metadata={}
     )
 
 

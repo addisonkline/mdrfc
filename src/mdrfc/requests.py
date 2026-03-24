@@ -93,7 +93,9 @@ class PatchRfcsReadmeRequest(BaseModel):
     public: bool | None = None
 
 
-async def validate_patch_rfcs_readme_request(request: Request) -> PatchRfcsReadmeRequest:
+async def validate_patch_rfcs_readme_request(
+    request: Request,
+) -> PatchRfcsReadmeRequest:
     try:
         request_json = await request.json()
         return PatchRfcsReadmeRequest.model_validate(request_json)

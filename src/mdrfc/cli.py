@@ -78,14 +78,12 @@ def main() -> None:
         help="the minimum log level to write to the console (default: 'INFO')",
     )
     serve_parser.add_argument(
-        "-llm",
-        "--llms-txt",
-        help="the filepath of a custom llms.txt document to serve"
+        "-llm", "--llms-txt", help="the filepath of a custom llms.txt document to serve"
     )
     serve_parser.add_argument(
         "-R",
         "--readme",
-        help="the filepath of a custom document to serve on `GET /rfcs/README`"
+        help="the filepath of a custom document to serve on `GET /rfcs/README`",
     )
 
     # launch CLI client
