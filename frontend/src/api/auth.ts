@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { ApiError, apiFetch } from './client';
 import type { Token, SignupData, PostSignupResponse, PostVerifyEmailResponse } from '../types';
 
 export async function login(username: string, password: string): Promise<Token> {
@@ -16,9 +16,7 @@ export async function login(username: string, password: string): Promise<Token> 
     } catch {
       // ignore
     }
-    const err = new Error(detail) as Error & { status: number };
-    err.status = response.status;
-    throw err;
+    throw new ApiError(response.status, detail);
   }
 
   return response.json();

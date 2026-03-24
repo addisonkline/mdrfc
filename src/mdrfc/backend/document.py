@@ -169,6 +169,7 @@ def validate_patch_rfc_status_reason(reason: str) -> str:
 #
 class RFCDocument(BaseModel):
     id: int
+    author_id: int
     author_name_last: Annotated[str, AfterValidator(validate_name_last)]
     author_name_first: Annotated[str, AfterValidator(validate_name_first)]
     created_at: datetime
@@ -189,6 +190,7 @@ class RFCDocument(BaseModel):
 
 class RFCDocumentSummary(BaseModel):
     id: int
+    author_id: int
     author_name_last: Annotated[str, AfterValidator(validate_name_last)]
     author_name_first: Annotated[str, AfterValidator(validate_name_first)]
     created_at: datetime
