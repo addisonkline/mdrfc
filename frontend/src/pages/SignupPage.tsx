@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { FormField } from '../components/forms/FormField';
 import { SubmitButton } from '../components/forms/SubmitButton';
+import type { PostSignupResponse } from '../types';
 import {
   validateUsername,
   validateEmail,
@@ -23,7 +24,8 @@ export function SignupPage() {
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [signupResult, setSignupResult] = useState<PostSignupResponse | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   function validate(): boolean {
     const e: Record<string, string | null> = {
@@ -44,14 +46,14 @@ export function SignupPage() {
     setLoading(true);
     setServerError(null);
     try {
-      await signup({
+      const result = await signup({
         username,
         email,
         name_first: nameFirst,
         name_last: nameLast,
         password,
       });
-      setSuccess(true);
+      setSignupResult(result);
     } catch (err) {
       const status = (err as { status?: number }).status;
       if (status === 429) {
@@ -64,17 +66,77 @@ export function SignupPage() {
     }
   }
 
-  if (success) {
+  if (signupResult) {
+    const debugToken = signupResult.metadata.verification_token;
+    const verifyUrl = debugToken
+      ? `/verify-email?token=${encodeURIComponent(debugToken)}`
+      : '/verify-email';
+
+    async function handleCopyToken() {
+      if (!debugToken) return;
+
+      try {
+        await navigator.clipboard.writeText(debugToken);
+        setCopyFeedback('Verification token copied.');
+      } catch {
+        setCopyFeedback('Unable to copy the verification token.');
+      }
+    }
+
     return (
-      <div className="mx-auto max-w-sm pt-12 text-center">
+      <div className="mx-auto max-w-xl pt-12">
         <h1 className="mb-4 text-2xl font-bold">Check your email</h1>
-        <p className="mb-4 text-gray-600">
-          We've sent a verification link to your email address. Please verify your email before
-          logging in.
+        <p className="mb-2 text-gray-600">
+          Account creation succeeded for <span className="font-medium">{signupResult.email}</span>.
         </p>
-        <Link to="/login" className="text-blue-600 hover:text-blue-800">
-          Go to login
-        </Link>
+        <p className="mb-6 text-sm text-gray-500">
+          Verification expires at{' '}
+          {new Date(signupResult.metadata.verification_expires_at).toLocaleString()}.
+        </p>
+
+        {debugToken ? (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-900">
+              Debug verification mode is enabled on this server.
+            </p>
+            <p className="mt-1 text-sm text-amber-800">
+              You can verify this account directly without waiting for email delivery.
+            </p>
+            <code className="mt-3 block overflow-x-auto rounded-md bg-white px-3 py-2 font-mono text-sm text-gray-800 ring-1 ring-amber-200">
+              {debugToken}
+            </code>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleCopyToken}
+                className="rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100"
+              >
+                Copy Token
+              </button>
+              <Link
+                to={verifyUrl}
+                className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
+              >
+                Verify Now
+              </Link>
+            </div>
+            {copyFeedback && <p className="mt-2 text-sm text-amber-900">{copyFeedback}</p>}
+          </div>
+        ) : (
+          <p className="mb-6 text-gray-600">
+            We&apos;ve sent a verification link to your email address. Please verify your email
+            before logging in.
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-3">
+          <Link to={verifyUrl} className="text-blue-600 hover:text-blue-800">
+            Go to verification page
+          </Link>
+          <Link to="/login" className="text-blue-600 hover:text-blue-800">
+            Go to login
+          </Link>
+        </div>
       </div>
     );
   }

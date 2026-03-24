@@ -279,6 +279,43 @@ def test_register_revision_in_db_rejects_terminal_review_status(
     assert excinfo.value.detail == "RFC is no longer open for revisions"
 
 
+def test_update_rfc_status_clears_review_queue_membership(
+    run_db,
+    fixed_timestamp,
+    user_in_db_factory,
+    user_factory,
+) -> None:
+    owner_id, owner = _register_verified_user(
+        run_db,
+        user_in_db_factory,
+        user_factory,
+        fixed_timestamp=fixed_timestamp,
+        username="review-owner",
+        email="review-owner@example.com",
+    )
+    rfc_id = _register_rfc(
+        run_db, fixed_timestamp, created_by=owner_id, slug="review-owner-rfc"
+    )
+
+    run_db(db.post_rfc_review_req_in_db(rfc_id=rfc_id, user=owner))
+    run_db(
+        db.update_rfc_status_in_db(
+            rfc_id=rfc_id,
+            new_status="accepted",
+            reason="Final admin decision recorded.",
+        )
+    )
+
+    rfc = run_db(db.get_rfc_from_db(rfc_id))
+    review_needed = run_db(db.get_rfcs_review_needed_from_db())
+
+    assert rfc is not None
+    assert rfc.review_requested is False
+    assert rfc.reviewed is True
+    assert rfc.review_reason == "Final admin decision recorded."
+    assert review_needed == []
+
+
 def test_quarantine_rfc_in_db_rejects_non_owner_non_admin(
     run_db,
     fixed_timestamp,

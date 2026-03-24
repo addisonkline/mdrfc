@@ -1,6 +1,7 @@
 export type UUID = string;
 export type RFCEditableStatus = 'draft' | 'open';
 export type RFCStatus = RFCEditableStatus | 'accepted' | 'rejected';
+export type RFCReviewDecision = 'accepted' | 'rejected';
 export type RfcListSort =
   | 'updated_at_desc'
   | 'updated_at_asc'
@@ -190,10 +191,21 @@ export interface CreateRfcRevisionData {
   message: string;
 }
 
+export interface CreateReadmeRevisionData {
+  reason: string;
+  content?: string;
+  public?: boolean;
+}
+
 export interface PostCommentData {
   rfc_id: number;
   parent_comment_id: number | null;
   content: string;
+}
+
+export interface PatchRfcStatusData {
+  status: RFCReviewDecision;
+  reason: string;
 }
 
 export interface PaginationMetadata {
@@ -282,6 +294,12 @@ export interface PostRfcReviewResponse {
   metadata: Record<string, unknown>;
 }
 
+export interface PatchRfcStatusResponse {
+  message: string;
+  updated_at: string;
+  metadata: Record<string, unknown>;
+}
+
 export interface SignupResponseMetadata {
   verification_required: boolean;
   verification_expires_at: string;
@@ -305,6 +323,12 @@ export interface PostVerifyEmailResponse {
 export interface PostRfcCommentResponse {
   comment_id: number;
   created_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface DeleteRfcCommentResponse {
+  message: string;
+  quarantined_at: string;
   metadata: Record<string, unknown>;
 }
 

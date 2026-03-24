@@ -820,7 +820,7 @@ async def update_rfc_status_in_db(
         async with connection.transaction():
             query = """
             UPDATE rfcs
-            SET status = $1, is_reviewed = TRUE, review_reason = $2
+            SET status = $1, is_reviewed = TRUE, review_reason = $2, review_requested = FALSE
             WHERE id = $3;
             """
             await connection.execute(

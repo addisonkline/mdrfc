@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getComments } from '../api/comments';
-import { getRfc, quarantineRfc, requestRfcReview } from '../api/rfcs';
+import { getRfc, quarantineRfc, requestRfcReview, updateRfcStatus } from '../api/rfcs';
 import { CommentForm } from '../components/comments/CommentForm';
 import { CommentThread } from '../components/comments/CommentThread';
 import { RfcMetaHeader } from '../components/rfc/RfcMetaHeader';
@@ -9,8 +9,8 @@ import { MarkdownRenderer } from '../components/rfc/MarkdownRenderer';
 import { AgentContributorsList } from '../components/rfc/AgentContributorsList';
 import { useAuth } from '../hooks/useAuth';
 import { useApi } from '../hooks/useApi';
-import type { CommentListSort } from '../types';
-import { validateQuarantineRfcReason } from '../validation';
+import type { CommentListSort, RFCReviewDecision } from '../types';
+import { validateQuarantineRfcReason, validateRfcReviewReason } from '../validation';
 
 const COMMENT_PAGE_SIZE = 10;
 
@@ -27,6 +27,10 @@ export function RfcDetailPage() {
   const [showQuarantineForm, setShowQuarantineForm] = useState(false);
   const [quarantineReason, setQuarantineReason] = useState('');
   const [quarantineError, setQuarantineError] = useState<string | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<RFCReviewDecision>('accepted');
+  const [reviewReason, setReviewReason] = useState('');
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const {
     data: rfcData,
@@ -89,6 +93,34 @@ export function RfcDetailPage() {
     }
   }
 
+  async function handleReviewDecisionSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!rfcData) return;
+
+    const reasonError = validateRfcReviewReason(reviewReason);
+    if (reasonError) {
+      setReviewError(reasonError);
+      return;
+    }
+
+    setUpdatingStatus(true);
+    setActionError(null);
+    setReviewError(null);
+
+    try {
+      await updateRfcStatus(rfcData.rfc.id, {
+        status: reviewStatus,
+        reason: reviewReason,
+      });
+      setReviewReason('');
+      refetchRfc();
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
   if (rfcLoading) return <p className="text-gray-500">Loading...</p>;
   if (rfcError) return <p className="text-red-600">{rfcError}</p>;
   if (!rfcData) return null;
@@ -100,6 +132,7 @@ export function RfcDetailPage() {
     isAuthor && !rfc.review_requested && rfc.status !== 'accepted' && rfc.status !== 'rejected';
   const canRequestReview = isAuthor && !rfc.review_requested && !rfc.reviewed;
   const canQuarantine = isAuthenticated && (isAuthor || isAdmin);
+  const canModerateReview = isAdmin && rfc.review_requested && !rfc.reviewed;
   const currentAgentContributors = rfc.agent_contributions[rfc.current_revision] ?? [];
 
   const threads = commentsData?.comment_threads ?? [];
@@ -151,6 +184,23 @@ export function RfcDetailPage() {
               View Revision History
             </Link>
 
+            {isAdmin && (
+              <>
+                <Link
+                  to="/admin/review-needed"
+                  className="inline-flex items-center justify-center rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Open Review Queue
+                </Link>
+                <Link
+                  to={`/admin/rfcs/${rfc.id}/comments/quarantined`}
+                  className="inline-flex items-center justify-center rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Manage Quarantined Comments
+                </Link>
+              </>
+            )}
+
             {canRevise && (
               <Link
                 to={`/rfcs/${rfc.id}/revisions/new`}
@@ -169,6 +219,38 @@ export function RfcDetailPage() {
               >
                 {requestingReview ? 'Requesting review...' : 'Request Admin Review'}
               </button>
+            )}
+
+            {canModerateReview && (
+              <form onSubmit={handleReviewDecisionSubmit} className="rounded-md bg-emerald-50 p-3">
+                <label className="mb-2 block text-sm font-medium text-emerald-900">Decision</label>
+                <select
+                  value={reviewStatus}
+                  onChange={(event) => setReviewStatus(event.target.value as RFCReviewDecision)}
+                  className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-emerald-400 focus:outline-none"
+                >
+                  <option value="accepted">Accept RFC</option>
+                  <option value="rejected">Reject RFC</option>
+                </select>
+                <label className="mb-2 mt-3 block text-sm font-medium text-emerald-900">
+                  Review Note
+                </label>
+                <textarea
+                  value={reviewReason}
+                  onChange={(event) => setReviewReason(event.target.value)}
+                  onBlur={() => setReviewError(validateRfcReviewReason(reviewReason))}
+                  rows={4}
+                  className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
+                />
+                {reviewError && <p className="mt-2 text-sm text-red-700">{reviewError}</p>}
+                <button
+                  type="submit"
+                  disabled={updatingStatus}
+                  className="mt-3 w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {updatingStatus ? 'Saving Decision...' : 'Save Review Decision'}
+                </button>
+              </form>
             )}
 
             {canQuarantine && (

@@ -23,6 +23,15 @@ const LEN_REVISION_MESSAGE_MIN = 4;
 const LEN_REVISION_MESSAGE_MAX = 256;
 const LEN_QUARANTINE_RFC_REASON_MIN = 8;
 const LEN_QUARANTINE_RFC_REASON_MAX = 2048;
+const LEN_QUARANTINE_COMMENT_REASON_MIN = 8;
+const LEN_QUARANTINE_COMMENT_REASON_MAX = 1024;
+const LEN_README_REASON_MIN = 8;
+const LEN_README_REASON_MAX = 2048;
+const LEN_README_CONTENT_MIN = 8;
+const LEN_README_CONTENT_MAX = 65536;
+const LEN_RFC_REVIEW_REASON_MIN = 8;
+const LEN_RFC_REVIEW_REASON_MAX = 2048;
+const LEN_VERIFICATION_TOKEN_MIN = 32;
 const LEN_AGENT_NAME_MIN = 1;
 const LEN_AGENT_NAME_MAX = 32;
 const LEN_HOST_NAME_MIN = 1;
@@ -153,6 +162,53 @@ export function validateQuarantineRfcReason(value: string): string | null {
   }
   if (value.length > LEN_QUARANTINE_RFC_REASON_MAX) {
     return `Reason must be ${LEN_QUARANTINE_RFC_REASON_MAX.toLocaleString()} characters or less`;
+  }
+  return null;
+}
+
+export function validateQuarantineCommentReason(value: string): string | null {
+  if (value.length < LEN_QUARANTINE_COMMENT_REASON_MIN) {
+    return `Reason must be at least ${LEN_QUARANTINE_COMMENT_REASON_MIN} characters`;
+  }
+  if (value.length > LEN_QUARANTINE_COMMENT_REASON_MAX) {
+    return `Reason must be ${LEN_QUARANTINE_COMMENT_REASON_MAX.toLocaleString()} characters or less`;
+  }
+  return null;
+}
+
+export function validateReadmeReason(value: string): string | null {
+  if (value.length < LEN_README_REASON_MIN) {
+    return `Reason must be at least ${LEN_README_REASON_MIN} characters`;
+  }
+  if (value.length > LEN_README_REASON_MAX) {
+    return `Reason must be ${LEN_README_REASON_MAX.toLocaleString()} characters or less`;
+  }
+  return null;
+}
+
+export function validateReadmeContent(value: string): string | null {
+  if (value.length < LEN_README_CONTENT_MIN) {
+    return `Content must be at least ${LEN_README_CONTENT_MIN} characters`;
+  }
+  if (value.length > LEN_README_CONTENT_MAX) {
+    return `Content must be ${LEN_README_CONTENT_MAX.toLocaleString()} characters or less`;
+  }
+  return null;
+}
+
+export function validateRfcReviewReason(value: string): string | null {
+  if (value.length < LEN_RFC_REVIEW_REASON_MIN) {
+    return `Reason must be at least ${LEN_RFC_REVIEW_REASON_MIN} characters`;
+  }
+  if (value.length > LEN_RFC_REVIEW_REASON_MAX) {
+    return `Reason must be ${LEN_RFC_REVIEW_REASON_MAX.toLocaleString()} characters or less`;
+  }
+  return null;
+}
+
+export function validateVerificationToken(value: string): string | null {
+  if (value.trim().length < LEN_VERIFICATION_TOKEN_MIN) {
+    return `Verification token must be at least ${LEN_VERIFICATION_TOKEN_MIN} characters`;
   }
   return null;
 }
