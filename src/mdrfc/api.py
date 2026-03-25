@@ -546,14 +546,15 @@ async def post_rfc_comment(
             )
 
         valid_slugs = set(extract_heading_slugs(rfc.content))
-        invalid = [ref for ref in request.references if ref not in valid_slugs]
+        deduped = list(dict.fromkeys(request.references))
+        invalid = [ref for ref in deduped if ref not in valid_slugs]
         if invalid:
             raise HTTPException(
                 status_code=422,
                 detail=f"invalid section references: {', '.join(invalid)}",
             )
 
-        references = [(slug, rfc.current_revision) for slug in request.references]
+        references = [(slug, rfc.current_revision) for slug in deduped]
 
     comment = RFCCommentInDB(
         id=-1,  # this will not be used

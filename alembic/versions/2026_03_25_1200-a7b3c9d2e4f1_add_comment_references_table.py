@@ -32,7 +32,7 @@ def upgrade() -> None:
         sa.Column(
             "rfc_id",
             sa.Integer,
-            sa.ForeignKey("rfcs.id"),
+            sa.ForeignKey("rfcs.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("section_slug", sa.String(256), nullable=False),

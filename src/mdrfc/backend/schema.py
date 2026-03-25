@@ -117,7 +117,9 @@ comment_references = Table(
         ForeignKey("rfc_comments.id", ondelete="CASCADE"),
         nullable=False,
     ),
-    Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
+    Column(
+        "rfc_id", Integer, ForeignKey("rfcs.id", ondelete="CASCADE"), nullable=False
+    ),
     Column(
         "section_slug", String(consts.LEN_COMMENT_REFERENCE_SLUG_MAX), nullable=False
     ),

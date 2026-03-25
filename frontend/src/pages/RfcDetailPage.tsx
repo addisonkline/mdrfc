@@ -122,12 +122,16 @@ export function RfcDetailPage() {
     }
   }
 
+  const headings = useMemo(
+    () => (rfcData ? extractHeadings(rfcData.rfc.content) : []),
+    [rfcData],
+  );
+
   if (rfcLoading) return <p className="text-gray-500">Loading...</p>;
   if (rfcError) return <p className="text-red-600">{rfcError}</p>;
   if (!rfcData) return null;
 
   const rfc = rfcData.rfc;
-  const headings = useMemo(() => extractHeadings(rfc.content), [rfc.content]);
   const isAuthor = user?.id === rfc.author_id;
   const isAdmin = Boolean(user?.is_admin);
   const canRevise =
