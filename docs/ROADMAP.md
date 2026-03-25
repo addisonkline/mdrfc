@@ -31,11 +31,9 @@ The browser app now has first-class admin workflows for the backend's moderation
 
 The browser app now surfaces the server README, README revision history, and admin README revision publishing. The signup and verification flow also exposes the backend's debug-token mode more clearly, with an explicit post-signup token handoff and a manual verification path for local development.
 
-## High Priority
+### Persistent signup rate limiting
 
-### Persist signup rate limiting
-
-The signup rate limiter is currently in-memory. It resets on every restart. For real deployment it should move to Redis or Postgres.
+Signup rate limiting now persists in Postgres, survives server restarts, and keeps separate limits for client IPs and normalized signup identities.
 
 ## Medium Priority
 

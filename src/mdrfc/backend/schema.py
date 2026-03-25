@@ -39,6 +39,15 @@ users = Table(
     Column("is_admin", Boolean, nullable=True),
 )
 
+signup_rate_limit_states = Table(
+    "signup_rate_limit_states",
+    metadata_obj,
+    Column("scope", String(consts.LEN_RATE_LIMIT_SCOPE_MAX), primary_key=True),
+    Column("key_hash", String(consts.LEN_RATE_LIMIT_KEY_HASH), primary_key=True),
+    Column("attempt_timestamps", ARRAY(DateTime), nullable=False),
+    Column("expires_at", DateTime, nullable=False),
+)
+
 rfcs = Table(
     "rfcs",
     metadata_obj,
@@ -163,6 +172,7 @@ Index("ix_rfcs_status", rfcs.c.status)
 Index("ix_rfcs_created_by", rfcs.c.created_by)
 Index("ix_rfcs_review_requested", rfcs.c.review_requested)
 Index("ix_rfcs_is_public", rfcs.c.is_public)
+Index("ix_signup_rate_limit_states_expires_at", signup_rate_limit_states.c.expires_at)
 Index(
     "ix_rfc_comments_listing_parent_created_at_id",
     rfc_comments.c.rfc_id,

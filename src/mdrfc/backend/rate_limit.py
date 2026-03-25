@@ -1,7 +1,11 @@
 from collections import defaultdict, deque
 from collections.abc import Hashable
 import asyncio
+import hashlib
+import json
 import time
+
+from mdrfc.backend.db import check_and_record_signup_rate_limit_in_db
 
 
 class SlidingWindowRateLimiter:
@@ -33,3 +37,42 @@ class SlidingWindowRateLimiter:
 
             attempts.append(now)
             return None
+
+
+def _split_scope_and_key_hash(key: Hashable) -> tuple[str, str]:
+    if isinstance(key, tuple) and len(key) > 1 and isinstance(key[0], str):
+        scope = key[0]
+        raw_key = key[1:]
+    else:
+        scope = "default"
+        raw_key = (key,)
+
+    key_hash = hashlib.sha256(
+        json.dumps(
+            [str(part) for part in raw_key],
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return scope, key_hash
+
+
+class PersistentSlidingWindowRateLimiter:
+    """
+    Postgres-backed sliding window rate limiter for signup attempts.
+    """
+
+    async def check_and_record(
+        self,
+        key: Hashable,
+        *,
+        limit: int,
+        window_seconds: int,
+    ) -> int | None:
+        scope, key_hash = _split_scope_and_key_hash(key)
+        return await check_and_record_signup_rate_limit_in_db(
+            scope=scope,
+            key_hash=key_hash,
+            limit=limit,
+            window_seconds=window_seconds,
+        )

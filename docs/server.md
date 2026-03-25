@@ -138,7 +138,7 @@ The backend enforces the following signup rules:
 
 - usernames and emails are normalized to lowercase
 - `REQUIRED_EMAIL_SUFFIX`, if set, restricts which email domains are accepted
-- signup attempts are rate-limited in memory to 5 attempts per IP per 15 minutes
+- signup attempts are rate-limited in Postgres to 5 attempts per IP per 15 minutes and survive restarts
 - the same 5-attempt limit also applies per `(username, email)` identity pair
 
 ## `mdrfc serve` Options

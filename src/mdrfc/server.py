@@ -31,7 +31,7 @@ import mdrfc.backend.constants as consts
 from mdrfc.backend.db import init_db, close_db
 from mdrfc.backend.document import validate_quarantine_rfc_reason
 from mdrfc.backend.email import check_valid_email, send_verification_email_task
-from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
+from mdrfc.backend.rate_limit import PersistentSlidingWindowRateLimiter
 from mdrfc.utils.llms_txt import LLMS_TXT
 from mdrfc.utils.logging import init_logger
 import mdrfc.api as api
@@ -96,7 +96,7 @@ app = FastAPI(
     version=get_mdrfc_version(),
     lifespan=lifespan,
 )
-signup_rate_limiter = SlidingWindowRateLimiter()
+signup_rate_limiter = PersistentSlidingWindowRateLimiter()
 
 DEPRECATED_ROUTE_REPLACEMENTS = {
     "/rfc": "/rfcs",
