@@ -96,6 +96,7 @@ export interface RFCComment {
   content: string;
   author_name_first: string;
   author_name_last: string;
+  references: string[];
 }
 
 export interface CommentThread {
@@ -105,6 +106,7 @@ export interface CommentThread {
   author_name_last: string;
   created_at: string;
   content: string;
+  references: string[];
   replies: CommentThread[];
 }
 
@@ -201,6 +203,7 @@ export interface PostCommentData {
   rfc_id: number;
   parent_comment_id: number | null;
   content: string;
+  references?: string[];
 }
 
 export interface PatchRfcStatusData {

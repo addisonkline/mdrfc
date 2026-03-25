@@ -491,6 +491,13 @@ comment_post_p.add_argument(
 comment_post_p.add_argument(
     "-r", "--reply-to", type=int, help="the comment ID to reply to"
 )
+comment_post_p.add_argument(
+    "-ref",
+    "--reference",
+    action="append",
+    default=[],
+    help="section slug to reference (repeatable)",
+)
 
 comment_delete_desc = "(login required) Delete an existing comment"
 comment_delete_p = subparsers.add_parser(
@@ -1704,7 +1711,14 @@ def _cmd_comment_post(args: Namespace) -> None:
     except AttributeError:
         reply_to = None
 
-    body = {"content": content, "parent_comment_id": reply_to}
+    references = args.reference if args.reference else []
+
+    body: dict[str, object] = {
+        "content": content,
+        "parent_comment_id": reply_to,
+    }
+    if references:
+        body["references"] = references
 
     global _url
     response = httpx.post(
@@ -2252,7 +2266,10 @@ def _print_comment(comment: CommentThread) -> None:
     """
     Pretty print a comment and its replies.
     """
-    _console.print(comment.model_dump_json(indent=4))
+    data = comment.model_dump(mode="json")
+    if not data.get("references"):
+        data.pop("references", None)
+    _console.print(json.dumps(data, indent=4))
 
 
 def _print_comment_threads(threads: list[CommentThread]) -> None:

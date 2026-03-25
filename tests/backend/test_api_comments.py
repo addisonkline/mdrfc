@@ -154,7 +154,7 @@ def test_post_rfc_comment_registers_comment_and_returns_metadata(
 ) -> None:
     captured: dict[str, object] = {}
 
-    async def fake_register_comment_in_db(comment):
+    async def fake_register_comment_in_db(comment, references=None):
         captured["comment"] = comment
         return 55
 

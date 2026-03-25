@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getComments } from '../api/comments';
 import { getRfc, quarantineRfc, requestRfcReview, updateRfcStatus } from '../api/rfcs';
@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useApi } from '../hooks/useApi';
 import type { CommentListSort, RFCReviewDecision } from '../types';
 import { validateQuarantineRfcReason, validateRfcReviewReason } from '../validation';
+import { extractHeadings } from '../utils/markdown';
 
 const COMMENT_PAGE_SIZE = 10;
 
@@ -126,6 +127,7 @@ export function RfcDetailPage() {
   if (!rfcData) return null;
 
   const rfc = rfcData.rfc;
+  const headings = useMemo(() => extractHeadings(rfc.content), [rfc.content]);
   const isAuthor = user?.id === rfc.author_id;
   const isAdmin = Boolean(user?.is_admin);
   const canRevise =
@@ -368,6 +370,7 @@ export function RfcDetailPage() {
             key={thread.id}
             thread={thread}
             rfcId={rfcId}
+            headings={headings}
             onRefresh={refetchComments}
           />
         ))}
@@ -377,6 +380,7 @@ export function RfcDetailPage() {
             <h3 className="mb-2 text-sm font-medium text-gray-700">Add a comment</h3>
             <CommentForm
               rfcId={rfcId}
+              headings={headings}
               onSubmitted={() => {
                 if (commentOffset === 0) {
                   refetchComments();

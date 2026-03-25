@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { CommentThread } from '../../types';
+import type { HeadingInfo } from '../../utils/markdown';
 import { CommentForm } from './CommentForm';
 import { useAuth } from '../../hooks/useAuth';
 import { quarantineComment } from '../../api/comments';
@@ -8,10 +9,11 @@ import { validateQuarantineCommentReason } from '../../validation';
 interface CommentItemProps {
   comment: CommentThread;
   rfcId: number;
+  headings?: HeadingInfo[];
   onRefresh: () => void;
 }
 
-export function CommentItem({ comment, rfcId, onRefresh }: CommentItemProps) {
+export function CommentItem({ comment, rfcId, headings = [], onRefresh }: CommentItemProps) {
   const [replying, setReplying] = useState(false);
   const [showQuarantineForm, setShowQuarantineForm] = useState(false);
   const [quarantineReason, setQuarantineReason] = useState('');
@@ -53,6 +55,23 @@ export function CommentItem({ comment, rfcId, onRefresh }: CommentItemProps) {
           {new Date(comment.created_at).toLocaleString()}
         </span>
       </div>
+      {comment.references.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {comment.references.map((ref) => (
+            <button
+              key={ref}
+              type="button"
+              onClick={() => {
+                const el = document.getElementById(ref);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+            >
+              #{ref}
+            </button>
+          ))}
+        </div>
+      )}
       <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{comment.content}</p>
       <div className="mt-1 flex flex-wrap gap-3">
         {isAuthenticated && (
@@ -104,6 +123,7 @@ export function CommentItem({ comment, rfcId, onRefresh }: CommentItemProps) {
         <CommentForm
           rfcId={rfcId}
           parentCommentId={comment.id}
+          headings={headings}
           onSubmitted={() => {
             setReplying(false);
             onRefresh();

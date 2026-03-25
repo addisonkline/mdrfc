@@ -295,6 +295,7 @@ class PostRfcCommentRequest(BaseModel):
 
     parent_comment_id: int | None
     content: Annotated[str, AfterValidator(validate_comment_content)]
+    references: list[str] = Field(default_factory=list)
 
 
 async def validate_post_rfc_comment_request(request: Request) -> PostRfcCommentRequest:

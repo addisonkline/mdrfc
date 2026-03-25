@@ -39,6 +39,7 @@ class RFCComment(BaseModel):
     content: Annotated[str, AfterValidator(validate_comment_content)]
     author_name_first: Annotated[str, AfterValidator(validate_name_first)]
     author_name_last: Annotated[str, AfterValidator(validate_name_last)]
+    references: list[str] = Field(default_factory=list)
 
 
 class RFCCommentInDB(BaseModel):
@@ -75,6 +76,7 @@ class CommentThread(BaseModel):
     author_name_last: str
     created_at: datetime
     content: str
+    references: list[str] = Field(default_factory=list)
     replies: list["CommentThread"] = Field(default_factory=list)
 
 
@@ -97,6 +99,7 @@ def build_comment_threads(comments: list[RFCComment]) -> list[CommentThread]:
             author_name_last=comment.author_name_last,
             created_at=comment.created_at,
             content=comment.content,
+            references=comment.references,
         )
         for comment in comments_sorted
     }
