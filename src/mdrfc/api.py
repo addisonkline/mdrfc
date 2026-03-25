@@ -12,6 +12,7 @@ from mdrfc.backend.comment import (
     build_comment_threads,
     find_comment_thread,
 )
+from mdrfc.backend.markdown import extract_heading_slugs
 from mdrfc.backend.db import (
     delete_comment_from_db,
     delete_rfc_from_db,
@@ -536,6 +537,25 @@ async def post_rfc_comment(
     """
     timestamp = datetime.now(timezone.utc)
 
+    references = None
+    if request.references:
+        rfc = await get_rfc_from_db(rfc_id)
+        if rfc is None:
+            raise HTTPException(
+                status_code=400, detail="can't comment on a nonexistent RFC"
+            )
+
+        valid_slugs = set(extract_heading_slugs(rfc.content))
+        deduped = list(dict.fromkeys(request.references))
+        invalid = [ref for ref in deduped if ref not in valid_slugs]
+        if invalid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"invalid section references: {', '.join(invalid)}",
+            )
+
+        references = [(slug, rfc.current_revision) for slug in deduped]
+
     comment = RFCCommentInDB(
         id=-1,  # this will not be used
         parent_id=request.parent_comment_id,
@@ -545,7 +565,7 @@ async def post_rfc_comment(
         content=request.content,
     )
 
-    comment_id = await register_comment_in_db(comment)
+    comment_id = await register_comment_in_db(comment, references=references)
 
     return res_types.PostRfcCommentResponse(
         comment_id=comment_id, created_at=timestamp, metadata={}

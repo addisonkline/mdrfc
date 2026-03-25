@@ -107,6 +107,25 @@ quarantined_rfcs = Table(
     Column("rfc_id", Integer, ForeignKey("rfcs.id"), nullable=False),
 )
 
+comment_references = Table(
+    "comment_references",
+    metadata_obj,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "comment_id",
+        Integer,
+        ForeignKey("rfc_comments.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "rfc_id", Integer, ForeignKey("rfcs.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column(
+        "section_slug", String(consts.LEN_COMMENT_REFERENCE_SLUG_MAX), nullable=False
+    ),
+    Column("revision_id", UUID, nullable=False),
+)
+
 quarantined_comments = Table(
     "quarantined_comments",
     metadata_obj,
@@ -153,3 +172,8 @@ Index(
     rfc_comments.c.id,
 )
 Index("ix_rfc_comments_parent_id", rfc_comments.c.parent_id)
+Index(
+    "ix_comment_references_rfc_section",
+    comment_references.c.rfc_id,
+    comment_references.c.section_slug,
+)

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getComments } from '../api/comments';
 import { getRfc, quarantineRfc, requestRfcReview, updateRfcStatus } from '../api/rfcs';
@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useApi } from '../hooks/useApi';
 import type { CommentListSort, RFCReviewDecision } from '../types';
 import { validateQuarantineRfcReason, validateRfcReviewReason } from '../validation';
+import { extractHeadings } from '../utils/markdown';
 
 const COMMENT_PAGE_SIZE = 10;
 
@@ -120,6 +121,11 @@ export function RfcDetailPage() {
       setUpdatingStatus(false);
     }
   }
+
+  const headings = useMemo(
+    () => (rfcData ? extractHeadings(rfcData.rfc.content) : []),
+    [rfcData],
+  );
 
   if (rfcLoading) return <p className="text-gray-500">Loading...</p>;
   if (rfcError) return <p className="text-red-600">{rfcError}</p>;
@@ -368,6 +374,7 @@ export function RfcDetailPage() {
             key={thread.id}
             thread={thread}
             rfcId={rfcId}
+            headings={headings}
             onRefresh={refetchComments}
           />
         ))}
@@ -377,6 +384,7 @@ export function RfcDetailPage() {
             <h3 className="mb-2 text-sm font-medium text-gray-700">Add a comment</h3>
             <CommentForm
               rfcId={rfcId}
+              headings={headings}
               onSubmitted={() => {
                 if (commentOffset === 0) {
                   refetchComments();

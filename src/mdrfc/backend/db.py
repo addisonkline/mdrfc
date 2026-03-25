@@ -988,10 +988,12 @@ async def register_revision_in_db(
 #
 async def register_comment_in_db(
     comment: RFCCommentInDB,
+    references: list[tuple[str, uuid.UUID]] | None = None,
 ) -> int:
     """
     Attempt to register a new comment on an existing RFC document in the database.
     Returns the ID of the new comment.
+    references is a list of (section_slug, revision_id) tuples.
     """
     if await check_rfc_is_quarantined(comment.rfc_id):
         raise HTTPException(status_code=404, detail="RFC not found")
@@ -1011,7 +1013,7 @@ async def register_comment_in_db(
     async with _pool.acquire() as connection:
         async with connection.transaction():
             try:
-                return await connection.fetchval(
+                comment_id = await connection.fetchval(
                     "INSERT INTO rfc_comments(rfc_id, created_by, created_at, content, parent_id) VALUES($1, $2, $3, $4, $5) RETURNING id",
                     comment.rfc_id,
                     comment.created_by,
@@ -1025,6 +1027,18 @@ async def register_comment_in_db(
                         status_code=400, detail="parent comment does not exist"
                     )
                 raise
+
+            if references:
+                for section_slug, revision_id in references:
+                    await connection.execute(
+                        "INSERT INTO comment_references(comment_id, rfc_id, section_slug, revision_id) VALUES($1, $2, $3, $4)",
+                        comment_id,
+                        comment.rfc_id,
+                        section_slug,
+                        revision_id,
+                    )
+
+            return comment_id
 
 
 async def get_comment_from_db(
@@ -1056,6 +1070,11 @@ async def get_comment_from_db(
             creator = await get_user_by_id(result.get("created_by"))
             if creator is None:
                 return None
+            ref_rows = await connection.fetch(
+                "SELECT section_slug FROM comment_references WHERE comment_id = $1",
+                comment_id,
+            )
+            refs = [row.get("section_slug") for row in ref_rows]
             return RFCComment(
                 id=result.get("id"),
                 parent_id=result.get("parent_id"),
@@ -1064,6 +1083,7 @@ async def get_comment_from_db(
                 content=result.get("content"),
                 author_name_last=creator.name_last,
                 author_name_first=creator.name_first,
+                references=refs,
             )
 
 
@@ -1176,6 +1196,19 @@ async def get_rfc_comments_from_db(
                 selected_root_ids,
             )
 
+            comment_ids = [row.get("id") for row in result]
+            refs_by_comment: dict[int, list[str]] = {}
+            if comment_ids:
+                ref_rows = await connection.fetch(
+                    "SELECT comment_id, section_slug FROM comment_references WHERE comment_id = ANY($1::INT[])",
+                    comment_ids,
+                )
+                for ref_row in ref_rows:
+                    cid = ref_row.get("comment_id")
+                    refs_by_comment.setdefault(cid, []).append(
+                        ref_row.get("section_slug")
+                    )
+
             comments = [
                 RFCComment(
                     id=comment.get("id"),
@@ -1185,6 +1218,7 @@ async def get_rfc_comments_from_db(
                     content=comment.get("content"),
                     author_name_last=comment.get("author_name_last"),
                     author_name_first=comment.get("author_name_first"),
+                    references=refs_by_comment.get(comment.get("id"), []),
                 )
                 for comment in result
             ]
