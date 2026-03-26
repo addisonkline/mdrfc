@@ -237,9 +237,7 @@ async def check_and_record_signup_rate_limit_in_db(
             ]
 
             if len(attempts) >= limit:
-                retry_after = math.ceil(
-                    (attempts[0] + window - now).total_seconds()
-                )
+                retry_after = math.ceil((attempts[0] + window - now).total_seconds())
                 await connection.execute(
                     """
                     UPDATE signup_rate_limit_states

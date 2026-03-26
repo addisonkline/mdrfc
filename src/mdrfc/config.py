@@ -9,5 +9,5 @@ class ClientAlias(BaseModel):
 
 
 class MDRFCClientConfig(BaseModel):
-    version: Literal["0.4.0"] = "0.4.0"
+    version: Literal["0.5.0"] = "0.5.0"
     aliases: list[ClientAlias] = []
