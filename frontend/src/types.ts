@@ -6,7 +6,8 @@ export type RfcListSort =
   | 'updated_at_desc'
   | 'updated_at_asc'
   | 'created_at_desc'
-  | 'created_at_asc';
+  | 'created_at_asc'
+  | 'relevance_desc';
 export type CommentListSort = 'created_at_asc' | 'created_at_desc';
 
 export interface User {
@@ -224,6 +225,7 @@ export interface GetRfcsFiltersMetadata {
   public: boolean | null;
   author_id: number | null;
   review_requested: boolean | null;
+  query: string | null;
 }
 
 export interface GetRfcsMetadata {
@@ -245,6 +247,7 @@ export interface GetRfcsQuery {
   public?: boolean;
   author_id?: number;
   review_requested?: boolean;
+  query?: string;
   sort?: RfcListSort;
 }
 

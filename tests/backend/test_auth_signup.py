@@ -7,7 +7,10 @@ from pydantic import ValidationError
 
 from mdrfc.backend import auth
 from mdrfc.backend import email as email_backend
-from mdrfc.backend.rate_limit import SlidingWindowRateLimiter
+from mdrfc.backend.rate_limit import (
+    PersistentSlidingWindowRateLimiter,
+    SlidingWindowRateLimiter,
+)
 from mdrfc.backend.users import UserInDB
 from mdrfc.requests import PostSignupRequest
 from mdrfc import server
@@ -281,3 +284,66 @@ def test_post_new_user_returns_verification_token_in_debug_mode(
 
     assert response.metadata["verification_token"] == "raw-token"
     assert background_tasks.tasks == []
+
+
+def test_post_new_user_persistent_rate_limit_survives_limiter_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_postgres_db,
+) -> None:
+    background_tasks = BackgroundTasks()
+
+    async def fake_create_new_user(**kwargs):
+        return auth.SignupResult(
+            created_at=datetime(2026, 3, 9, 12, 0, 0),
+            verification_expires_at=datetime(2026, 3, 9, 13, 0, 0),
+            verification_token="raw-token",
+        )
+
+    monkeypatch.setattr(server, "create_new_user", fake_create_new_user)
+    monkeypatch.setattr(server, "DEBUG_RETURN_VERIFICATION_TOKEN", True)
+    monkeypatch.setattr(server.consts, "SIGNUP_RATE_LIMIT_MAX_ATTEMPTS_PER_IP", 1)
+    monkeypatch.setattr(server.consts, "SIGNUP_RATE_LIMIT_MAX_ATTEMPTS_PER_IDENTITY", 1)
+    monkeypatch.setattr(
+        server,
+        "signup_rate_limiter",
+        PersistentSlidingWindowRateLimiter(),
+    )
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/signup",
+        "headers": [],
+        "client": ("127.0.0.1", 12345),
+        "app": server.app,
+    }
+    request = Request(scope)
+    payload = PostSignupRequest(
+        username="Alice",
+        email="alice@example.com",
+        name_first="Alice",
+        name_last="Smith",
+        password="StrongPassword1",
+    )
+
+    response = isolated_postgres_db["run"](
+        server.post_new_user(background_tasks, request, payload)
+    )
+
+    assert response.metadata["verification_token"] == "raw-token"
+
+    monkeypatch.setattr(
+        server,
+        "signup_rate_limiter",
+        PersistentSlidingWindowRateLimiter(),
+    )
+
+    with pytest.raises(HTTPException) as excinfo:
+        isolated_postgres_db["run"](
+            server.post_new_user(background_tasks, request, payload)
+        )
+
+    assert excinfo.value.status_code == 429
+    assert excinfo.value.detail == "too many signup attempts"
+    assert excinfo.value.headers is not None
+    assert int(excinfo.value.headers["Retry-After"]) > 0

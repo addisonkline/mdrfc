@@ -35,6 +35,7 @@ def test_fresh_database_upgrades_to_current_head(
     assert {
         "alembic_version",
         "users",
+        "signup_rate_limit_states",
         "rfcs",
         "rfc_comments",
         "rfc_revisions",

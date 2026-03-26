@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
+import math
 from os import getenv
 from typing import Any, Generic, Literal, TypeVar
 import uuid
@@ -58,10 +59,21 @@ RFC_LIST_SORTS = {
     "created_at_asc": "rfcs.created_at ASC, rfcs.id ASC",
 }
 
+RFC_SEARCH_CONFIG = "simple"
+
 COMMENT_LIST_SORTS = {
     "created_at_desc": "created_at DESC, id DESC",
     "created_at_asc": "created_at ASC, id ASC",
 }
+
+
+def _build_rfc_search_vector_sql(table_name: str = "rfcs") -> str:
+    return f"""
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.title, '')), 'A') ||
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.slug, '')), 'A') ||
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.summary, '')), 'B') ||
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.content, '')), 'C')
+    """.strip()
 
 
 def _serialize_agent_contributions(
@@ -161,6 +173,103 @@ async def get_user_by_id(
             if result is None:
                 return None
             return UserInDB(**result)
+
+
+async def check_and_record_signup_rate_limit_in_db(
+    scope: str,
+    key_hash: str,
+    *,
+    limit: int,
+    window_seconds: int,
+) -> int | None:
+    """
+    Apply the signup sliding-window rate limit for the provided scope/key pair.
+    """
+    global _pool
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = timedelta(seconds=window_seconds)
+    cutoff = now - window
+
+    async with _pool.acquire() as connection:
+        async with connection.transaction():
+            await connection.execute(
+                """
+                DELETE FROM signup_rate_limit_states
+                WHERE expires_at < $1
+                """,
+                now,
+            )
+            await connection.execute(
+                """
+                INSERT INTO signup_rate_limit_states(
+                    scope,
+                    key_hash,
+                    attempt_timestamps,
+                    expires_at
+                )
+                VALUES($1, $2, $3::timestamp[], $4)
+                ON CONFLICT (scope, key_hash) DO NOTHING
+                """,
+                scope,
+                key_hash,
+                [],
+                now,
+            )
+
+            row = await connection.fetchrow(
+                """
+                SELECT attempt_timestamps
+                FROM signup_rate_limit_states
+                WHERE scope = $1
+                  AND key_hash = $2
+                FOR UPDATE
+                """,
+                scope,
+                key_hash,
+            )
+            if row is None:
+                raise RuntimeError("signup rate limit state row was not created")
+
+            attempts = [
+                attempted_at
+                for attempted_at in row["attempt_timestamps"]
+                if attempted_at > cutoff
+            ]
+
+            if len(attempts) >= limit:
+                retry_after = math.ceil(
+                    (attempts[0] + window - now).total_seconds()
+                )
+                await connection.execute(
+                    """
+                    UPDATE signup_rate_limit_states
+                    SET attempt_timestamps = $3::timestamp[],
+                        expires_at = $4
+                    WHERE scope = $1
+                      AND key_hash = $2
+                    """,
+                    scope,
+                    key_hash,
+                    attempts,
+                    attempts[-1] + window,
+                )
+                return max(retry_after, 1)
+
+            attempts.append(now)
+            await connection.execute(
+                """
+                UPDATE signup_rate_limit_states
+                SET attempt_timestamps = $3::timestamp[],
+                    expires_at = $4
+                WHERE scope = $1
+                  AND key_hash = $2
+                """,
+                scope,
+                key_hash,
+                attempts,
+                now + window,
+            )
+            return None
 
 
 async def register_user_in_db(user: UserInDB) -> int:
@@ -386,11 +495,13 @@ async def get_rfcs_from_db(
     public: bool | None = None,
     author_id: int | None = None,
     review_requested: bool | None = None,
+    query: str | None = None,
     sort: Literal[
         "updated_at_desc",
         "updated_at_asc",
         "created_at_desc",
         "created_at_asc",
+        "relevance_desc",
     ] = "updated_at_desc",
     include_private: bool = False,
     quarantine_ok: bool = False,
@@ -398,9 +509,10 @@ async def get_rfcs_from_db(
     """
     Get paginated RFC summaries from the database.
     """
-    sort_clause = RFC_LIST_SORTS[sort]
     conditions: list[str] = []
     args: list[object] = []
+    search_arg_index: int | None = None
+    search_vector_sql = _build_rfc_search_vector_sql()
 
     if not quarantine_ok:
         conditions.append("COALESCE(rfcs.is_quarantined, FALSE) = FALSE")
@@ -418,10 +530,27 @@ async def get_rfcs_from_db(
     if review_requested is not None:
         args.append(review_requested)
         conditions.append(f"COALESCE(rfcs.review_requested, FALSE) = ${len(args)}")
+    if query is not None:
+        args.append(query)
+        search_arg_index = len(args)
+        conditions.append(
+            f"{search_vector_sql} @@ websearch_to_tsquery('{RFC_SEARCH_CONFIG}', ${search_arg_index})"
+        )
 
     where_clause = ""
     if conditions:
         where_clause = " WHERE " + " AND ".join(conditions)
+
+    if sort == "relevance_desc":
+        if search_arg_index is None:
+            raise ValueError("sort=relevance_desc requires query")
+        sort_clause = (
+            f"ts_rank_cd({search_vector_sql}, "
+            f"websearch_to_tsquery('{RFC_SEARCH_CONFIG}', ${search_arg_index})) DESC, "
+            "rfcs.updated_at DESC, rfcs.id DESC"
+        )
+    else:
+        sort_clause = RFC_LIST_SORTS[sort]
 
     global _pool
     async with _pool.acquire() as connection:

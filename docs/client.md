@@ -72,6 +72,8 @@ Revisions:
 
 `revision-post` is only valid while the RFC is still open for revision. Once the author requests admin review, or once the RFC is marked `accepted` or `rejected`, revision submission is rejected by the server.
 
+`rfc-list` also supports backend search via `--query "..."`. When a query is provided, the CLI defaults to `--sort relevance_desc`; otherwise it defaults to `updated_at_desc`.
+
 Comments:
 
 - `comment-list <rfc_id>`

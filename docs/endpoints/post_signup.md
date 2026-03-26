@@ -49,6 +49,6 @@ Body:
 
 - When `AUTH_DEBUG_RETURN_VERIFICATION_TOKEN=true`, `metadata.verification_token` contains the raw token.
 - Otherwise the server sends the token by email and `metadata.verification_token` is `null`.
-- Signup can fail with `429` when the in-memory rate limiter is triggered.
+- Signup can fail with `429` when the persistent Postgres-backed rate limiter is triggered.
 - If `REQUIRED_EMAIL_SUFFIX` is configured and the email does not match it, the request fails with `401`.
 - Duplicate usernames or emails fail with `409`.

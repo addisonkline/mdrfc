@@ -31,17 +31,15 @@ The browser app now has first-class admin workflows for the backend's moderation
 
 The browser app now surfaces the server README, README revision history, and admin README revision publishing. The signup and verification flow also exposes the backend's debug-token mode more clearly, with an explicit post-signup token handoff and a manual verification path for local development.
 
-## High Priority
+### Persistent signup rate limiting
 
-### Persist signup rate limiting
+Signup rate limiting now persists in Postgres, survives server restarts, and keeps separate limits for client IPs and normalized signup identities.
 
-The signup rate limiter is currently in-memory. It resets on every restart. For real deployment it should move to Redis or Postgres.
+### Backend RFC search
+
+`GET /rfcs` now supports backend search across current RFC titles, slugs, summaries, and content. Search composes with the existing pagination and filtering contract, so both the React frontend and the CLI can use the same server-side query surface.
 
 ## Medium Priority
-
-### Search
-
-There is no backend search yet. The frontend can only work with whatever it already fetched.
 
 ### Deployment docs for the frontend
 
