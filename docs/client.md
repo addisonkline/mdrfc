@@ -37,7 +37,7 @@ Example:
 
 ```json
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "aliases": [
     { "alias": "ls", "command": "rfc-list" },
     { "alias": "cat", "command": "rfc-get" }
