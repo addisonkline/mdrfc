@@ -247,6 +247,7 @@ async def get_rfcs(
         public=request.public,
         author_id=request.author_id,
         review_requested=request.review_requested,
+        query=request.query,
         sort=request.sort,
         include_private=current_user is not None,
     )
@@ -265,6 +266,7 @@ async def get_rfcs(
                 public=request.public,
                 author_id=request.author_id,
                 review_requested=request.review_requested,
+                query=request.query,
             ),
             sort=request.sort,
         ),

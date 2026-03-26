@@ -20,6 +20,7 @@ def test_get_rfcs_returns_api_payload_for_anonymous_user(
         assert request.public is None
         assert request.author_id is None
         assert request.review_requested is None
+        assert request.query is None
         assert request.sort == "updated_at_desc"
         return res_types.GetRfcsResponse(
             rfcs=[rfc_summary_factory(id=2, public=True, slug="public-rfc")],
@@ -36,6 +37,7 @@ def test_get_rfcs_returns_api_payload_for_anonymous_user(
                     "public": None,
                     "author_id": None,
                     "review_requested": None,
+                    "query": None,
                 },
                 "sort": "updated_at_desc",
             },
@@ -75,6 +77,7 @@ def test_get_rfcs_passes_query_params_to_api(
                     "public": request.public,
                     "author_id": request.author_id,
                     "review_requested": request.review_requested,
+                    "query": request.query,
                 },
                 "sort": request.sort,
             },
@@ -91,7 +94,8 @@ def test_get_rfcs_passes_query_params_to_api(
             "public": "true",
             "author_id": 7,
             "review_requested": "false",
-            "sort": "created_at_asc",
+            "query": "vector search",
+            "sort": "relevance_desc",
         },
     )
 
@@ -103,7 +107,19 @@ def test_get_rfcs_passes_query_params_to_api(
     assert request.public is True
     assert request.author_id == 7
     assert request.review_requested is False
-    assert request.sort == "created_at_asc"
+    assert request.query == "vector search"
+    assert request.sort == "relevance_desc"
+
+
+def test_get_rfcs_rejects_relevance_sort_without_query(client) -> None:
+    response = client.get(
+        "/rfcs",
+        params={
+            "sort": "relevance_desc",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_get_quarantined_rfcs_returns_admin_payload(

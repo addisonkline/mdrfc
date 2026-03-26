@@ -35,11 +35,11 @@ The browser app now surfaces the server README, README revision history, and adm
 
 Signup rate limiting now persists in Postgres, survives server restarts, and keeps separate limits for client IPs and normalized signup identities.
 
+### Backend RFC search
+
+`GET /rfcs` now supports backend search across current RFC titles, slugs, summaries, and content. Search composes with the existing pagination and filtering contract, so both the React frontend and the CLI can use the same server-side query surface.
+
 ## Medium Priority
-
-### Search
-
-There is no backend search yet. The frontend can only work with whatever it already fetched.
 
 ### Deployment docs for the frontend
 

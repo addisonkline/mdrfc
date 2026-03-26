@@ -267,6 +267,124 @@ def test_register_revision_updates_current_revision_and_public_flag(
     assert stored_revision.agent_contributors == ["codex@openai", "gpt@openai"]
 
 
+def test_get_rfcs_from_db_searches_and_sorts_by_relevance(
+    run_db,
+    fixed_timestamp,
+    user_in_db_factory,
+    user_factory,
+) -> None:
+    user_id, _ = _register_verified_user(
+        run_db,
+        user_in_db_factory,
+        user_factory,
+        fixed_timestamp=fixed_timestamp,
+    )
+    content_match_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=True,
+        title="Storage Maintenance RFC",
+        slug="storage-maintenance",
+        summary="Routine storage maintenance procedures.",
+        content="This RFC introduces nebula indexing for archived records.",
+        updated_at=fixed_timestamp + timedelta(minutes=5),
+    )
+    summary_match_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=True,
+        title="Review Queue Cleanup RFC",
+        slug="review-queue-cleanup",
+        summary="Nebula indexing keeps related RFC search results grouped together.",
+        content="Admin workflows for review queues.",
+        updated_at=fixed_timestamp + timedelta(minutes=4),
+    )
+    title_match_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=True,
+        title="Nebula Indexing RFC",
+        slug="nebula-indexing",
+        summary="Search improvements for RFC discovery.",
+        content="Implementation notes for RFC search.",
+        updated_at=fixed_timestamp + timedelta(minutes=3),
+    )
+
+    result = run_db(
+        db.get_rfcs_from_db(
+            include_private=True,
+            query="nebula indexing",
+            sort="relevance_desc",
+        )
+    )
+
+    assert result.total == 3
+    assert [rfc.id for rfc in result.items] == [
+        title_match_id,
+        summary_match_id,
+        content_match_id,
+    ]
+
+
+def test_get_rfcs_from_db_search_respects_public_visibility(
+    run_db,
+    fixed_timestamp,
+    user_in_db_factory,
+    user_factory,
+) -> None:
+    user_id, _ = _register_verified_user(
+        run_db,
+        user_in_db_factory,
+        user_factory,
+        fixed_timestamp=fixed_timestamp,
+    )
+    public_rfc_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=True,
+        title="Vector Search RFC",
+        slug="vector-search",
+        summary="Public search improvements.",
+        content="Expose RFC search for all readers.",
+    )
+    private_rfc_id, _ = _register_rfc(
+        run_db,
+        fixed_timestamp,
+        created_by=user_id,
+        public=False,
+        title="Vector Search Private RFC",
+        slug="vector-search-private",
+        summary="Private search improvements.",
+        content="Internal RFC search rollout notes.",
+        updated_at=fixed_timestamp + timedelta(minutes=1),
+    )
+
+    anonymous_result = run_db(
+        db.get_rfcs_from_db(
+            query="vector search",
+            sort="relevance_desc",
+        )
+    )
+    authenticated_result = run_db(
+        db.get_rfcs_from_db(
+            include_private=True,
+            query="vector search",
+            sort="relevance_desc",
+        )
+    )
+
+    assert [rfc.id for rfc in anonymous_result.items] == [public_rfc_id]
+    assert authenticated_result.total == 2
+    assert {rfc.id for rfc in authenticated_result.items} == {
+        private_rfc_id,
+        public_rfc_id,
+    }
+
+
 def test_comment_round_trip_and_quarantine_cycle(
     run_db,
     fixed_timestamp,

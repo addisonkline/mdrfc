@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Table,
     UUID,
+    text,
 )
 
 from mdrfc.backend import constants as consts
@@ -172,6 +173,20 @@ Index("ix_rfcs_status", rfcs.c.status)
 Index("ix_rfcs_created_by", rfcs.c.created_by)
 Index("ix_rfcs_review_requested", rfcs.c.review_requested)
 Index("ix_rfcs_is_public", rfcs.c.is_public)
+Index(
+    "ix_rfcs_search_vector",
+    text(
+        """
+        (
+            setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
+            setweight(to_tsvector('simple', coalesce(slug, '')), 'A') ||
+            setweight(to_tsvector('simple', coalesce(summary, '')), 'B') ||
+            setweight(to_tsvector('simple', coalesce(content, '')), 'C')
+        )
+        """
+    ),
+    postgresql_using="gin",
+)
 Index("ix_signup_rate_limit_states_expires_at", signup_rate_limit_states.c.expires_at)
 Index(
     "ix_rfc_comments_listing_parent_created_at_id",

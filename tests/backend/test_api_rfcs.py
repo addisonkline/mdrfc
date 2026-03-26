@@ -36,6 +36,7 @@ def test_get_rfcs_filters_private_documents_for_anonymous_users(
     assert captured["include_private"] is False
     assert response.metadata.pagination.total == 1
     assert response.metadata.sort == "updated_at_desc"
+    assert response.metadata.filters.query is None
 
 
 def test_get_rfcs_returns_private_documents_for_authenticated_users(
@@ -60,7 +61,13 @@ def test_get_rfcs_returns_private_documents_for_authenticated_users(
     response = asyncio.run(
         api.get_rfcs(
             current_user=user_factory(),
-            request=GetRfcsRequest(limit=10, offset=5, status="open"),
+            request=GetRfcsRequest(
+                limit=10,
+                offset=5,
+                status="open",
+                query="private lookup",
+                sort="relevance_desc",
+            ),
         )
     )
 
@@ -69,8 +76,11 @@ def test_get_rfcs_returns_private_documents_for_authenticated_users(
     assert captured["limit"] == 10
     assert captured["offset"] == 5
     assert captured["status"] == "open"
+    assert captured["query"] == "private lookup"
     assert response.metadata.pagination.offset == 5
     assert response.metadata.filters.status == "open"
+    assert response.metadata.filters.query == "private lookup"
+    assert response.metadata.sort == "relevance_desc"
 
 
 def test_get_rfc_blocks_anonymous_access_to_private_document(

@@ -235,9 +235,19 @@ rfc_list_p.add_argument(
     help="filter RFCs by review-requested state",
 )
 rfc_list_p.add_argument(
+    "--query",
+    help="search RFC title, slug, summary, and content",
+)
+rfc_list_p.add_argument(
     "--sort",
-    choices=["updated_at_desc", "updated_at_asc", "created_at_desc", "created_at_asc"],
-    default="updated_at_desc",
+    choices=[
+        "updated_at_desc",
+        "updated_at_asc",
+        "created_at_desc",
+        "created_at_asc",
+        "relevance_desc",
+    ],
+    default=None,
     help="sort order for the RFC list",
 )
 
@@ -1114,6 +1124,9 @@ def _cmd_rfc_list(args: Namespace) -> None:
     global _token
 
     headers = {"User-Agent": _get_user_agent()}
+    sort = args.sort
+    if sort is None:
+        sort = "relevance_desc" if args.query else "updated_at_desc"
     query_params = _prune_query_params(
         {
             "limit": args.limit,
@@ -1122,7 +1135,8 @@ def _cmd_rfc_list(args: Namespace) -> None:
             "public": _parse_optional_bool(args.public),
             "author_id": args.author_id,
             "review_requested": _parse_optional_bool(args.review_requested),
-            "sort": args.sort,
+            "query": args.query,
+            "sort": sort,
         }
     )
 

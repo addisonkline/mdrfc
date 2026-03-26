@@ -11,6 +11,7 @@ from pydantic import (
     StringConstraints,
     ValidationError,
     field_validator,
+    model_validator,
 )
 
 from mdrfc.backend.comment import validate_comment_content
@@ -129,7 +130,20 @@ RfcListSort = Literal[
     "updated_at_asc",
     "created_at_desc",
     "created_at_asc",
+    "relevance_desc",
 ]
+
+
+def validate_rfc_search_query(value: str) -> str:
+    query = value.strip()
+    if not query:
+        raise ValueError("query must not be empty")
+    if len(query) > consts.LEN_RFC_SEARCH_QUERY_MAX:
+        raise ValueError(
+            "query must be no greater than "
+            f"{consts.LEN_RFC_SEARCH_QUERY_MAX} characters long"
+        )
+    return query
 
 
 class GetRfcsRequest(BaseModel):
@@ -149,7 +163,24 @@ class GetRfcsRequest(BaseModel):
     public: bool | None = None
     author_id: int | None = Field(default=None, ge=1)
     review_requested: bool | None = None
+    query: str | None = Field(
+        default=None,
+        max_length=consts.LEN_RFC_SEARCH_QUERY_MAX,
+    )
     sort: RfcListSort = "updated_at_desc"
+
+    @field_validator("query")
+    @classmethod
+    def _validate_query(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return validate_rfc_search_query(value)
+
+    @model_validator(mode="after")
+    def _validate_sort_dependencies(self) -> "GetRfcsRequest":
+        if self.sort == "relevance_desc" and self.query is None:
+            raise ValueError("sort=relevance_desc requires query")
+        return self
 
 
 async def validate_get_rfcs_request(
@@ -161,17 +192,25 @@ async def validate_get_rfcs_request(
     public: bool | None = None,
     author_id: Annotated[int | None, Query(ge=1)] = None,
     review_requested: bool | None = None,
+    query: Annotated[
+        str | None,
+        Query(max_length=consts.LEN_RFC_SEARCH_QUERY_MAX),
+    ] = None,
     sort: RfcListSort = "updated_at_desc",
 ) -> GetRfcsRequest:
-    return GetRfcsRequest(
-        limit=limit,
-        offset=offset,
-        status=status,
-        public=public,
-        author_id=author_id,
-        review_requested=review_requested,
-        sort=sort,
-    )
+    try:
+        return GetRfcsRequest(
+            limit=limit,
+            offset=offset,
+            status=status,
+            public=public,
+            author_id=author_id,
+            review_requested=review_requested,
+            query=query,
+            sort=sort,
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=f"request validation failed: {e}")
 
 
 class PostRfcRequest(BaseModel):

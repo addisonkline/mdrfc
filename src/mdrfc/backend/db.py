@@ -59,10 +59,21 @@ RFC_LIST_SORTS = {
     "created_at_asc": "rfcs.created_at ASC, rfcs.id ASC",
 }
 
+RFC_SEARCH_CONFIG = "simple"
+
 COMMENT_LIST_SORTS = {
     "created_at_desc": "created_at DESC, id DESC",
     "created_at_asc": "created_at ASC, id ASC",
 }
+
+
+def _build_rfc_search_vector_sql(table_name: str = "rfcs") -> str:
+    return f"""
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.title, '')), 'A') ||
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.slug, '')), 'A') ||
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.summary, '')), 'B') ||
+    setweight(to_tsvector('{RFC_SEARCH_CONFIG}', COALESCE({table_name}.content, '')), 'C')
+    """.strip()
 
 
 def _serialize_agent_contributions(
@@ -484,11 +495,13 @@ async def get_rfcs_from_db(
     public: bool | None = None,
     author_id: int | None = None,
     review_requested: bool | None = None,
+    query: str | None = None,
     sort: Literal[
         "updated_at_desc",
         "updated_at_asc",
         "created_at_desc",
         "created_at_asc",
+        "relevance_desc",
     ] = "updated_at_desc",
     include_private: bool = False,
     quarantine_ok: bool = False,
@@ -496,9 +509,10 @@ async def get_rfcs_from_db(
     """
     Get paginated RFC summaries from the database.
     """
-    sort_clause = RFC_LIST_SORTS[sort]
     conditions: list[str] = []
     args: list[object] = []
+    search_arg_index: int | None = None
+    search_vector_sql = _build_rfc_search_vector_sql()
 
     if not quarantine_ok:
         conditions.append("COALESCE(rfcs.is_quarantined, FALSE) = FALSE")
@@ -516,10 +530,27 @@ async def get_rfcs_from_db(
     if review_requested is not None:
         args.append(review_requested)
         conditions.append(f"COALESCE(rfcs.review_requested, FALSE) = ${len(args)}")
+    if query is not None:
+        args.append(query)
+        search_arg_index = len(args)
+        conditions.append(
+            f"{search_vector_sql} @@ websearch_to_tsquery('{RFC_SEARCH_CONFIG}', ${search_arg_index})"
+        )
 
     where_clause = ""
     if conditions:
         where_clause = " WHERE " + " AND ".join(conditions)
+
+    if sort == "relevance_desc":
+        if search_arg_index is None:
+            raise ValueError("sort=relevance_desc requires query")
+        sort_clause = (
+            f"ts_rank_cd({search_vector_sql}, "
+            f"websearch_to_tsquery('{RFC_SEARCH_CONFIG}', ${search_arg_index})) DESC, "
+            "rfcs.updated_at DESC, rfcs.id DESC"
+        )
+    else:
+        sort_clause = RFC_LIST_SORTS[sort]
 
     global _pool
     async with _pool.acquire() as connection:

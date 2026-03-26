@@ -146,6 +146,7 @@ class GetRfcsFiltersMetadata(BaseModel):
     public: bool | None = None
     author_id: int | None = None
     review_requested: bool | None = None
+    query: str | None = None
 
 
 class GetRfcsMetadata(BaseModel):

@@ -22,7 +22,8 @@ status: "draft" | "open" | "accepted" | "rejected"
 public: boolean
 author_id: integer
 review_requested: boolean
-sort: "updated_at_desc" | "updated_at_asc" | "created_at_desc" | "created_at_asc"
+query: string (max 256 chars)
+sort: "updated_at_desc" | "updated_at_asc" | "created_at_desc" | "created_at_asc" | "relevance_desc"
 ```
 
 ## Success Response
@@ -57,7 +58,8 @@ sort: "updated_at_desc" | "updated_at_asc" | "created_at_desc" | "created_at_asc
       "status": null,
       "public": null,
       "author_id": null,
-      "review_requested": null
+      "review_requested": null,
+      "query": null
     },
     "sort": "updated_at_desc"
   }
@@ -68,4 +70,6 @@ sort: "updated_at_desc" | "updated_at_asc" | "created_at_desc" | "created_at_asc
 
 - Empty result sets return `200 OK` with `"rfcs": []`.
 - Anonymous callers are always restricted to public RFCs even when no `public` filter is supplied.
+- `query` searches the current RFC `title`, `slug`, `summary`, and `content`.
+- `sort=relevance_desc` requires `query`.
 - The current React frontend creates RFCs without sending a `public` field, so browser-created RFCs are private by default and will not appear in anonymous `GET /rfcs` responses.
